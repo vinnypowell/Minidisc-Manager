@@ -262,8 +262,6 @@ class DiscToolsMixin:
     def tracklist_sync(self, index):
         """WRITES A FILE TO THE DISC. Stores the current track list as TRACKS.CSV (the page calls this only when the disc's copy is
         missing or out of date, and only if the user switched the feature on)."""
-        if not self._license_allowed():
-            return {'skipped': True}
         if self._is_netmd(index):
             return {'error': 'Only Hi-MD discs can hold a track list file.'}
         if not self._tracks:

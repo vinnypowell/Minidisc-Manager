@@ -13,6 +13,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -51,20 +52,13 @@ import play_tracks
 import himd_dev
 import himd_disc
 import himd_fs
-import licensing
 import sonos_cast
 import video_links
 from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.27.9'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
-# Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
-LICENSE_REQUIRED = False
-LS_STORE_ID = 0
-LS_PRODUCT_ID = 0
-BUY_URL = ''
-LICENSE = licensing.License(USER_DIR, LICENSE_REQUIRED, LS_STORE_ID, LS_PRODUCT_ID, BUY_URL, version=APP_VERSION)
+APP_VERSION = '0.27.10'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -486,28 +480,7 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
 
     def app_info(self):
         """The version, and whether this is the packaged program (installed or unzipped) rather than the source folder."""
-        return {'version': APP_VERSION, 'packaged': FROZEN, 'license': LICENSE.status()}
-
-    # -- license (the paid edition only; in the personal build LICENSE.required is False and all of this is inert) -------
-    def license_status(self):
-        return LICENSE.status()
-
-    def _license_allowed(self):
-        return LICENSE.allowed()
-
-    def license_activate(self, key):
-        r = LICENSE.activate(key)
-        return dict(r, status=LICENSE.status())
-
-    def license_deactivate(self):
-        r = LICENSE.deactivate()
-        return dict(r, status=LICENSE.status())
-
-    def license_buy(self):
-        if LICENSE.buy_url.startswith('https://'):
-            webbrowser.open(LICENSE.buy_url)
-            return {'ok': True}
-        return {'error': 'The purchase page has not been set up yet.'}
+        return {'version': APP_VERSION, 'packaged': FROZEN}
 
     def first_run_notice(self):
         """An installed copy shows a safety notice once (what the program can do to a disc, and to back up first)."""
@@ -570,24 +543,6 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
                 pass                                       # the tracks are on the disc; only playing them here is affected
             return res
 
-
-# Everything that changes a disc, rips, records, clones or saves needs a valid license or a running trial (paid edition only). Looking at a
-# disc and playing it stay free. The page shows the license sheet when it sees `licenseRequired` in an answer.
-GATED = ('upload', 'bc_open', 'radio_start', 'bc_add', 'cd_rip_add', 'yoto_rip_add', 'yoto_send', 'edit_run', 'clone_read', 'clone_write', 'delete_tracks', 'rename_track', 'rename_tracks_each', 'move_track',
-         'rename_group', 'make_group', 'make_groups', 'release_group', 'add_to_group', 'rename_disc', 'undo', 'set_clock', 'cover_set', 'cover_remove', 'label_save_disc', 'label_remove', 'format_disc', 'convert_read', 'convert_write', 'lpsp_read', 'lpsp_run', 'lpsp_spill_write', 'save_tracks','cd_burn_run', 'cd_burn_erase', 'cd_data_run', 'lyrics_save_disc', 'groupart_save_disc')
-
-
-def _gate(fn):
-    @functools.wraps(fn)
-    def gated(*args, **kwargs):
-        if not LICENSE.allowed():
-            return {'error': 'The trial has ended. Enter a license key to keep changing discs.', 'licenseRequired': True}
-        return fn(*args, **kwargs)
-    return gated
-
-
-for _name in GATED:
-    setattr(Api, _name, _gate(getattr(Api, _name)))
 
 
 def _sweep_temp(min_age=300):
@@ -709,8 +664,6 @@ class WindowMemory:
 
 def main():
     api = Api()
-    LICENSE._log = api.log
-    threading.Thread(target=LICENSE.refresh, daemon=True).start()          # is the key still good? (once a day, silently)
     shutil.rmtree(PLAY_DIR, ignore_errors=True)
     shutil.rmtree(BC_DIR, ignore_errors=True)
     os.makedirs(WEBVIEW_DIR, exist_ok=True)
@@ -787,7 +740,56 @@ def main():
             pass
 
     api._window.events.closing += on_closing
-    webview.start(private_mode=False, storage_path=WEBVIEW_DIR)
+    try:
+        webview.start(private_mode=False, storage_path=WEBVIEW_DIR)
+    except Exception as e:
+        _start_failed(e)
+
+
+def _unblock_own_folder():
+    """A zip downloaded from the internet leaves a 'blocked' mark (Zone.Identifier) on every file, and .NET then refuses to load
+    Python.Runtime.dll, so the window cannot start. Remove that mark from every file of this program's own folder."""
+    root = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
+    n = 0
+    for d, _dirs, files in os.walk(root):
+        for f in files:
+            try:
+                os.remove(os.path.join(d, f) + ':Zone.Identifier')
+                n += 1
+            except OSError:
+                pass
+    return n
+
+
+def _start_failed(err):
+    """The window would not start. If the cause is the blocked-download mark, fix it and start again once; otherwise explain in plain words."""
+    try:
+        with open(os.path.join(os.environ.get('LOCALAPPDATA', tempfile.gettempdir()), 'MiniDiscManager', 'start-error.txt'), 'w', encoding='utf-8') as fh:
+            fh.write(repr(err))
+    except Exception:
+        pass
+    if getattr(sys, 'frozen', False) and not os.environ.get('MDM_UNBLOCK_RETRY'):
+        try:
+            if _unblock_own_folder():
+                env = dict(os.environ, MDM_UNBLOCK_RETRY='1')
+                subprocess.Popen([sys.executable] + sys.argv[1:], env=env, cwd=os.path.dirname(sys.executable))
+                return
+        except Exception:
+            pass
+    text = ('MiniDisc Manager could not open its window.\n\n'
+            'This usually happens when the program was unzipped from a download that Windows has "blocked".\n\n'
+            'To fix it:\n'
+            '1. Close this message.\n'
+            '2. Open the program folder and double-click "Unblock.bat" (or right-click the .zip, choose Properties, tick Unblock, '
+            'then unzip it again).\n'
+            '3. Start MiniDisc Manager again.\n\n'
+            'If it still does not open, install it with the Setup program instead.\n\n'
+            'Details: ' + str(err)[:300])
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(None, text, 'MiniDisc Manager', 0x10)
+    except Exception:
+        pass
 
 
 if __name__ == '__main__':

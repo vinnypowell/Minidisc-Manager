@@ -1,7 +1,7 @@
 """Backing up and restoring the app's own data (lyrics, disc catalogue, track details, favourites, printer settings and the page's settings), as one zip file.
 BackupMixin is mixed into himd_app.Api (the page calls these methods on it).
 
-Not included on purpose: sign-in tokens and the licence (a backup file may be copied around, and those must not travel), the saved copies of tracks
+Not included on purpose: sign-in tokens (a backup file may be copied around, and those must not travel), the saved copies of tracks
 (far too big), logs, and caches that are rebuilt by themselves."""
 import json
 import os

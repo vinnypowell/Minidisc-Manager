@@ -495,7 +495,7 @@
   <div class="logo"><i title="MiniDisc Manager"><svg viewBox="0 0 44 38" width="44" height="38" aria-hidden="true">
     <text x="7" y="21.5" font-size="21" font-weight="800" fill="#fff" textLength="30" lengthAdjust="spacingAndGlyphs">MD</text>
     <text x="7" y="32" font-size="9" font-weight="600" fill="#fff" fill-opacity=".92" textLength="30" lengthAdjust="spacingAndGlyphs">manager</text>
-  </svg></i> MiniDisc Manager <span id="appVersion" class="ver"></span> <button id="licBtn" class="ver" style="display:none;cursor:pointer;border:1px solid var(--line)" title="License"></button></div>
+  </svg></i> MiniDisc Manager <span id="appVersion" class="ver"></span></div>
   <div class="spacer"></div>
   <button id="undoTop" class="hidden" title="Undo last change: restore the disc's track index as it was before the last rename, move, group or similar change (not available after a delete)">↶ Undo last change</button>
   <button id="settingsBtn" title="Settings: switch the automatic disc lookup and the missing-details prompt on or off">⚙ Settings</button>
@@ -818,11 +818,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
-// Every call goes through here: an answer that says `licenseRequired` (paid edition, trial over) also opens the license sheet.
-const api = () => new Proxy(window.pywebview.api, { get(t, k) {
-  const f = t[k]; if (typeof f !== 'function') return f;
-  return async (...a) => { const r = await f.apply(t, a); if (r && r.licenseRequired && k !== 'license_status') showLicense(); return r; };
-} });
+const api = () => window.pywebview.api;
 let current = 0;
 let netmd = false;           // the loaded recorder holds a standard MiniDisc (NetMD) rather than a Hi-MD disc
 let canFetchDev = false, canExploitDev = false;   // the loaded standard-disc recorder sends audio back itself (MZ-RH1) / can be made to (MZ-NH700)
@@ -3083,7 +3079,7 @@ const helpText = () => ({
       '• The artists and albums remembered for standard discs, and your radio favourites.',
       '• Printer settings, including the Hi-Print film count.',
       '• Your equalizer settings and the app’s choices (theme, where to play, and so on).',
-      'It leaves out, on purpose: your Yoto sign-in and the licence (a backup file may be copied around), and the saved copies of tracks (far too big).',
+      'It leaves out, on purpose: your Yoto sign-in (a backup file may be copied around), and the saved copies of tracks (far too big).',
     ]],
     ['Restore from a backup', [
       'Press “Restore from a backup…”, choose a backup zip and confirm.',
@@ -3094,7 +3090,7 @@ const helpText = () => ({
     ['When to use it', [
       '• Now and then, and before moving to a new PC or reinstalling Windows.',
       '• Keep the file somewhere safe: OneDrive, a USB stick or another drive.',
-      '• On a new PC: install the app, then restore the backup. Your Yoto account and licence need signing in again there.',
+      '• On a new PC: install the app, then restore the backup. Your Yoto account needs signing in again there.',
     ]],
   ]],
   playon: ['Play on', [
@@ -3288,7 +3284,7 @@ $('dataBtn').addEventListener('click', () => {
   } });
   openSheet(el('h2', { textContent: 'Backup and restore' }),
     el('div', { className: 'sub', textContent: 'Everything this app keeps on this PC, in one file: the lyrics you found, the disc catalogue, the artists and albums remembered for standard discs, radio favourites, printer settings (including the Hi-Print film count), your equalizer settings and the app’s choices (theme, where to play, and so on).' }),
-    el('div', { className: 'sub', style: 'margin-top:8px', textContent: 'Not included, on purpose: your Yoto sign-in and licence, and the saved copies of tracks (too big). Keep the backup somewhere safe, such as OneDrive or a USB stick. ' }, helpLink('backup')),
+    el('div', { className: 'sub', style: 'margin-top:8px', textContent: 'Not included, on purpose: your Yoto sign-in, and the saved copies of tracks (too big). Keep the backup somewhere safe, such as OneDrive or a USB stick. ' }, helpLink('backup')),
     out, el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet }), restore, make));
 });
 
@@ -5871,50 +5867,10 @@ async function firstRunNotice() {
     el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, ok, el('span', { textContent: 'I understand, and I have copied off anything I cannot replace.' })),
     el('div', { className: 'row' }, el('button', { textContent: 'Driver setup guide…', onclick: () => api().open_driver_guide() }), go));
 }
-// ---- License (paid edition only: the button stays hidden when the program does not ask for a key) ------------------------------
-function paintLicense(s) {
-  const b = $('licBtn');
-  if (!s || !s.required) { b.style.display = 'none'; return; }
-  b.style.display = '';
-  b.textContent = s.licensed ? 'Licensed' : s.allowed ? 'Trial: ' + s.trialDaysLeft + (s.trialDaysLeft === 1 ? ' day' : ' days') + ' left' : 'Trial ended';
-  b.style.color = s.allowed ? '' : 'var(--warn, #f5b84a)';
-  b.onclick = showLicense;
-}
-async function showLicense() {
-  const s = await api().license_status(); paintLicense(s);
-  if (!s.required) return;
-  const key = el('input', { placeholder: 'Paste your license key', maxLength: 80, style: 'width:100%;box-sizing:border-box' });
-  const msg = el('div', { className: 'notice', style: 'display:none' });
-  const say = (t, bad) => { msg.textContent = t; msg.className = 'notice' + (bad ? ' warn' : ''); msg.style.display = t ? '' : 'none'; };
-  const head = s.licensed ? 'This copy is licensed (key ' + s.keyHint + '). Thank you for buying MiniDisc Manager.'
-    : s.allowed ? 'Trial: ' + s.trialDaysLeft + (s.trialDaysLeft === 1 ? ' day' : ' days') + ' left. Everything works during the trial.'
-    : 'The trial has ended. You can still look at and play your discs. To add, delete, rip, record, clone or save, enter a license key.';
-  const go = el('button', { className: 'primary', textContent: 'Activate', onclick: async () => {
-    go.disabled = true; say('Checking the key…');
-    const r = await api().license_activate(key.value); go.disabled = false; paintLicense(r.status);
-    if (r.error) { say(r.error, true); return; }
-    toast('License activated. Thank you!'); closeSheet();
-  } });
-  const buy = el('button', { textContent: 'Buy a license…', onclick: async () => { const r = await api().license_buy(); if (r.error) say(r.error, true); } });
-  const release = el('button', { textContent: 'Release this PC', title: 'Frees this PC’s place so the key can be used on another PC', onclick: async () => {
-    if (!await askOk('Release this PC? The program will go back to the trial state until a key is entered again.')) return;
-    const r = await api().license_deactivate(); paintLicense(r.status);
-    if (r.error) say(r.error, true); else { toast('This PC was released.'); closeSheet(); }
-  } });
-  openSheet(el('h2', { textContent: 'License' }), el('div', { className: 'notice', textContent: head }),
-    s.message ? el('div', { className: 'notice warn', textContent: s.message }) : '',
-    s.configured ? '' : el('div', { className: 'notice warn', textContent: 'This copy is not linked to a store yet, so keys cannot be activated.' }),
-    s.licensed ? '' : el('div', {}, el('div', { className: 'eyebrow', textContent: 'License key' }), key),
-    msg,
-    el('div', { className: 'sub', textContent: 'Activating sends the key and this PC’s name to Lemon Squeezy, the service that sells and checks the licenses. The program asks again about once a day, and keeps working for up to 30 days without a connection. Nothing else is sent.' }),
-    el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet }), s.licensed ? release : buy, s.licensed ? '' : go));
-}
-
 // The version number, next to the name in the top-left corner.
 async function showVersion() {
   try {
     const i = await api().app_info(), v = $('appVersion');
-    paintLicense(i.license); if (i.license && i.license.required && !i.license.allowed) showLicense();
     v.textContent = 'v' + i.version; v.title = 'MiniDisc Manager ' + i.version + ' - Copyright (c) 2026 Vinny Powell' + (i.packaged ? '' : ' (running from the source folder)');
   } catch (e) { /* the number is only informative */ }
 }
