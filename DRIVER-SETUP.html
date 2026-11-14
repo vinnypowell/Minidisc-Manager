@@ -34,10 +34,19 @@
   summary { cursor: pointer; font-weight: 650; }
   details[open] summary { margin-bottom: 8px; }
   footer { margin-top: 44px; color: var(--muted); font-size: 14px; }
+  #langbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin: -10px 0 14px; }
+  #langbar button { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+  #langbar button.on { border-color: var(--accent); font-weight: 700; }
+  #langbar img { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; border: 1px solid rgba(128,128,128,.45); }
+  .L { display: none; } .L.on { display: block; }
 </style>
 </head>
 <body>
 <main>
+  <div id="langbar" translate="no"></div>
+
+<!-- ============================== ENGLISH ============================== -->
+<div class="L" data-l="en">
   <h1>USB driver setup <span>for MiniDisc Manager</span></h1>
   <p class="lead">A one-time step per recorder. It takes about two minutes and needs a free tool called Zadig.</p>
 
@@ -82,19 +91,7 @@
 
   <h2>Which entry is my recorder?</h2>
   <p>Zadig shows the USB ID as two boxes. MiniDisc Manager recognises any Sony Hi-MD recorder in Hi-MD mode, and these standard-disc (NetMD) models. Only the two marked <span class="tag t">tested</span> have been tried by the author.</p>
-  <table>
-    <tr><th>Model</th><th>Hi-MD mode (Hi-MD disc inside)</th><th>NetMD mode (standard disc inside)</th></tr>
-    <tr><td>Sony MZ-NH700 <span class="tag t">tested</span></td><td><code>054C : 0185</code></td><td><code>054C : 0184</code></td></tr>
-    <tr><td>Sony MZ-RH1 <span class="tag t">tested</span></td><td><code>054C : 0287</code></td><td><code>054C : 0286</code></td></tr>
-    <tr><td>Sony MZ-NH1</td><td><code>054C : 017F</code></td><td><code>054C : 017E</code></td></tr>
-    <tr><td>Sony MZ-NH3D</td><td><code>054C : 0181</code></td><td><code>054C : 0180</code></td></tr>
-    <tr><td>Sony MZ-NH900</td><td><code>054C : 0183</code></td><td><code>054C : 0182</code></td></tr>
-    <tr><td>Sony MZ-NH600 / NH600D</td><td><code>054C : 0187</code></td><td><code>054C : 0186</code> / <code>0187</code></td></tr>
-    <tr><td>Sony MZ-DH10P</td><td><code>054C : 01EA</code></td><td><code>054C : 01E9</code></td></tr>
-    <tr><td>Sony MZ-RH10</td><td><code>054C : 021A</code></td><td><code>054C : 0219</code></td></tr>
-    <tr><td>Sony MZ-RH910 / RH710</td><td><code>054C : 021C</code></td><td><code>054C : 021B</code></td></tr>
-    <tr><td>Sony DS-HMD1</td><td><code>054C : 023D</code></td><td><code>054C : 023C</code></td></tr>
-  </table>
+  <div class="models"></div>
   <p style="color:var(--muted)">Other Sony Hi-MD models and many older NetMD recorders (MZ-N, MZ-NE and others, plus some Aiwa, Sharp, Kenwood and Panasonic units) are recognised too, but have not been tested. If yours is not in the list, pick the entry that shows <code>054C</code> and is named like your recorder.</p>
 
   <h2>If something does not work</h2>
@@ -118,6 +115,276 @@
   <footer>
     MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos. Zadig is a separate program with its own licence. This page ships with the app (DRIVER-SETUP.html) and also opens from the Start Menu and from the "No recorder found" screen.
   </footer>
+</div>
+
+<!-- ============================== FRANÇAIS ============================== -->
+<div class="L" data-l="fr">
+  <h1>Installation du pilote USB <span>pour MiniDisc Manager</span></h1>
+  <p class="lead">Une étape unique par enregistreur. Elle prend environ deux minutes et nécessite un outil gratuit appelé Zadig.</p>
+
+  <div class="card note">
+    <b>Pourquoi est-ce nécessaire ?</b><br>
+    MiniDisc Manager communique directement avec l’enregistreur par USB. Pour cela, Windows doit utiliser un pilote générique
+    appelé <b>WinUSB</b> pour votre enregistreur. Windows choisit normalement un autre pilote (ou aucun), si bien que le programme ne
+    voit pas l’enregistreur tant que vous ne l’avez pas changé. Rien d’autre sur votre PC n’est affecté.
+  </div>
+
+  <div class="card warn">
+    <b>Ce qui change quand vous le faites</b>
+    <ul>
+      <li>Un enregistreur Hi-MD <b>n’apparaît plus comme une lettre de lecteur</b> dans l’Explorateur de fichiers. C’est normal : le programme le lit directement.</li>
+      <li>Les programmes de Sony (SonicStage, logiciel Hi-MD Walkman) ne trouveront plus cet enregistreur tant que vous n’annulez pas le changement (voir la fin de cette page).</li>
+      <li>Vous le faites pour chaque enregistreur utilisé, et une fois de plus pour le deuxième mode USB si vous utilisez à la fois des disques Hi-MD et standard (voir l’étape 8).</li>
+    </ul>
+  </div>
+
+  <h2>Avant de commencer</h2>
+  <ul>
+    <li>Fermez MiniDisc Manager, SonicStage et tout ce qui utilise l’enregistreur.</li>
+    <li>Utilisez un câble USB branché <b>directement sur le PC</b> (pas sur un hub si possible).</li>
+    <li>Téléchargez <b>Zadig</b> sur son site officiel : <a href="https://zadig.akeo.ie/">https://zadig.akeo.ie/</a>. C’est un seul programme, sans installation.
+        Zadig est un programme gratuit distinct du projet libwdi / Akeo et ne fait pas partie de MiniDisc Manager.</li>
+  </ul>
+
+  <h2>Pas à pas</h2>
+  <ol class="steps">
+    <li><b>Mettez un disque dans l’enregistreur et allumez-le.</b> Pour un enregistreur Hi-MD, n’importe quel disque convient. Un enregistreur contenant un MiniDisc standard apparaît dans un autre mode USB (voir l’étape 8).</li>
+    <li><b>Branchez l’enregistreur au PC avec son câble USB.</b> Attendez que Windows ait terminé et que l’écran de l’enregistreur indique qu’il est connecté.</li>
+    <li><b>Lancez Zadig en tant qu’administrateur.</b> Faites un clic droit sur <code>zadig-2.9.exe</code> et choisissez <b>Exécuter en tant qu’administrateur</b>. Répondez <b>Oui</b> à la demande de Windows. Si Zadig propose de rechercher des mises à jour, les deux réponses conviennent.</li>
+    <li><b>Affichez tous les appareils.</b> Dans le menu de Zadig, choisissez <kbd>Options</kbd> &rarr; <kbd>List All Devices</kbd>.</li>
+    <li><b>Choisissez votre enregistreur dans la liste déroulante.</b> Il est généralement listé comme <code>Hi-MD</code>, <code>Net MD</code> ou le nom du modèle. Vérifiez que les deux champs sous la liste affichent un identifiant Sony correspondant au tableau ci-dessous
+        (le premier champ est <code>054C</code>, le second est l’identifiant du modèle).
+        <div class="card warn" style="margin-top:10px"><b>Attention :</b> Zadig liste tous les appareils USB. Ne modifiez que l’enregistreur. Remplacer le pilote d’un clavier, d’une souris ou d’un autre appareil peut l’empêcher de fonctionner.</div></li>
+    <li><b>Choisissez WinUSB.</b> Dans le champ à droite de la flèche verte, utilisez les flèches haut/bas jusqu’à voir <code>WinUSB</code> (pas libusb-win32, libusbK ni les variantes WinUSB (v6...)).</li>
+    <li><b>Cliquez sur <kbd>Replace Driver</kbd></b> (ou <kbd>Install Driver</kbd>). Attendez le message <i>« The driver was installed successfully »</i>. Cela peut prendre jusqu’à une minute. Puis fermez Zadig.</li>
+    <li><b>Aussi des MiniDiscs standard ?</b> Un enregistreur Hi-MD utilise un identifiant USB <i>différent</i> quand il contient un disque standard (non Hi-MD). Si vous voulez utiliser des disques standard, mettez un disque standard dans l’enregistreur <b>avant</b> de le brancher, branchez-le, et répétez les étapes 3 à 7 pour cette seconde entrée.</li>
+    <li><b>Lancez MiniDisc Manager.</b> L’enregistreur apparaît dans la liste en haut à droite, avec un point vert. Sinon, appuyez sur le bouton de nouvelle recherche (la flèche circulaire).</li>
+  </ol>
+
+  <h2>Quelle entrée est mon enregistreur ?</h2>
+  <p>Zadig affiche l’identifiant USB dans deux champs. MiniDisc Manager reconnaît tout enregistreur Sony Hi-MD en mode Hi-MD, ainsi que ces modèles pour disques standard (NetMD). Seuls les deux marqués <span class="tag t">testé</span> ont été essayés par l’auteur.</p>
+  <div class="models"></div>
+  <p style="color:var(--muted)">D’autres modèles Sony Hi-MD et de nombreux anciens enregistreurs NetMD (MZ-N, MZ-NE et d’autres, plus quelques appareils Aiwa, Sharp, Kenwood et Panasonic) sont aussi reconnus, mais n’ont pas été testés. Si le vôtre n’est pas dans la liste, choisissez l’entrée qui affiche <code>054C</code> et porte un nom proche de votre enregistreur.</p>
+
+  <h2>Si quelque chose ne fonctionne pas</h2>
+  <details><summary>L’enregistreur n’est pas dans la liste de Zadig</summary>
+    Vérifiez que <b>Options &rarr; List All Devices</b> est coché. Débranchez et rebranchez l’enregistreur, attendez dix secondes et appuyez deux fois sur <b>Options &rarr; List All Devices</b> pour actualiser. Essayez un autre port USB ou un autre câble (certains câbles ne servent qu’à la charge).</details>
+  <details><summary>L’enregistreur est dans la liste de Zadig, mais le programme dit « Aucun enregistreur trouvé »</summary>
+    Vérifiez que le pilote affiché pour l’enregistreur dans Zadig (champ de gauche) est maintenant <b>WinUSB</b>. Fermez SonicStage et tout autre programme qui utilise l’enregistreur. Appuyez sur le bouton de nouvelle recherche du programme. Un enregistreur avec un disque standard a besoin de sa propre entrée (étape 8).</details>
+  <details><summary>« Accès refusé » ou « impossible de communiquer avec l’enregistreur »</summary>
+    Un seul programme à la fois peut utiliser l’enregistreur. Fermez tout autre programme qui l’utilise (y compris une seconde copie de MiniDisc Manager), débranchez et rebranchez l’enregistreur, puis relancez la recherche.</details>
+  <details><summary>L’enregistreur affiche « PC » ou aucun disque, ou Windows dit que le périphérique USB n’est pas reconnu</summary>
+    Débranchez l’enregistreur, retirez le disque, remettez-le, puis rebranchez l’enregistreur. Attendez que son écran se stabilise avant de lancer le programme.</details>
+  <details><summary>Je veux annuler et retrouver ma lettre de lecteur</summary>
+    Ouvrez le <b>Gestionnaire de périphériques</b> (clic droit sur le bouton Démarrer). Sous <b>Contrôleurs de bus USB</b> (ou « Périphériques USB »), trouvez votre enregistreur (il peut s’appeler <code>Hi-MD</code> ou <code>Net MD</code>), faites un clic droit, choisissez <b>Désinstaller le périphérique</b>, cochez <b>Supprimer le pilote de ce périphérique</b> et confirmez. Débranchez et rebranchez l’enregistreur : Windows réinstalle son pilote normal.</details>
+  <details><summary>Est-ce sûr ? Cela peut-il endommager mon enregistreur ou mes disques ?</summary>
+    Changer le pilote ne modifie que la façon dont Windows communique avec l’enregistreur ; cela ne change ni l’enregistreur ni le contenu du disque. Cependant, MiniDisc Manager peut <b>écrire sur les disques et les effacer</b>. Copiez sur votre PC les enregistrements irremplaçables (Enregistrer sur le PC...) avant de modifier un disque, et ne débranchez pas l’enregistreur pendant que le programme indique qu’il travaille.</details>
+
+  <div class="card ok" style="margin-top:28px">
+    <b>Vérifiez que cela a fonctionné :</b> lancez MiniDisc Manager. Un point vert et le nom de votre enregistreur apparaissent en haut à droite, et les pistes du disque sont listées.
+  </div>
+
+  <footer>
+    MiniDisc Manager n’est ni affilié à Sony ou Sonos, ni approuvé par eux. Zadig est un programme distinct avec sa propre licence. Cette page est fournie avec le programme (DRIVER-SETUP.html) et s’ouvre aussi depuis le menu Démarrer et depuis l’écran « Aucun enregistreur trouvé ».
+  </footer>
+</div>
+
+<!-- ============================== DEUTSCH ============================== -->
+<div class="L" data-l="de">
+  <h1>USB-Treiber einrichten <span>für MiniDisc Manager</span></h1>
+  <p class="lead">Ein einmaliger Schritt pro Recorder. Er dauert etwa zwei Minuten und braucht ein kostenloses Werkzeug namens Zadig.</p>
+
+  <div class="card note">
+    <b>Warum ist das nötig?</b><br>
+    MiniDisc Manager spricht den Recorder direkt über USB an. Dafür muss Windows für Ihren Recorder einen allgemeinen Treiber namens
+    <b>WinUSB</b> verwenden. Windows wählt normalerweise einen anderen Treiber (oder gar keinen), sodass das Programm den Recorder
+    erst sieht, wenn Sie ihn umstellen. Nichts anderes auf Ihrem PC ist betroffen.
+  </div>
+
+  <div class="card warn">
+    <b>Was sich dabei ändert</b>
+    <ul>
+      <li>Ein Hi-MD-Recorder <b>erscheint nicht mehr als Laufwerksbuchstabe</b> im Datei-Explorer. Das ist normal: Das Programm liest ihn direkt.</li>
+      <li>Sonys eigene Programme (SonicStage, Hi-MD-Walkman-Software) finden diesen Recorder nicht mehr, bis Sie die Änderung rückgängig machen (siehe das Ende dieser Seite).</li>
+      <li>Sie tun dies für jeden Recorder, den Sie verwenden, und einmal mehr für den zweiten USB-Modus, wenn Sie sowohl Hi-MD- als auch Standard-Discs nutzen (siehe Schritt 8).</li>
+    </ul>
+  </div>
+
+  <h2>Bevor Sie beginnen</h2>
+  <ul>
+    <li>Schließen Sie MiniDisc Manager, SonicStage und alles andere, was den Recorder verwendet.</li>
+    <li>Verwenden Sie ein USB-Kabel, das <b>direkt am PC</b> steckt (möglichst nicht an einem Hub).</li>
+    <li>Laden Sie <b>Zadig</b> von der offiziellen Seite herunter: <a href="https://zadig.akeo.ie/">https://zadig.akeo.ie/</a>. Es ist ein einzelnes Programm ohne Installation.
+        Zadig ist ein eigenständiges kostenloses Programm des libwdi- / Akeo-Projekts und kein Teil von MiniDisc Manager.</li>
+  </ul>
+
+  <h2>Schritt für Schritt</h2>
+  <ol class="steps">
+    <li><b>Legen Sie eine Disc in den Recorder und schalten Sie ihn ein.</b> Bei einem Hi-MD-Recorder genügt jede Disc. Ein Recorder mit einer Standard-MiniDisc erscheint in einem anderen USB-Modus (siehe Schritt 8).</li>
+    <li><b>Schließen Sie den Recorder mit seinem USB-Kabel an den PC an.</b> Warten Sie, bis Windows fertig ist und das Display des Recorders zeigt, dass er verbunden ist.</li>
+    <li><b>Starten Sie Zadig als Administrator.</b> Klicken Sie mit der rechten Maustaste auf <code>zadig-2.9.exe</code> und wählen Sie <b>Als Administrator ausführen</b>. Bestätigen Sie die Windows-Abfrage mit <b>Ja</b>. Fragt Zadig nach Updates, ist jede Antwort in Ordnung.</li>
+    <li><b>Alle Geräte anzeigen.</b> Wählen Sie im Zadig-Menü <kbd>Options</kbd> &rarr; <kbd>List All Devices</kbd>.</li>
+    <li><b>Wählen Sie Ihren Recorder in der Dropdown-Liste.</b> Er heißt meist <code>Hi-MD</code>, <code>Net MD</code> oder wie das Modell. Prüfen Sie, dass die beiden Felder unter der Liste eine Sony-ID zeigen, die zur Tabelle unten passt
+        (das erste Feld ist <code>054C</code>, das zweite die ID des Modells).
+        <div class="card warn" style="margin-top:10px"><b>Vorsicht:</b> Zadig listet jedes USB-Gerät. Ändern Sie nur den Recorder. Wird der Treiber einer Tastatur, Maus oder eines anderen Geräts ersetzt, kann es aufhören zu funktionieren.</div></li>
+    <li><b>Wählen Sie WinUSB.</b> Benutzen Sie im Feld rechts vom grünen Pfeil die Auf-/Ab-Pfeile, bis dort <code>WinUSB</code> steht (nicht libusb-win32, libusbK oder WinUSB-(v6...)-Varianten).</li>
+    <li><b>Klicken Sie auf <kbd>Replace Driver</kbd></b> (oder <kbd>Install Driver</kbd>). Warten Sie auf die Meldung <i>„The driver was installed successfully“</i>. Das kann bis zu einer Minute dauern. Schließen Sie dann Zadig.</li>
+    <li><b>Auch Standard-MiniDiscs?</b> Ein Hi-MD-Recorder verwendet eine <i>andere</i> USB-ID, wenn eine Standard-Disc (keine Hi-MD-Disc) eingelegt ist. Wenn Sie Standard-Discs nutzen möchten, legen Sie eine Standard-Disc in den Recorder, <b>bevor</b> Sie ihn anschließen, schließen Sie ihn an und wiederholen Sie die Schritte 3 bis 7 für diesen zweiten Eintrag.</li>
+    <li><b>Starten Sie MiniDisc Manager.</b> Der Recorder erscheint oben rechts in der Liste, mit einem grünen Punkt. Falls nicht, drücken Sie die Schaltfläche zum erneuten Suchen (der runde Pfeil).</li>
+  </ol>
+
+  <h2>Welcher Eintrag ist mein Recorder?</h2>
+  <p>Zadig zeigt die USB-ID in zwei Feldern. MiniDisc Manager erkennt jeden Sony-Hi-MD-Recorder im Hi-MD-Modus sowie diese Modelle für Standard-Discs (NetMD). Nur die beiden mit <span class="tag t">getestet</span> markierten hat der Autor ausprobiert.</p>
+  <div class="models"></div>
+  <p style="color:var(--muted)">Andere Sony-Hi-MD-Modelle und viele ältere NetMD-Recorder (MZ-N, MZ-NE und andere sowie einige Geräte von Aiwa, Sharp, Kenwood und Panasonic) werden ebenfalls erkannt, wurden aber nicht getestet. Fehlt Ihrer in der Liste, wählen Sie den Eintrag, der <code>054C</code> zeigt und wie Ihr Recorder heißt.</p>
+
+  <h2>Wenn etwas nicht funktioniert</h2>
+  <details><summary>Der Recorder ist nicht in der Liste von Zadig</summary>
+    Prüfen Sie, dass <b>Options &rarr; List All Devices</b> aktiviert ist. Ziehen Sie den Recorder ab und stecken Sie ihn wieder an, warten Sie zehn Sekunden und drücken Sie zweimal <b>Options &rarr; List All Devices</b>, um zu aktualisieren. Probieren Sie einen anderen USB-Anschluss oder ein anderes Kabel (manche Kabel dienen nur zum Laden).</details>
+  <details><summary>Der Recorder ist in der Liste von Zadig, aber das Programm meldet „Kein Recorder gefunden“</summary>
+    Prüfen Sie, dass der in Zadig für den Recorder angezeigte Treiber (linkes Feld) jetzt <b>WinUSB</b> ist. Schließen Sie SonicStage und jedes andere Programm, das den Recorder verwendet. Drücken Sie im Programm die Schaltfläche zum erneuten Suchen. Ein Recorder mit einer Standard-Disc braucht einen eigenen Eintrag (Schritt 8).</details>
+  <details><summary>„Zugriff verweigert“ oder „Kommunikation mit dem Recorder nicht möglich“</summary>
+    Nur ein Programm kann den Recorder gleichzeitig verwenden. Schließen Sie jedes andere Programm, das ihn nutzt (auch eine zweite Kopie von MiniDisc Manager), ziehen Sie den Recorder ab, stecken Sie ihn wieder an und suchen Sie erneut.</details>
+  <details><summary>Der Recorder zeigt „PC“ oder keine Disc, oder Windows meldet, das USB-Gerät werde nicht erkannt</summary>
+    Ziehen Sie den Recorder ab, nehmen Sie die Disc heraus, legen Sie sie wieder ein und schließen Sie den Recorder erneut an. Warten Sie, bis sich sein Display beruhigt hat, bevor Sie das Programm starten.</details>
+  <details><summary>Ich möchte das rückgängig machen und meinen Laufwerksbuchstaben zurück</summary>
+    Öffnen Sie den <b>Geräte-Manager</b> (Rechtsklick auf die Start-Schaltfläche). Suchen Sie unter <b>USB-Controller</b> (bzw. „Universal Serial Bus-Geräte“) Ihren Recorder (er heißt evtl. <code>Hi-MD</code> oder <code>Net MD</code>), klicken Sie mit der rechten Maustaste darauf, wählen Sie <b>Gerät deinstallieren</b>, aktivieren Sie <b>Treibersoftware für dieses Gerät löschen</b> und bestätigen Sie. Ziehen Sie den Recorder ab und stecken Sie ihn wieder an: Windows installiert wieder seinen normalen Treiber.</details>
+  <details><summary>Ist das sicher? Schadet es meinem Recorder oder meinen Discs?</summary>
+    Das Umstellen des Treibers ändert nur, wie Windows mit dem Recorder spricht; es verändert weder den Recorder noch den Inhalt der Disc. Dennoch kann MiniDisc Manager Discs <b>beschreiben und löschen</b>. Kopieren Sie unersetzliche Aufnahmen auf Ihren PC (Auf dem PC speichern...), bevor Sie eine Disc bearbeiten, und trennen Sie den Recorder nicht, während das Programm meldet, dass es arbeitet.</details>
+
+  <div class="card ok" style="margin-top:28px">
+    <b>Prüfen, ob es geklappt hat:</b> Starten Sie MiniDisc Manager. Oben rechts erscheinen ein grüner Punkt und der Name Ihres Recorders, und die Titel der Disc werden aufgelistet.
+  </div>
+
+  <footer>
+    MiniDisc Manager steht in keiner Verbindung zu Sony oder Sonos und wird von ihnen nicht unterstützt. Zadig ist ein eigenständiges Programm mit eigener Lizenz. Diese Seite wird mit dem Programm ausgeliefert (DRIVER-SETUP.html) und öffnet sich auch über das Startmenü und über den Bildschirm „Kein Recorder gefunden“.
+  </footer>
+</div>
+
+<!-- ============================== NEDERLANDS ============================== -->
+<div class="L" data-l="nl">
+  <h1>USB-stuurprogramma instellen <span>voor MiniDisc Manager</span></h1>
+  <p class="lead">Een eenmalige stap per recorder. Het duurt ongeveer twee minuten en vereist een gratis hulpmiddel genaamd Zadig.</p>
+
+  <div class="card note">
+    <b>Waarom is dit nodig?</b><br>
+    MiniDisc Manager praat rechtstreeks met de recorder via usb. Daarvoor moet Windows voor uw recorder een algemeen
+    stuurprogramma gebruiken, <b>WinUSB</b> genaamd. Windows kiest normaal een ander stuurprogramma (of geen), waardoor het programma
+    de recorder pas ziet als u dat wijzigt. Er wordt niets anders op uw pc beïnvloed.
+  </div>
+
+  <div class="card warn">
+    <b>Wat er verandert als u dit doet</b>
+    <ul>
+      <li>Een Hi-MD-recorder <b>verschijnt niet meer als stationsletter</b> in Verkenner. Dat is normaal: het programma leest hem rechtstreeks.</li>
+      <li>De eigen programma’s van Sony (SonicStage, Hi-MD Walkman-software) vinden die recorder niet meer totdat u de wijziging ongedaan maakt (zie het einde van deze pagina).</li>
+      <li>U doet dit voor elke recorder die u gebruikt, en nog eens voor de tweede usb-modus als u zowel Hi-MD- als standaarddiscs gebruikt (zie stap 8).</li>
+    </ul>
+  </div>
+
+  <h2>Voordat u begint</h2>
+  <ul>
+    <li>Sluit MiniDisc Manager, SonicStage en alles wat de recorder gebruikt.</li>
+    <li>Gebruik een usb-kabel die <b>rechtstreeks in de pc</b> zit (liever niet via een hub).</li>
+    <li>Download <b>Zadig</b> van de officiële site: <a href="https://zadig.akeo.ie/">https://zadig.akeo.ie/</a>. Het is één programma dat niet geïnstalleerd hoeft te worden.
+        Zadig is een apart gratis programma van het libwdi- / Akeo-project en maakt geen deel uit van MiniDisc Manager.</li>
+  </ul>
+
+  <h2>Stap voor stap</h2>
+  <ol class="steps">
+    <li><b>Plaats een disc in de recorder en zet hem aan.</b> Bij een Hi-MD-recorder volstaat elke disc. Een recorder met een standaard MiniDisc erin verschijnt in een andere usb-modus (zie stap 8).</li>
+    <li><b>Sluit de recorder met zijn usb-kabel aan op de pc.</b> Wacht tot Windows klaar is en het display van de recorder laat zien dat hij is verbonden.</li>
+    <li><b>Start Zadig als beheerder.</b> Klik met de rechtermuisknop op <code>zadig-2.9.exe</code> en kies <b>Als administrator uitvoeren</b>. Zeg <b>Ja</b> op de Windows-melding. Vraagt Zadig naar updates, dan is elk antwoord goed.</li>
+    <li><b>Toon alle apparaten.</b> Kies in het menu van Zadig <kbd>Options</kbd> &rarr; <kbd>List All Devices</kbd>.</li>
+    <li><b>Kies uw recorder in de keuzelijst.</b> Hij staat meestal als <code>Hi-MD</code>, <code>Net MD</code> of de modelnaam. Controleer of de twee vakjes onder de lijst een Sony-ID tonen dat bij de tabel hieronder past
+        (het eerste vakje is <code>054C</code>, het tweede is het ID van het model).
+        <div class="card warn" style="margin-top:10px"><b>Wees voorzichtig:</b> Zadig toont elk usb-apparaat. Wijzig alleen de recorder. Het vervangen van het stuurprogramma van een toetsenbord, muis of ander apparaat kan het laten stoppen met werken.</div></li>
+    <li><b>Kies WinUSB.</b> Gebruik in het vak rechts van de groene pijl de pijltjes omhoog/omlaag tot er <code>WinUSB</code> staat (niet libusb-win32, libusbK of WinUSB (v6...)-varianten).</li>
+    <li><b>Klik op <kbd>Replace Driver</kbd></b> (of <kbd>Install Driver</kbd>). Wacht op de melding <i>“The driver was installed successfully”</i>. Dat kan tot een minuut duren. Sluit daarna Zadig.</li>
+    <li><b>Ook standaard MiniDiscs?</b> Een Hi-MD-recorder gebruikt een <i>ander</i> usb-ID als hij een standaarddisc (geen Hi-MD) bevat. Wilt u standaarddiscs gebruiken, plaats dan een standaarddisc in de recorder <b>voordat</b> u hem aansluit, sluit hem aan en herhaal stap 3 tot 7 voor die tweede vermelding.</li>
+    <li><b>Start MiniDisc Manager.</b> De recorder verschijnt rechtsboven in de keuzelijst, met een groene stip. Zo niet, druk dan op de knop om opnieuw te zoeken (de ronde pijl).</li>
+  </ol>
+
+  <h2>Welke vermelding is mijn recorder?</h2>
+  <p>Zadig toont het usb-ID in twee vakjes. MiniDisc Manager herkent elke Sony Hi-MD-recorder in Hi-MD-modus en deze modellen voor standaarddiscs (NetMD). Alleen de twee met <span class="tag t">getest</span> zijn door de auteur uitgeprobeerd.</p>
+  <div class="models"></div>
+  <p style="color:var(--muted)">Andere Sony Hi-MD-modellen en veel oudere NetMD-recorders (MZ-N, MZ-NE en andere, plus enkele apparaten van Aiwa, Sharp, Kenwood en Panasonic) worden ook herkend, maar zijn niet getest. Staat die van u niet in de lijst, kies dan de vermelding die <code>054C</code> toont en een naam heeft zoals uw recorder.</p>
+
+  <h2>Als er iets niet werkt</h2>
+  <details><summary>De recorder staat niet in de lijst van Zadig</summary>
+    Controleer of <b>Options &rarr; List All Devices</b> is aangevinkt. Haal de recorder los en sluit hem weer aan, wacht tien seconden en druk twee keer op <b>Options &rarr; List All Devices</b> om te vernieuwen. Probeer een andere usb-poort of kabel (sommige kabels zijn alleen voor opladen).</details>
+  <details><summary>De recorder staat in de lijst van Zadig, maar het programma zegt “Geen recorder gevonden”</summary>
+    Controleer of het stuurprogramma dat Zadig voor de recorder toont (linkervak) nu <b>WinUSB</b> is. Sluit SonicStage en elk ander programma dat de recorder gebruikt. Druk in het programma op de knop om opnieuw te zoeken. Een recorder met een standaarddisc heeft een eigen vermelding nodig (stap 8).</details>
+  <details><summary>“Toegang geweigerd” of “kon niet met de recorder communiceren”</summary>
+    Slechts één programma tegelijk kan de recorder gebruiken. Sluit elk ander programma dat hem gebruikt (ook een tweede kopie van MiniDisc Manager), haal de recorder los, sluit hem weer aan en zoek opnieuw.</details>
+  <details><summary>De recorder zegt “PC” of toont geen disc, of Windows zegt dat het usb-apparaat niet wordt herkend</summary>
+    Haal de recorder los, haal de disc eruit, plaats hem terug en sluit de recorder opnieuw aan. Wacht tot zijn display tot rust is gekomen voordat u het programma start.</details>
+  <details><summary>Ik wil dit ongedaan maken en mijn stationsletter terug</summary>
+    Open <b>Apparaatbeheer</b> (klik met de rechtermuisknop op de Start-knop). Zoek onder <b>USB-controllers</b> (of “Universal Serial Bus-apparaten”) uw recorder (hij heet misschien <code>Hi-MD</code> of <code>Net MD</code>), klik er met de rechtermuisknop op, kies <b>Apparaat verwijderen</b>, vink <b>Het stuurprogramma van dit apparaat verwijderen</b> aan en bevestig. Haal de recorder los en sluit hem weer aan: Windows installeert weer zijn normale stuurprogramma.</details>
+  <details><summary>Is het veilig? Beschadigt het mijn recorder of mijn discs?</summary>
+    Het wisselen van stuurprogramma verandert alleen hoe Windows met de recorder praat; het verandert niets aan de recorder of aan wat er op de disc staat. Toch kan MiniDisc Manager discs <b>beschrijven en wissen</b>. Kopieer opnamen die u niet kunt vervangen naar uw pc (Op de pc opslaan...) voordat u een disc bewerkt, en haal de recorder niet los terwijl het programma zegt dat het bezig is.</details>
+
+  <div class="card ok" style="margin-top:28px">
+    <b>Controleer of het gelukt is:</b> start MiniDisc Manager. Rechtsboven verschijnen een groene stip en de naam van uw recorder, en de nummers van de disc staan in de lijst.
+  </div>
+
+  <footer>
+    MiniDisc Manager is niet gelieerd aan en niet goedgekeurd door Sony of Sonos. Zadig is een apart programma met een eigen licentie. Deze pagina wordt met het programma meegeleverd (DRIVER-SETUP.html) en opent ook via het Startmenu en via het scherm “Geen recorder gevonden”.
+  </footer>
+</div>
 </main>
+
+<script>
+(function () {
+  var LANGS = [['en', 'English'], ['fr', 'Français'], ['de', 'Deutsch'], ['nl', 'Nederlands']];
+  var FLAGS = {
+    en: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30"><clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#s)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>',
+    fr: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055A4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#EF4135"/></svg>',
+    de: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 3"><rect width="5" height="1" fill="#000"/><rect y="1" width="5" height="1" fill="#DD0000"/><rect y="2" width="5" height="1" fill="#FFCE00"/></svg>',
+    nl: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 6"><rect width="9" height="2" fill="#AE1C28"/><rect y="2" width="9" height="2" fill="#fff"/><rect y="4" width="9" height="2" fill="#21468B"/></svg>'
+  };
+  var TABLE = {
+    en: { model: 'Model', hi: 'Hi-MD mode (Hi-MD disc inside)', net: 'NetMD mode (standard disc inside)', tested: 'tested' },
+    fr: { model: 'Modèle', hi: 'Mode Hi-MD (disque Hi-MD à l’intérieur)', net: 'Mode NetMD (disque standard à l’intérieur)', tested: 'testé' },
+    de: { model: 'Modell', hi: 'Hi-MD-Modus (Hi-MD-Disc eingelegt)', net: 'NetMD-Modus (Standard-Disc eingelegt)', tested: 'getestet' },
+    nl: { model: 'Model', hi: 'Hi-MD-modus (Hi-MD-disc erin)', net: 'NetMD-modus (standaarddisc erin)', tested: 'getest' }
+  };
+  var MODELS = [['Sony MZ-NH700', '0185', '0184', 1], ['Sony MZ-RH1', '0287', '0286', 1], ['Sony MZ-NH1', '017F', '017E'], ['Sony MZ-NH3D', '0181', '0180'], ['Sony MZ-NH900', '0183', '0182'],
+    ['Sony MZ-NH600 / NH600D', '0187', '0186 / 0187'], ['Sony MZ-DH10P', '01EA', '01E9'], ['Sony MZ-RH10', '021A', '0219'], ['Sony MZ-RH910 / RH710', '021C', '021B'], ['Sony DS-HMD1', '023D', '023C']];
+  function build(lang) {
+    var t = TABLE[lang];
+    var h = '<table><tr><th>' + t.model + '</th><th>' + t.hi + '</th><th>' + t.net + '</th></tr>';
+    MODELS.forEach(function (m) {
+      var net = m[2].indexOf(' / ') > 0 ? '<code>054C : ' + m[2].split(' / ')[0] + '</code> / <code>' + m[2].split(' / ')[1] + '</code>' : '<code>054C : ' + m[2] + '</code>';
+      h += '<tr><td>' + m[0] + (m[3] ? ' <span class="tag t">' + t.tested + '</span>' : '') + '</td><td><code>054C : ' + m[1] + '</code></td><td>' + net + '</td></tr>';
+    });
+    return h + '</table>';
+  }
+  var TITLES = { en: 'MiniDisc Manager - USB driver setup', fr: 'MiniDisc Manager - installation du pilote USB', de: 'MiniDisc Manager - USB-Treiber einrichten', nl: 'MiniDisc Manager - usb-stuurprogramma instellen' };
+  var bar = document.getElementById('langbar');
+  function show(lang) {
+    if (!TABLE[lang]) lang = 'en';
+    document.documentElement.setAttribute('lang', lang);
+    document.title = TITLES[lang];
+    [].forEach.call(document.querySelectorAll('.L'), function (d) {
+      var on = d.getAttribute('data-l') === lang; d.classList.toggle('on', on);
+      var m = d.querySelector('.models'); if (on && m) m.innerHTML = build(lang);
+    });
+    [].forEach.call(bar.querySelectorAll('button'), function (b) { b.classList.toggle('on', b.getAttribute('data-l') === lang); });
+    try { localStorage.setItem('driverGuideLang', lang); } catch (e) { /* not remembered */ }
+  }
+  LANGS.forEach(function (l) {
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-l', l[0]);
+    var i = document.createElement('img'); i.alt = ''; i.src = 'data:image/svg+xml,' + encodeURIComponent(FLAGS[l[0]]);
+    b.appendChild(i); b.appendChild(document.createTextNode(l[1]));
+    b.addEventListener('click', function () { show(l[0]); });
+    bar.appendChild(b);
+  });
+  var want = (location.hash || '').replace('#', '');                // the program opens this page as DRIVER-SETUP.html#fr
+  if (!TABLE[want]) { try { want = localStorage.getItem('driverGuideLang') || ''; } catch (e) { want = ''; } }
+  if (!TABLE[want]) want = String(navigator.language || 'en').slice(0, 2).toLowerCase();
+  show(want);
+})();
+</script>
 </body>
 </html>

@@ -1,6 +1,7 @@
-MiniDisc Manager - portable version 0.22.1
-=========================================
+MiniDisc Manager - portable version
+===================================
 Copyright (c) 2026 Vinny Powell. Licence: see LICENSE.txt.
+Français: LISEZ-MOI.txt  ·  Deutsch: LIES-MICH.txt  ·  Nederlands: LEES-MIJ.txt  (installation, driver setup and first run, in your language)
 
 This is the no-installer version. Unzip it anywhere (a folder on your Desktop or Documents is fine) and run "MiniDisc Manager.exe".
 To remove it, close the program and delete the folder.
@@ -153,7 +154,7 @@ WHERE YOUR DATA GOES
 
 FILES
   README.txt              what the program does, in full
-  DRIVER-SETUP.html       USB driver guide
+  DRIVER-SETUP.html       USB driver guide (English, Français, Deutsch, Nederlands)
   LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    licences and the open-source components used
 
 MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos. MusicBrainz and the Cover Art Archive are separate services.

@@ -1,0 +1,54 @@
+MiniDisc Manager - draagbare versie (Nederlands)
+================================================
+Copyright (c) 2026 Vinny Powell. Licentie: zie LICENSE.txt.
+(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Deutsch: LIES-MICH.txt)
+
+Dit is de versie zonder installatieprogramma. Pak hem uit waar u wilt (een map op het Bureaublad of in Documenten is prima) en start
+"MiniDisc Manager.exe". Om hem te verwijderen sluit u het programma en verwijdert u de map.
+
+VOORDAT U UITPAKT (dit voorkomt veel Windows-waarschuwingen)
+  Klik met de rechtermuisknop op het .zip-bestand -> Eigenschappen -> vink onderaan "Blokkering opheffen" aan -> OK. Pak het daarna uit.
+  Slaat u dit over, dan kan Windows waarschuwen bij elk programmabestand.
+  Slaat u dit over, dan kan het programma ook helemaal niet openen (een Python-fout over Python.Runtime.dll).
+  Oplossing: dubbelklik op Unblock.bat in deze map en start het programma daarna opnieuw.
+
+EERSTE KEER STARTEN
+  1. Windows SmartScreen kan melden "Windows heeft uw pc beschermd / onbekende uitgever", omdat het programma niet is ondertekend.
+     Klik op "Meer informatie" en dan op "Toch uitvoeren".
+  2. Eenmalig verschijnt een melding "Voordat u begint". Lees die alstublieft.
+  3. Zolang het usb-stuurprogramma niet is ingesteld, zegt het programma "Geen recorder gevonden". Open DRIVER-SETUP.html (in deze map;
+     hij bestaat in het Nederlands) en volg hem. Het duurt ongeveer twee minuten, eenmalig per recorder, met een gratis hulpmiddel
+     genaamd Zadig.
+  4. De eerste keer dat u afspeelt naar een Sonos-speaker of een Google TV, kan Windows Firewall vragen om toestemming.
+     Kies "Toestaan" voor privénetwerken.
+  5. Een standaard MiniDisc (geen Hi-MD) wordt alleen gezien als de recorder wordt aangesloten MET de disc er al in.
+
+MAAK EERST EEN BACK-UP
+  MiniDisc Manager kan MiniDiscs beschrijven en wissen. Het is alleen uitgeprobeerd op een Sony MZ-NH700 en een MZ-RH1, en een disc kan
+  onafspeelbaar worden als een schrijfactie wordt onderbroken. Kopieer opnamen die u niet kunt vervangen naar uw pc voordat u een disc
+  bewerkt, en haal de recorder niet los terwijl het programma zegt dat het bezig is.
+
+WAT U NODIG HEBT
+  - 64-bits Windows 10 of 11.
+  - De Microsoft Edge WebView2 Runtime (Windows 11 heeft hem; installeer op Windows 10 de "Evergreen Standalone Installer" van
+    https://developer.microsoft.com/microsoft-edge/webview2/ als het venster niet opent).
+  - Een Sony Hi-MD- of NetMD-recorder, met het WinUSB-stuurprogramma ingesteld zoals beschreven in DRIVER-SETUP.html.
+  - Voor Cd rippen: een cd- of dvd-station met een audio-cd erin en (optioneel) een internetverbinding voor het opzoeken van het album.
+  - Voor Audio-cd branden en Op disc opslaan: een cd- / dvd- / Blu-ray-brander en een lege disc.
+
+WAAR UW GEGEVENS HEENGAAN
+  Back-ups van de nummerindex van elke disc en een klein logboek staan in %LOCALAPPDATA%\MiniDiscManager (niet in deze map), zodat u de
+  programmamap kunt verplaatsen of verwijderen zonder ze te verliezen. De FLAC-kopieën van nummers die aan standaarddiscs zijn toegevoegd
+  staan daar ook (in "copies"), net als een pc-kopie van een disc terwijl hij wordt gekloond (in "clone").
+
+TAAL
+  Het programma bestaat in het Engels, Frans, Duits en Nederlands: gebruik de knop Taal (met een vlag) bovenaan het venster. De vertalingen
+  zijn concepten; verbeteringen zijn welkom. Dit bestand en DRIVER-SETUP.html zijn de enige vertaalde documenten; README.txt (de volledige
+  beschrijving) blijft Engels.
+
+BESTANDEN
+  README.txt              wat het programma doet, uitgebreid (Engels)
+  DRIVER-SETUP.html       usb-stuurprogrammagids (Engels, Frans, Duits, Nederlands)
+  LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    licenties en de gebruikte open-sourcecomponenten
+
+MiniDisc Manager is niet gelieerd aan en niet goedgekeurd door Sony of Sonos. MusicBrainz en de Cover Art Archive zijn aparte diensten.

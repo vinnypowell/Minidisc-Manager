@@ -1,0 +1,54 @@
+MiniDisc Manager - portable Version (Deutsch)
+=============================================
+Copyright (c) 2026 Vinny Powell. Lizenz: siehe LICENSE.txt.
+(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Nederlands: LEES-MIJ.txt)
+
+Dies ist die Version ohne Installationsprogramm. Entpacken Sie sie, wohin Sie möchten (ein Ordner auf dem Desktop oder in Dokumente
+genügt), und starten Sie „MiniDisc Manager.exe“. Zum Entfernen schließen Sie das Programm und löschen den Ordner.
+
+BEVOR SIE ENTPACKEN (das erspart viele Windows-Warnungen)
+  Klicken Sie mit der rechten Maustaste auf die .zip-Datei -> Eigenschaften -> unten „Zulassen“ ankreuzen -> OK. Entpacken Sie sie danach.
+  Wenn Sie das auslassen, warnt Windows möglicherweise bei jeder Programmdatei.
+  Wenn Sie das auslassen, startet das Programm eventuell gar nicht (ein Python-Fehler zu Python.Runtime.dll).
+  Lösung: Doppelklicken Sie in diesem Ordner auf Unblock.bat und starten Sie das Programm danach erneut.
+
+ERSTER START
+  1. Windows SmartScreen meldet möglicherweise „Der Computer wurde durch Windows geschützt / unbekannter Herausgeber“, weil das
+     Programm nicht signiert ist. Klicken Sie auf „Weitere Informationen“ und dann auf „Trotzdem ausführen“.
+  2. Einmalig erscheint ein Hinweis „Bevor Sie beginnen“. Bitte lesen Sie ihn.
+  3. Solange der USB-Treiber nicht eingerichtet ist, meldet das Programm „Kein Recorder gefunden“. Öffnen Sie DRIVER-SETUP.html (in
+     diesem Ordner; es gibt es auf Deutsch) und folgen Sie der Anleitung. Es dauert etwa zwei Minuten, einmal pro Recorder, mit einem
+     kostenlosen Werkzeug namens Zadig.
+  4. Wenn Sie zum ersten Mal auf einem Sonos-Lautsprecher oder einem Google TV abspielen, fragt die Windows-Firewall möglicherweise nach.
+     Wählen Sie „Zulassen“ für private Netzwerke.
+  5. Eine Standard-MiniDisc (keine Hi-MD) wird nur erkannt, wenn der Recorder MIT bereits eingelegter Disc angeschlossen wird.
+
+ZUERST SICHERN
+  MiniDisc Manager kann MiniDiscs beschreiben und löschen. Es wurde nur an einem Sony MZ-NH700 und einem MZ-RH1 ausprobiert, und eine
+  Disc kann unabspielbar werden, wenn ein Schreibvorgang unterbrochen wird. Kopieren Sie Aufnahmen, die Sie nicht ersetzen können, auf
+  Ihren PC, bevor Sie eine Disc bearbeiten, und trennen Sie den Recorder nicht, während das Programm meldet, dass es arbeitet.
+
+WAS SIE BRAUCHEN
+  - 64-Bit-Windows 10 oder 11.
+  - Die Microsoft Edge WebView2 Runtime (Windows 11 hat sie; unter Windows 10 installieren Sie den „Evergreen Standalone Installer“ von
+    https://developer.microsoft.com/microsoft-edge/webview2/, falls sich das Fenster nicht öffnet).
+  - Einen Sony-Hi-MD- oder NetMD-Recorder, mit eingerichtetem WinUSB-Treiber wie in DRIVER-SETUP.html beschrieben.
+  - Zum CD-Rippen: ein CD- oder DVD-Laufwerk mit einer Audio-CD und (optional) eine Internetverbindung für die Album-Suche.
+  - Für Audio-CD brennen und Auf Datenträger speichern: einen CD- / DVD- / Blu-ray-Brenner und eine leere Disc.
+
+WOHIN IHRE DATEN GEHEN
+  Sicherungen des Titelindex jeder Disc und ein kleines Protokoll liegen in %LOCALAPPDATA%\MiniDiscManager (nicht in diesem Ordner),
+  sodass Sie den Programmordner verschieben oder löschen können, ohne sie zu verlieren. Die FLAC-Kopien von Titeln, die zu Standard-Discs
+  hinzugefügt wurden, liegen ebenfalls dort (in „copies“), ebenso eine PC-Kopie einer Disc, während sie geklont wird (in „clone“).
+
+SPRACHE
+  Das Programm gibt es auf Englisch, Französisch, Deutsch und Niederländisch: Verwenden Sie die Schaltfläche Sprache (mit Flagge) oben im
+  Fenster. Die Übersetzungen sind Entwürfe; Korrekturen sind willkommen. Diese Datei und DRIVER-SETUP.html sind die einzigen übersetzten
+  Dokumente; README.txt (die vollständige Beschreibung) bleibt auf Englisch.
+
+DATEIEN
+  README.txt              was das Programm kann, ausführlich (Englisch)
+  DRIVER-SETUP.html       USB-Treiber-Anleitung (Englisch, Französisch, Deutsch, Niederländisch)
+  LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    Lizenzen und verwendete Open-Source-Komponenten
+
+MiniDisc Manager steht in keiner Verbindung zu Sony oder Sonos und wird von ihnen nicht unterstützt. MusicBrainz und das Cover Art Archive sind eigenständige Dienste.

@@ -57,6 +57,7 @@ foreach ($f in 'DRIVER-SETUP.html', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt', 'R
 Copy-Item (Join-Path $app 'LICENSES') (Join-Path $stage 'LICENSES') -Recurse -Force
 Copy-Item "$here\portable-readme.txt" (Join-Path $stage 'READ ME FIRST.txt') -Force
 Copy-Item "$here\Unblock.bat" (Join-Path $stage 'Unblock.bat') -Force
+foreach ($f in 'LISEZ-MOI.txt', 'LIES-MICH.txt', 'LEES-MIJ.txt') { Copy-Item (Join-Path $here $f) (Join-Path $stage $f) -Force }       # the short installation notes in French, German and Dutch
 $zip = Join-Path $out "MiniDisc-Manager-$Version-portable.zip"
 Remove-Item $zip -Force -ErrorAction SilentlyContinue
 # Entries are written one by one with forward slashes: the zip then opens correctly in Explorer, 7-Zip, tar and on other systems

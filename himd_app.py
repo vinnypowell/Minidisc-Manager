@@ -9,6 +9,7 @@ import datetime
 import functools
 import json
 import os
+import pathlib
 import re
 import secrets
 import shutil
@@ -58,7 +59,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.28.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.28.1'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -495,13 +496,18 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
             pass
         return {'ok': True}
 
-    def open_driver_guide(self):
-        """Opens DRIVER-SETUP.html (how to put the WinUSB driver on a recorder) in the default browser."""
+    def open_driver_guide(self, lang=''):
+        """Opens DRIVER-SETUP.html (how to put the WinUSB driver on a recorder) in the default browser, in the program's language (the page holds
+        English, French, German and Dutch and reads the language from the part after the #)."""
         path = os.path.join(HERE, 'DRIVER-SETUP.html')
         if not os.path.isfile(path):
             return {'error': 'The driver guide (DRIVER-SETUP.html) is missing from the app folder.'}
         try:
-            os.startfile(path)
+            lang = lang if lang in ('en', 'fr', 'de', 'nl') else ''
+            if lang:
+                webbrowser.open(pathlib.Path(path).as_uri() + '#' + lang)
+            else:
+                os.startfile(path)
         except OSError as exc:
             return {'error': 'Could not open the driver guide: %s' % exc}
         return {'ok': True}

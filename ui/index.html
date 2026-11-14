@@ -998,7 +998,7 @@ function td(text, cls) { const c = document.createElement('td'); c.textContent =
 function driverHelp() {
   const b = document.createElement('button');
   b.textContent = 'Driver setup guide…'; b.className = 'primary'; b.style.marginTop = '16px';
-  b.onclick = async () => { const r = await api().open_driver_guide(); if (r && r.error) toast(r.error, true); };
+  b.onclick = async () => { const r = await api().open_driver_guide(I18N.get()); if (r && r.error) toast(r.error, true); };
   $('empty').append(document.createElement('br'), b);
 }
 async function scan() {
@@ -5876,7 +5876,7 @@ async function firstRunNotice() {
     el('div', { className: 'notice', textContent: 'Copy any recordings you cannot replace to your PC first (Save to PC…). Do not unplug the recorder while the program says it is working.' }),
     el('div', { className: 'notice', textContent: 'The recorder needs the WinUSB driver to be seen by this program: see the driver guide below. MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos.' }),
     el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, ok, el('span', { textContent: 'I understand, and I have copied off anything I cannot replace.' })),
-    el('div', { className: 'row' }, el('button', { textContent: 'Driver setup guide…', onclick: () => api().open_driver_guide() }), go));
+    el('div', { className: 'row' }, el('button', { textContent: 'Driver setup guide…', onclick: () => api().open_driver_guide(I18N.get()) }), go));
 }
 // The version number, next to the name in the top-left corner.
 async function showVersion() {

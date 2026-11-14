@@ -1,0 +1,54 @@
+MiniDisc Manager - version portable (français)
+==============================================
+Copyright (c) 2026 Vinny Powell. Licence : voir LICENSE.txt.
+(English: "READ ME FIRST.txt" · Deutsch: LIES-MICH.txt · Nederlands: LEES-MIJ.txt)
+
+Ceci est la version sans installateur. Décompressez-la où vous voulez (un dossier sur le Bureau ou dans Documents convient) et lancez
+« MiniDisc Manager.exe ». Pour la supprimer, fermez le programme et supprimez le dossier.
+
+AVANT DE DÉCOMPRESSER (cela évite beaucoup d’avertissements de Windows)
+  Faites un clic droit sur le fichier .zip -> Propriétés -> cochez « Débloquer » en bas -> OK. Puis décompressez-le.
+  Si vous l’oubliez, Windows peut vous avertir pour chaque fichier du programme.
+  Si vous l’oubliez, le programme peut aussi ne pas s’ouvrir du tout (une erreur Python à propos de Python.Runtime.dll).
+  Solution : double-cliquez sur Unblock.bat dans ce dossier, puis relancez le programme.
+
+PREMIER LANCEMENT
+  1. Windows SmartScreen peut afficher « Windows a protégé votre ordinateur / éditeur inconnu », car le programme n’est pas signé.
+     Cliquez sur « Informations complémentaires », puis sur « Exécuter quand même ».
+  2. Un avis « Avant de commencer » apparaît une seule fois. Veuillez le lire.
+  3. Tant que le pilote USB n’est pas installé, le programme affiche « Aucun enregistreur trouvé ». Ouvrez DRIVER-SETUP.html (dans ce
+     dossier ; il existe en français) et suivez-le. Cela prend environ deux minutes, une fois par enregistreur, avec un outil gratuit
+     appelé Zadig.
+  4. La première fois que vous lisez vers une enceinte Sonos ou une Google TV, le Pare-feu Windows peut poser une question.
+     Choisissez « Autoriser » pour les réseaux privés.
+  5. Un MiniDisc standard (pas Hi-MD) n’est vu que si l’enregistreur est branché AVEC le disque déjà à l’intérieur.
+
+SAUVEGARDEZ D’ABORD
+  MiniDisc Manager peut écrire sur les MiniDiscs et les effacer. Il n’a été essayé que sur un Sony MZ-NH700 et un MZ-RH1, et un disque
+  peut devenir illisible si une écriture est interrompue. Copiez sur votre PC les enregistrements que vous ne pouvez pas remplacer avant
+  de modifier un disque, et ne débranchez pas l’enregistreur pendant que le programme indique qu’il travaille.
+
+CE DONT VOUS AVEZ BESOIN
+  - Windows 10 ou 11 64 bits.
+  - Le Microsoft Edge WebView2 Runtime (Windows 11 l’a ; sous Windows 10, installez le « Evergreen Standalone Installer » depuis
+    https://developer.microsoft.com/microsoft-edge/webview2/ si la fenêtre ne s’ouvre pas).
+  - Un enregistreur Sony Hi-MD ou NetMD, avec le pilote WinUSB installé comme décrit dans DRIVER-SETUP.html.
+  - Pour Extraire un CD : un lecteur CD ou DVD avec un CD audio, et (facultatif) une connexion Internet pour la recherche de l’album.
+  - Pour Graver un CD audio et Enregistrer sur un disque : un graveur CD / DVD / Blu-ray et un disque vierge.
+
+OÙ VONT VOS DONNÉES
+  Les sauvegardes de l’index des pistes de chaque disque et un petit journal sont conservés dans %LOCALAPPDATA%\MiniDiscManager (pas dans
+  ce dossier) ; vous pouvez donc déplacer ou supprimer le dossier du programme sans les perdre. Les copies FLAC des pistes ajoutées aux
+  disques standard y sont aussi (dans « copies »), de même qu’une copie sur PC d’un disque pendant son clonage (dans « clone »).
+
+LANGUE
+  Le programme existe en anglais, français, allemand et néerlandais : utilisez le bouton Langue (avec un drapeau) en haut de la
+  fenêtre. Les traductions sont des brouillons ; les corrections sont bienvenues. Ce fichier et DRIVER-SETUP.html sont les seuls
+  documents traduits ; README.txt (la description complète) reste en anglais.
+
+FICHIERS
+  README.txt              ce que fait le programme, en détail (anglais)
+  DRIVER-SETUP.html       guide du pilote USB (anglais, français, allemand, néerlandais)
+  LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    licences et composants open source utilisés
+
+MiniDisc Manager n’est ni affilié à Sony ou Sonos, ni approuvé par eux. MusicBrainz et la Cover Art Archive sont des services distincts.
