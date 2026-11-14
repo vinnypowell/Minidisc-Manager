@@ -486,6 +486,7 @@
 <script src="lang_p6.js"></script>
 <script src="lang_p7.js"></script>
 <script src="lang_p8.js"></script>
+<script src="lang_p9.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -707,7 +708,7 @@
         </div>
 <div class="tool-group g-video">
           <div class="eyebrow">Video</div>
-          <div class="tool-buttons"><button id="vidFind" title="Tick one track to choose from the best matches, or several (all) to find a video for each automatically">Find YouTube videos…</button></div>
+          <div class="tool-buttons"><button id="vidFind" title="Tick one track to choose from the best matches, or several (all) to find a video for each automatically">Find YouTube videos…</button><button id="vidRemove" title="Remove the YouTube links from the ticked tracks (or from every track that has one)">Remove video links…</button></div>
           <div class="tool-text">Tick a track (or several, or all of them), find the best YouTube video and keep the link with the track: on this PC and, on a Hi-MD disc, in the track list stored on the disc. Tracks with a video show a small YT button. <a href="#" class="help-link" data-help="video">ⓘ How it works…</a></div>
         </div>
           </div>
@@ -1467,6 +1468,29 @@ async function runAutoIdentify(chosen, m) {
 // The best matches are searched on YouTube (only the artist and title are sent), one is chosen (or a link pasted) and the link is kept with the track
 // on this PC; on a Hi-MD disc it can also be written into the track list stored on the disc (TRACKS.CSV, a "Video" column).
 $('vidFind').addEventListener('click', () => { if (selected.size > 1) openVideoAll([...selected].sort((a, b) => a - b)); else openVideo(); });
+// Remove YouTube links: from the ticked tracks, or (nothing ticked) from every track that has one. The link is forgotten on this PC and, on a Hi-MD disc
+// that keeps a track list, taken out of TRACKS.CSV too.
+$('vidRemove').addEventListener('click', async () => {
+  if (uploading) return;
+  const withVideo = [...trackMap.values()].filter(t => t.video);
+  const picked = [...selected].map(n => trackMap.get(n)).filter(t => t && t.video);
+  const list = picked.length ? picked : withVideo;
+  if (!list.length) { toast('No track on this disc has a YouTube link.', true); return; }
+  const onDisc = !netmd && !!(curDisc && curDisc.hasTracklist);
+  const who = !picked.length ? 'every track that has one' : list.length === 1 ? 'this track' : 'these tracks';
+  const kept = onDisc ? 'It is forgotten on this PC and taken out of the track list stored on the disc.' : 'It is forgotten on this PC.';
+  if (!await askOk('Remove the YouTube link from ' + who + '? ' + kept + ' The tracks and their audio are not touched.')) return;
+  let done = 0;
+  for (const t of list) { const r = await api().video_remove(t.number); if (r && !r.error) done++; }
+  let note = 'Removed ' + done + (done === 1 ? ' YouTube link' : ' YouTube links') + ' from this PC', warn = done < list.length;
+  if (onDisc) {
+    uploading = true;
+    try { const w = await api().tracklist_sync(current); if (w && w.error) { warn = true; note += '. It could not be updated on the disc: ' + w.error; } else note += ' and from the disc’s track list'; }
+    catch (e) { warn = true; note += '. The disc’s track list could not be updated'; }
+    uploading = false;
+  }
+  toast(note + '.', warn, 6000); load(true);
+});
 async function openVideo(only) {                                       // one track: its ranked matches to choose from (only: that track, whatever is ticked)
   if (uploading) return;
   const nums = only ? [only] : [...selected];
@@ -1496,7 +1520,16 @@ async function openVideo(only) {                                       // one tr
     current_.classList.remove('hidden');
     current_.append(el('b', { textContent: 'Current video: ' }), el('span', { textContent: t.video }), ' ',
       el('button', { textContent: 'Open', onclick: () => api().video_open(t.video) }), ' ',
-      el('button', { textContent: 'Remove', onclick: async () => { const r = await api().video_remove(n); if (r.error) { toast(r.error, true); return; } closeSheet(); toast('Video link removed from this PC' + (netmd ? '.' : '; the disc’s track list still has it until it is updated.')); load(true); } }));
+      el('button', { textContent: 'Remove', onclick: async () => {
+        const r = await api().video_remove(n); if (r.error) { toast(r.error, true); return; }
+        let note = 'Video link removed from this PC.', warn = false;
+        if (!netmd && curDisc && curDisc.hasTracklist) {                       // keep the disc's own track list in step
+          uploading = true;
+          try { const w = await api().tracklist_sync(current); if (w && w.error) { warn = true; note += ' It could not be updated on the disc: ' + w.error; } else note = 'Video link removed from this PC and from the disc’s track list.'; }
+          catch (e) { warn = true; note += ' The disc’s track list could not be updated.'; }
+          uploading = false;
+        }
+        closeSheet(); toast(note, warn, 6000); load(true); } }));
   }
   openSheet(el('h2', { textContent: 'YouTube video for “' + t.title + '”' }),
     el('div', { className: 'sub', textContent: 'Official videos come first, then the best matches by length, title and artist. Only the artist and title are sent to YouTube. Preview opens the video in your browser.' }),
@@ -2977,6 +3010,7 @@ const helpText = () => ({
       '• On this PC, remembered by title, artist and length (like lyrics), so they come back whenever that disc is loaded.',
       '• On a Hi-MD disc you can also tick “also store on the disc”: the links are then written into the track list file, TRACKS.CSV, in a “Video” column, and come with the disc to another PC. The disc’s file table is backed up and checked, as for lyrics.',
       '• A standard (SP / LP) disc cannot hold files, so its links stay on this PC.',
+      '• To remove links, tick the tracks (or tick none, for every track that has a link) and press “Remove video links…”. The link is forgotten on this PC and, on a Hi-MD disc that keeps a track list, taken out of TRACKS.CSV too. Your tracks are not touched.',
     ]],
     ['Watching a video', [
       'A track with a link shows a small red YT button in its Codec cell. It opens the video in a window of its own that you can move and resize. The disc is not touched.',
@@ -3563,6 +3597,7 @@ function updateDel() {
   $('join').disabled = picked.length < 2 || !editKind(picked[0]) || !picked.every(n => editKind(n) === editKind(picked[0]))
     || (netmd && (new Set(picked.map(n => trackMap.get(n).codec)).size !== 1 || !(canFetchDev || (!freshRead() && picked.every(n => trackMap.get(n).hasCopy)))));    // standard disc: one recording mode; the NH700 reads one track per run, so only tracks with a saved copy
   $('det').disabled = selected.size < 1;
+  $('vidRemove').disabled = ![...trackMap.values()].some(t => t.video);                       // nothing to remove when no track has a link
   $('grpAuto').disabled = netmd || !trackMap.size;
   $('grpMake').disabled = netmd || selected.size < 1;                                          // groups: Hi-MD discs for now
   $('grpAdd').disabled = netmd || selected.size < 1 || picked.some(n => (trackMap.get(n) || {}).groupIndex) || !groupsOf().length;

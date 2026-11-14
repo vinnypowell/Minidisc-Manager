@@ -681,7 +681,7 @@ def main():
     try:
         page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
         stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
-        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js'):                            # the language files are part of the page too
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js'):                            # the language files are part of the page too
             ex = os.stat(os.path.join(HERE, 'ui', extra))
             stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
     except OSError:
