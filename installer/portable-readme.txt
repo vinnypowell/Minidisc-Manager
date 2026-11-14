@@ -8,6 +8,8 @@ To remove it, close the program and delete the folder.
 BEFORE YOU UNZIP (this avoids a lot of Windows warnings)
   Right-click the .zip file -> Properties -> tick "Unblock" at the bottom -> OK. Then unzip it.
   If you skip this, Windows may warn about every program file inside.
+  If you skip this the program may not open at all (a Python error about Python.Runtime.dll). Fix: double-click Unblock.bat in this
+  folder, then start the program again.
 
 FIRST RUN
   1. Windows SmartScreen may say "Windows protected your PC / unknown publisher", because the program is not code-signed.

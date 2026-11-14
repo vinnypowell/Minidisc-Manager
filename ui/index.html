@@ -476,6 +476,16 @@
   button.danger:not(:disabled):hover { border-color: var(--bad); color: var(--bad); }
   .hidden { display: none !important; }
 </style>
+<script src="i18n.js"></script>
+<script src="lang.js"></script>
+<script src="lang_p1.js"></script>
+<script src="lang_p2.js"></script>
+<script src="lang_p3.js"></script>
+<script src="lang_p4.js"></script>
+<script src="lang_p5.js"></script>
+<script src="lang_p6.js"></script>
+<script src="lang_p7.js"></script>
+<script src="lang_p8.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -506,6 +516,7 @@
       <option value="">System</option><option value="dark">Dark</option><option value="light">Light</option><option value="midnight">Midnight</option>
       <option value="orange">Orange</option><option value="forest">Forest</option><option value="sepia">Sepia</option>
     </select></div>
+  <div class="pill cards-pill" id="langPill" title="Choose the language of the program"><button id="langBtn" type="button" aria-haspopup="true" translate="no"></button><div id="langMenu" class="cards-menu lang-menu hidden" role="menu" translate="no"></div></div>
   <div class="pill cards-pill" title="Show or hide the main cards"><button id="cardsBtn" type="button" aria-haspopup="true">Cards ▾</button><div id="cardsMenu" class="cards-menu hidden" role="menu"></div></div>
   <div class="pill"><span class="dot" id="dot"></span><select id="devices" aria-label="Recorder"></select></div>
   <button class="icon" id="rescan" title="Rescan for recorders">&#8635;</button>

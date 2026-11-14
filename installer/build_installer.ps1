@@ -56,6 +56,7 @@ Copy-Item "$work\dist\MiniDisc Manager\*" $stage -Recurse -Force
 foreach ($f in 'DRIVER-SETUP.html', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt', 'README.txt') { Copy-Item (Join-Path $app $f) $stage -Force }
 Copy-Item (Join-Path $app 'LICENSES') (Join-Path $stage 'LICENSES') -Recurse -Force
 Copy-Item "$here\portable-readme.txt" (Join-Path $stage 'READ ME FIRST.txt') -Force
+Copy-Item "$here\Unblock.bat" (Join-Path $stage 'Unblock.bat') -Force
 $zip = Join-Path $out "MiniDisc-Manager-$Version-portable.zip"
 Remove-Item $zip -Force -ErrorAction SilentlyContinue
 # Entries are written one by one with forward slashes: the zip then opens correctly in Explorer, 7-Zip, tar and on other systems
