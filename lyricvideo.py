@@ -37,7 +37,7 @@ def _esc(text):
     return re.sub(r'\s+', ' ', text.replace('\\', '/').replace('{', '(').replace('}', ')')).strip()
 
 
-def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album='', compact=False):
+def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album='', compact=False, note=''):
     """ASS subtitle text. lines: [(seconds, text)] (timed lyrics) or []. offset: the lyric timing correction kept by the app."""
     x0 = 520 if has_cover else 110
     ahead = 2 if compact else 3                          # how many coming lyric lines show under the one being sung (compact: the deck panel sits below)
@@ -58,6 +58,8 @@ def make_ass(title, artist, lines, offset, duration, has_cover, caption='', albu
             y += int(size * 1.25) + gap
     ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)\\p1\\bord0\\shad0\\c&H5A5A5A&}m 0 0 l 700 0 l 700 2 l 0 2{\\p0}' % (_ts(0), end_all, x0, y + 16))
     ly = y + 38                                          # where the lyrics start
+    if note:                                             # the spatial information, under the recorder's line: amber, so it stands out
+        ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an9\\pos(%d,42)\\fs26\\c%s}%s' % (_ts(0), end_all, W - 60, ACCENT, _esc(note)))
     if caption:                                          # the connected recorder, small and dim in the top right corner of the screen
         ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an9\\pos(%d,8)\\fs26\\c%s}%s' % (_ts(0), end_all, W - 60, DIM, _esc(caption)))
     texts = [_esc(t) or '\u266a' for _, t in lines]
@@ -166,8 +168,9 @@ def _rgb(c):
 class Job:
     """One running ffmpeg making the stream for one track into `out_dir` (index.m3u8 + seg00000.ts ...)."""
 
-    def __init__(self, ffmpeg, audio_src, out_dir, title, artist, lines, offset, duration, cover_bytes=None, log=None, growing=False, caption='', album='', viz=None, start=0.0, deck=None):
-        """deck: {'pos', 'count', 'length'} to draw the deck's track number / time display (see vizrender.DeckPainter), or None.
+    def __init__(self, ffmpeg, audio_src, out_dir, title, artist, lines, offset, duration, cover_bytes=None, log=None, growing=False, caption='', album='', viz=None, start=0.0, deck=None, note=''):
+        """note: the line about spatial audio shown under the caption.
+        deck: {'pos', 'count', 'length'} to draw the deck's track number / time display (see vizrender.DeckPainter), or None.
         audio_src: the audio FILE (reading it from the app's own web address made ffmpeg stall). growing: the file is still being
         written from the disc, so ffmpeg keeps reading at its end instead of stopping."""
         self.dir, self.proc, self.error = out_dir, None, ''
@@ -197,7 +200,7 @@ class Job:
             box = (bx0, by0, max(p[0] + p[2] for p in parts) - bx0, max(p[1] + p[3] for p in parts) - by0)
         self.feeder = None
         with open(os.path.join(out_dir, 'lyrics.ass'), 'w', encoding='utf-8-sig') as f:
-            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes) or bool(vf) or py_viz, caption, album, compact=py_deck))
+            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes) or bool(vf) or py_viz, caption, album, compact=py_deck, note=note))
         # A file still being read from the disc: the end of the track is its known length (-t below), not a pause in the data (a read from the recorder
         # can stall for ten seconds or more and then carry on; treating that as the end stopped the TV halfway). The long time-out is only the safety net
         # for a read that has really died; with no known length the old 10 s rule stays.

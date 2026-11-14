@@ -9,7 +9,7 @@ The window
 - The top row has four panels, each with a heading (on a narrower window they wrap into two rows). Recording and the tool panels
   show one section at a time: click a tab to change section. The last tab you used is remembered.
   * Disc capacity (this card was called Disc Information; it is now three cards without headings: Visualiser, Track time and Disc capacity, stacked in one column by default, each ticked on or off in the Cards menu, and moved by the ⠿ grip that appears in a card's top right corner when the pointer is over it. Visualiser and Track time show only while a track plays): the disc picture (one arc per track), the disc name, track count, used / free space, and the disc image. While a track plays on this PC a live display of the music appears at the top of this panel (see Visualizer).
-  * Recording: tabs "Add tracks" and "Disc labelling". Add tracks: Add tracks from PC..., Rip CD..., Rip Yoto Card..., Send to Yoto Card...,
+  * Recording: tabs "Add tracks" and "Disc labelling". Add tracks: Add tracks from PC... (a file with 6 or more channels also offers to keep its surround version, see Spatial audio), Rip CD..., Rip Yoto Card..., Send to Yoto Card...,
     Add tracks from Bandcamp..., Add tracks from SoundCloud..., Add tracks from Internet Radio... and a tick box "Put each batch of added
     tracks in a new group" (see Groups). Disc labelling: Make disc label....
   * Disc Management: tabs Arrange, Groups, Auto split & name, Clone, Remove and Format:
@@ -24,7 +24,7 @@ The window
     possible for the loaded disc and its switch in Settings is on (and its note has not been hidden for this disc), a bright pulsing
     "Suggestion" flag appears in the card's title, even when the card is folded, and the section concerned is outlined.
   * Disc Extras (under Disc Conversion): tabs Identify (Search for album..., Paste a track list..., Listen to the tracks...), Lyrics,
-    Check (Check this disc...) and Copy out (Save to PC..., Burn Audio CD..., Save to disc..., Export CSV, Open track list, and the tick box
+    Check (Check this disc...) and Copy out (Save to PC..., Save spatial version..., Burn Audio CD..., Save to disc..., Export CSV, Open track list, and the tick box
     "Keep a track list on the disc").
     Each tab has a line saying what its buttons do. Tick tracks in the list first (the box in the heading of the track list ticks or unticks all of them):
     Move, Split and Auto split & name need exactly one ticked track, Combine two or more, Edit details, Fade & level, the three Identify buttons and Delete one or more. A button that does not apply stays grey (dashed outline). You can also drag a
@@ -628,6 +628,41 @@ Formatting a disc (Format disc...)
 - The app cannot turn a Hi-MD-formatted disc back into a standard one (no command for it is known; three guesses at the reformat
   command's flags changed nothing). Do that on the recorder itself: set its disc mode to MD and format the disc from its menu.
 
+Spatial audio (HMSA): keeping the surround version of a track on a Hi-MD disc
+- A Hi-MD disc can hold the SURROUND version of a track next to its normal stereo track. The recorder plays the stereo track like any
+  other. The surround version is a hidden file in the disc's root folder (SPnnnnnn.HMS, plus an index, SPATIAL.JSN) in a small format
+  called HMSA (Hi-MD Spatial Audio): a wrapper around ordinary Opus or WavPack audio that keeps every channel. Only this program can
+  read it. The full guide is SPATIAL-AUDIO.txt (it also opens from the "Open the full guide" button in the Spatial audio help).
+- What you need: a Hi-MD disc (a standard disc has no room for it) and a REAL surround file with 6 to 16 channels (5.1, 7.1, or an
+  immersive bed such as 7.1.4; WAV, FLAC, MKA, AC-3, E-AC-3 and similar), with the channels in the usual order. A stereo file gets no
+  spatial option: the program never makes up surround.
+- Adding one: Add tracks from PC... and pick the file. In the "Spatial audio" box leave "Also keep the spatial version on the disc"
+  ticked, choose Compact (Opus: Low, Medium or High) or Lossless (WavPack), and check the layout if it offers a choice. The window
+  shows how much room the spatial copies need on top of the tracks. The stereo track is written first, then the spatial file
+  ("Storing the spatial audio..."). If the second step fails, the stereo track is already on the disc and works normally.
+- Size and time: Opus is about 1, 2 or 3 MB a minute for 5.1 (Low, Medium, High) and double that for 7.1.4; lossless is about 15 to
+  20 MB a minute for 5.1. Writing is limited by USB speed (about 150 KB a second on an MZ-NH700, reading about 450 KB a second): a 29 MB
+  file takes about three minutes to write, an 83 MB lossless file about nine.
+- Listening: on the recorder the stereo track plays. On this PC, pressing play on a track with a blue SPATIAL label plays a headphone
+  surround mix made from the spatial version (an approximation made for headphones; switch it off in Settings to play the stereo
+  track). On a Google TV, "Play on" asks how the TV should play: Picture and lyrics (stereo, the default), 5.1 surround sound (a
+  soundbar or receiver then plays real 5.1, but the TV shows no picture while it does) or Sound only. A Sonos room always gets the stereo
+  track.
+- Other equipment: nothing but this program can read the hidden file. "Save spatial version..." (Disc Extras, Copy out) saves the
+  surround of the ticked tracks as FLAC 5.1 / 7.1 (lossless; heights are folded into 7.1), as Dolby Digital Plus 5.1 (.mp4) or as every
+  channel as stored (.opus / .wv), for a home-cinema player, a media box or a receiver.
+- Looking after it: click a track's SPATIAL label to remove its spatial version. Deleting a track leaves its spatial file behind; the
+  TIDY button in the disc size line removes the unused ones. Renaming, moving and grouping keep the link; Fade & level, Split, Combine,
+  Clone and Convert do not carry the spatial version across.
+- What it does not do: no Dolby Atmos objects (an Atmos file gives its plain 5.1 / 7.1 core), no copy-protected tracks (the program
+  does not remove copy protection), no stereo-to-surround upmix, no surround on the recorder or on Sonos, and no 7.1 or height speakers
+  on a TV.
+- Tested: an MZ-NH700 with a Hi-MD disc (7.1.4 and 5.1 tracks, a lossless file, read back byte for byte, playing, removing, saving),
+  and 5.1 surround to a Philips Google TV with a Sonos Arc Ultra, two Era 300 rear speakers and a Sub Mini. Not tested: listening in
+  headphones, other TVs and soundbars, the MZ-RH1, other MiniDisc software reading such a disc, and the Clone / Convert / Split paths.
+- Source files: spatial.py (format, encoding, downmix, headphone rendering), spatial_disc.py (adding, linking, playing, saving, removing),
+  helper\himd_helper.js (spatial_put / spatial_get / spatial_remove), ui\index.html.
+
 Playing to a Sonos speaker
 - The player bar has a "Play on" button (shown as "This PC" until you choose). Press it to see your Sonos rooms - a stereo pair or a
   home-theatre set counts as one room, as in the Sonos app - and pick one. Remembered rooms appear instantly while a quick
@@ -657,7 +692,11 @@ Playing to a Google TV (Chromecast built in)
   after the whole track. A Hi-MD disc supplies the cover (COVER.JPG); a standard disc uses the album art found online and kept on this PC (see
   Pre-recorded standard discs), or shows a plain background when there is none. The artist and album are written in large type above the track title,
   the artist largest. A track with no timed lyrics shows just the cover, title and artist.
-- The "Play on" window has a tick box to turn the video off: the TV then gets only the audio and its own simple player.
+- When you pick a Google TV in "Play on", a boxed question asks how it should play: "Picture and lyrics" (the lyric video, stereo, the
+  default), "5.1 surround sound" (for tracks that have a spatial version: Dolby Digital Plus 5.1 sound for a soundbar or receiver;
+  the TV shows NO picture while it does this, a limit of the TV's built-in player found by testing a Philips Google TV) or "Sound only"
+  (stereo, no picture, the quickest start). The same switch for surround is in Settings. Tracks without a spatial version always get the
+  choice of picture or sound only. See the Spatial audio chapter.
 - The lyric offset you set for a track (in the lyrics panel) is used for the video as well. Skipping ahead inside a track on the TV may
   not work while the video is still being made.
 - If the video cannot be made, the TV gets the audio only and the reason is written to app.log (lines starting "lyric video").
@@ -855,6 +894,8 @@ How writing works
   converted by runtime\ffmpeg.exe (LGPL build, BtbN n8.1).
 
 Status (2026-10-21)
+- 0.30.0 (2026-11-14): spatial audio (HMSA), see its chapter and SPATIAL-AUDIO.txt. Tested on an MZ-NH700 and, for 5.1 sound to a TV, on a Philips Google
+  TV with a Sonos Arc Ultra; the headphone mix has not been listened to on headphones.
 - Tested on an MZ-NH700 and an MZ-RH1.
 - Hi-MD: disc reading, rename and undo, MP3 and WAV upload, MP3 / WAV / ATRAC delete, playback of PCM, MP3 and ATRAC. The
   recorders played the results afterwards.
@@ -976,6 +1017,8 @@ Files
   cover_remove commands built on himd-js
 - helper\netmd_helper.js   standard discs: list / plan / upload / delete / rename / move / format / fetch / remote commands built on
   netmd-js
+- spatial.py, spatial_disc.py   spatial audio: the HMSA format, encoding, stereo downmix, headphone rendering; adding, linking, playing, saving
+  and removing the spatial version of a track (SPATIAL-AUDIO.txt is its guide)
 - sonos.py   finds Sonos rooms and controls them (discovery, room layout, play / pause / seek / volume)
 - chromecast.py   Google Cast sender for Google TVs / Chromecasts (device search, play / pause / seek / volume); sonos_cast.py holds
   the "Play on" logic for both Sonos and Cast

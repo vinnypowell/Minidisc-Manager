@@ -14,6 +14,8 @@ DEFAULTS = {
     'askLpToSp': True,                   # a standard disc with LP2 / LP4 tracks shows the "convert to SP" note under the Recorder card
     'autoAlign': False,                  # after lyrics are found, fine-tune their timing by listening to each track (slow; OFF unless switched on)
     'fillArtist': True,                  # a track whose lyrics were found and matched, and that has no artist, takes the artist the lyrics record names
+    'spatialBinaural': True,             # a track with a spatial version on the disc plays that version here, rendered for headphones; off: the stereo track plays
+    'spatialTvSurround': False,          # a spatial track played on a Google TV goes there as Dolby Digital Plus 5.1 SOUND (a soundbar then plays real surround, but that TV shows no picture); off: the stereo lyric video
     'askMissing': True,                  # a disc with details missing (artist, album, picture, lyrics) shows the "missing some details" prompt
 }
 

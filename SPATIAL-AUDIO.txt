@@ -1,0 +1,237 @@
+SPATIAL AUDIO (HMSA) IN MINIDISC MANAGER
+========================================
+
+MiniDisc Manager 0.30.0 can keep the surround version of a track on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
+
+- In one minute
+-------------
+
+- You add a real surround file (5.1, 7.1, or an immersive bed such as 7.1.4) to a Hi-MD disc, and tick Also keep the spatial version on the disc.
+- The disc gets two things: an ordinary stereo track, which the recorder plays exactly like any other track, and a hidden HMSA file holding every channel of the original mix.
+- Only MiniDisc Manager can read the hidden file. It can play it to you in headphone surround on the PC, send it as true 5.1 surround to a Google TV and soundbar, or save it as an ordinary multichannel file for other equipment.
+- The program never invents surround. A stereo file cannot be given a spatial version.
+
+How it works
+------------
+
+A recorder only understands the audio formats it was built for, and none of them hold more than two channels. So the surround version is stored beside the track and not inside it:
+
+    Hi-MD disc
+    ├── (the recorder's own audio area)   track 3: stereo downmix   <- the recorder plays this
+    └── (the disc's root folder)
+        ├── SP000003.HMS                  all the channels, HMSA format   <- only this program reads this
+        └── SPATIAL.JSN                   a small index: which file belongs to which track
+
+- The stereo track is made from the surround mix by folding the channels down (centre and surrounds into the left and right, height channels into the sides and front, a little bass), scaled so it cannot clip. It is written in whichever recording format you chose (PCM, ATRAC3+, and so on).
+- The HMSA file holds all the original channels. HMSA stands for Hi-MD Spatial Audio. It is not a new audio codec: it is a small wrapper (a header, a channel list and some details) around audio compressed with an existing codec, either Opus (compact) or WavPack (lossless). On the disc the file has the extension .HMS.
+- The index links each hidden file to its track by the track's own internal key, with the title and length as a second check. So renaming, moving or grouping a track keeps the link.
+- The recorder ignores both extra files, and they are placed in the disc's root folder, where the program already keeps its picture (COVER.JPG), lyrics (LYRICS.TXT) and track list (TRACKS.CSV).
+
+What you need
+-------------
+
+A Hi-MD disc. A standard (SP / LP) MiniDisc has no file area, so it cannot hold a spatial version. The option does not appear for standard discs.
+
+A real surround file with 6 to 16 channels. The program offers the spatial option only for files that have this many channels:
+
+  - Layout  |  Channels  |  Typical source
+  - 5.1 (and 5.1 "side")  |  6  |  surround music downloads, film soundtracks, .ac3 files
+  - 7.1  |  8  |  film soundtracks, 7.1 mixes
+  - 5.1.2, 5.1.4, 7.1.2, 7.1.4  |  8, 10, 12  |  immersive "bed" mixes exported as multichannel files
+  - 9.1.4, 9.1.6  |  14, 16  |  large immersive beds
+
+Anything the bundled ffmpeg can open and decode works: multichannel WAV and FLAC, MKA / MKV, MP4 / M4A with 5.1 AAC, AC-3 (.ac3), the 5.1 or 7.1 core of E-AC-3 (.eac3), and the core of DTS and TrueHD.
+
+The channels in the standard order. Most software writes them in the standard order: front left, front right, centre, bass (LFE), then the surround and height channels. If your software exports in a film order (for example left, centre, right, surrounds, bass), the speakers will be wrong. Re-export in the standard order.
+
+Choosing the layout when the file is ambiguous. A file with 8 channels might be 7.1 or 5.1.2; one with 10 might be 7.1.2 or 5.1.4. If the file does not say which, the Add window shows a small drop-down to choose. Most files say it themselves.
+
+What it does not do
+-------------------
+
+- No fake surround. Stereo, mono and files with fewer than 6 channels get no spatial option, deliberately. The program does not upmix stereo, because it would put a "spatial" label on something that is not. A file that claims to be 5.1 but was faked elsewhere cannot be told apart, so the program treats any 6-channel file as surround.
+- No Dolby Atmos objects. Atmos music is built from sound objects plus a basic 5.1 or 7.1 core. This program reads channel-based mixes only. For an Atmos file it can use the plain 5.1 / 7.1 core and nothing more. It does not render Atmos objects and its output is not "Dolby Atmos".
+- No copy-protected tracks. Surround tracks delivered by streaming services and discs are encrypted. The program does not remove copy protection, now or in future. It works with files you own and can open freely.
+- No surround on the recorder. The recorder plays the stereo track. Nothing can make a MiniDisc recorder play more than two channels.
+- No playback from other equipment. A TV, receiver or Blu-ray player has no way to read a MiniDisc at all, and nothing but this program understands the hidden file. See Save spatial version to use the surround on other equipment.
+- No Sonos surround. Sonos rooms always get the stereo track: they accept only a stereo stream from an app.
+- No 7.1 or height speakers on a TV. Surround to a TV is 5.1; height channels are folded into the floor channels.
+
+Adding a spatial track
+----------------------
+
+1. Press Add tracks from PC… and pick the surround file (or drag it onto the window). Several files can be added together, and the spatial option applies to the ones that have 6 or more channels.
+2. In the Spatial audio box:
+   - Leave Also keep the spatial version on the disc ticked (it is remembered).
+   - Choose Lossless (WavPack) or Compact (Opus), and for Opus Low, Medium or High. See Choosing the quality.
+   - If the box lists a layout drop-down, check or change the layout.
+   - The window shows how much room the spatial copies need in addition to the tracks, and the fit check includes them.
+3. Pick the recording format for the stereo track (as for any file) and press Add.
+4. The program works in this order, and the window says which step it is on:
+   1. it makes the stereo version and the spatial file on the PC;
+   2. it writes the stereo track to the disc (the usual step);
+   3. it stores the spatial file and its index on the disc (Storing the spatial audio…).
+5. The new track shows a blue SPATIAL label next to its format.
+
+The disc checks that everything else on it is unchanged before and after each file is written, the same checks used for the picture and lyrics, and keeps a backup of the start of the disc's file area in the program's backups folder (spatial_latest). If the spatial step fails, the stereo track is already on the disc and works normally. The message says what failed.
+
+Time. The slow part is writing to the disc over USB. Measured on an MZ-NH700:
+
+  - What  |  Roughly
+  - A 3.5 MB spatial file  |  seconds
+  - A 29 MB spatial file (a 12-minute 5.1 film trailer, Opus High)  |  about a minute to read back, about three minutes to write
+  - An 83 MB lossless file  |  about 9 minutes to write, 3 minutes to read back
+
+So Compact (Opus) is the practical choice. Lossless is for tracks where you want every channel exactly as it was, and you will not mind waiting.
+
+Choosing the quality
+--------------------
+
+  - Setting  |  What it is  |  Size for 5.1  |  Size for 7.1.4
+  - Compact, Low  |  Opus, about 21 kbps per channel  |  about 1 MB a minute  |  about 2 MB a minute
+  - Compact, Medium  |  Opus, about 43 kbps per channel  |  about 2 MB a minute  |  about 4 MB a minute
+  - Compact, High  |  Opus, about 64 kbps per channel  |  about 3 MB a minute  |  about 6 MB a minute
+  - Lossless  |  WavPack, the exact channels  |  about 15 to 20 MB a minute  |  about 30 to 40 MB a minute
+
+- The sizes are estimates; Opus varies with the music, and lossless varies a lot.
+- A Hi-MD disc made from an 80-minute disc holds about 305 MB in total, and a full 1 GB Hi-MD disc about 1 GB. The spatial copies share that space with your tracks.
+- Why WavPack and not FLAC for lossless? FLAC holds at most 8 channels; WavPack holds the 12 channels of a 7.1.4 mix. (The Save spatial version feature can write FLAC, folding the heights into 7.1.)
+- Why Opus? It is a modern open codec that stays good at low bit rates, and it handles many channels well.
+
+Listening to it
+---------------
+
+On the recorder:
+The stereo track plays as normal. Nothing else is needed.
+
+On the PC, in headphones:
+Press play on a track with the SPATIAL label. The status line reads Reading the spatial version from the disc… (about 20 seconds for a three-minute 5.1 track the first time, then it is remembered for the session) and then Preparing the headphone surround mix… (a few seconds). The program then plays a binaural mix: each channel is placed where its speaker would be around your head, with the timing and level differences your ears use to place sounds, a little muffling for sounds behind you and a lift for sounds above.
+
+- It is an approximation built from a simple head model, not a measured head response, and it is made for headphones. On speakers it sounds wide but not truly surround.
+- If the spatial version cannot be played, the program says why and plays the stereo track instead.
+- Switch this off in Settings ("Play the spatial version of a track with headphone surround"); the stereo track then plays on the PC too.
+
+On a Google TV with a soundbar or receiver:
+Press Play on (the 🔊 button), pick your Google TV, and a boxed question appears: How should the TV play?
+
+  - Choice  |  Sound  |  The TV shows
+  - Picture and lyrics  |  stereo  |  the cover, title, artist and timed lyrics (the default)
+  - 5.1 surround sound  |  5.1 surround for tracks with a spatial version  |  no picture
+  - Sound only  |  stereo  |  no picture, quickest start
+
+- In 5.1 surround mode the program makes a Dolby Digital Plus 5.1 audio file from the spatial version (about 3 seconds for a 12-minute track) and the TV passes it to the soundbar or receiver. The first play of a track also copies the spatial file from the disc, so allow up to a minute for a long track.
+- The TV shows no picture in surround mode. That is a limit of the TV's built-in Cast player: in every form we tried (an MP4, an HLS stream, a music track with cover art, with or without video), it stayed on the home screen while passing surround on. A picture appears only with the stereo lyric video. The app tells you this when surround starts.
+- Tracks without a spatial version still get the picture and lyrics in surround mode.
+- Heights and 7.1 are not sent. The sound is mixed to 5.1; the height channels are folded into the floor channels. The TV tested refused 7.1.
+- It needs a soundbar or receiver that accepts Dolby Digital Plus from the TV (HDMI eARC or ARC), and the TV's own digital audio output left on Auto or Passthrough (not "Stereo" or "PCM"). Your sound system should show Dolby Audio or 5.1 while it plays.
+- Results can vary between TVs. It was tested on a Philips Google TV with a Sonos Arc Ultra, two Era 300 rear speakers and a Sub Mini; the Sonos app showed Dolby 5.1 and the rear speakers played. Other TVs have not been tried.
+
+On a Sonos room:
+Sonos rooms always get the stereo track.
+
+On other equipment:
+Use Save spatial version.
+
+Save spatial version: using it on other equipment
+-------------------------------------------------
+
+Press Save spatial version… (in the Copy out tab of Disc Extras). It saves the surround of the ticked tracks, or of every track that has one, to a folder on your PC. Nothing is written to the recorder. Choose the format:
+
+  - Format  |  File  |  Plays on
+  - FLAC 5.1 / 7.1 (default)  |  .flac  |  VLC, Kodi, Plex, most media boxes, many receivers. Lossless of what is stored. A 7.1.4 mix has its height channels folded into 7.1, because FLAC holds at most 8 channels.
+  - Dolby Digital Plus 5.1  |  .mp4 (audio)  |  TVs, soundbars and media boxes that accept Dolby sound. Always 5.1.
+  - As stored (every channel)  |  .opus or .wv  |  VLC and Kodi; many other players cannot open it. Keeps all channels, such as 7.1.4.
+
+Files are named NN - Title (surround).ext and carry the title, artist, album and track number. This is the way to put a surround track from the disc onto a USB stick for a receiver, or into a home-cinema player. It is the only way other equipment can use the surround version.
+
+Looking after spatial files on a disc
+-------------------------------------
+
+- Disc size line. The Spatial figure shows how much room the spatial files use.
+- Remove one. Click the blue SPATIAL label of a track and confirm. Its hidden file is deleted and the room freed. The stereo track stays.
+- Deleting a track leaves its hidden file behind. A TIDY button then appears in the disc size line; it removes spatial files that no track uses any more.
+- Renaming, moving and grouping a track keep its spatial version. Features that rewrite or recreate tracks (such as Fade & level, Split, Combine, Clone and Convert) have not been made to carry the spatial version across. Treat the spatial version as belonging to the original track, and re-add the track if you need to.
+- Copy first. As with any writing, copy recordings you cannot replace to your PC before editing a disc.
+
+Settings
+--------
+
+Two switches in Settings, both also reachable from the player:
+
+  - Switch  |  Default  |  Meaning
+  - Play the spatial version of a track with headphone surround  |  on  |  PC playback uses the spatial version, mixed for headphones.
+  - Play a spatial track on a Google TV as 5.1 surround  |  off  |  A spatial track goes to a Google TV as 5.1 sound with no picture. The Play on window shows the same choice as Picture and lyrics / 5.1 surround sound / Sound only.
+
+Troubleshooting
+---------------
+
+  - Problem  |  What to try
+  - The Spatial audio box does not appear in the Add window  |  The file needs 6 or more channels, and the disc must be a Hi-MD disc. Check the file in a player.
+  - The speakers are in the wrong places  |  The file's channels are in a different order. Re-export in the standard order (front left, front right, centre, bass, then surrounds).
+  - "There is not enough free space"  |  The spatial copies share the disc's space. Choose a lower Opus setting, or untick the spatial option for some files.
+  - The spatial step failed but the stereo track is there  |  The stereo track is fine. Check the message, then press the SPATIAL label's remove option if a stray file is left, or use TIDY, and try again.
+  - It is slow to start on the PC  |  The first play copies the hidden file over USB. Later plays in the session are quick.
+  - The Play on window shows no TV options  |  Pick the Google TV (marked "Cast") in the list. The options appear when a TV is chosen.
+  - Surround to the TV gives stereo  |  Check the TV's digital audio output is Auto / Passthrough, and that the soundbar input shows Dolby. A VPN can also stop the TV from reaching this PC.
+  - The TV shows no picture in surround mode  |  This is expected; see On a Google TV. Choose Picture and lyrics to get the picture.
+  - A play on the TV stalls or never starts  |  Switch the TV's Cast player off and on, try again, and check app.log for lines mentioning "cast".
+  - The recorder cannot be found  |  Close any other recorder program (only one program can use the recorder), and see DRIVER-SETUP.html.
+
+Questions and answers
+---------------------
+
+Does it change what my recorder plays? No. The recorder plays the same stereo track as for any file. The hidden files are ignored by the recorder.
+
+Can I use a disc with spatial files in other MiniDisc software? The extra files sit in the disc's root folder, like the picture and lyrics files. The recorder ignores them. Other software has not been tested.
+
+Can I put Dolby Atmos music on it? Only as a plain 5.1 / 7.1 channel file. The program does not render Atmos objects, and it does not use copy-protected tracks. See What it does not do.
+
+Is it surround through headphones? It is a virtual surround, made by the program from the channels, as described above.
+
+Why does the TV lose the picture in surround mode? The TV's own Cast player stays in the background while it passes surround on. We tried every way of describing the media we could think of, without success. Only the stereo lyric video makes the TV show a picture.
+
+Can I make a stereo file spatial? No, by design.
+
+Can I add the same file at two qualities? Add it twice if you want both; each gets its own spatial file, and the later one counts as a separate track.
+
+Where are the files? While you add tracks, the program keeps temporary working copies in %LOCALAPPDATA%\MiniDiscManager\spatial (and in the temporary play folder while you listen). Nothing about spatial audio is sent over the internet.
+
+Technical details
+-----------------
+
+HMSA file (version 1). All numbers little-endian. (The very first test files started with the letters HMSP; the program still reads those.)
+
+  - Offset  |  Size  |  Field
+  - 0  |  4  |  HMSA
+  - 4  |  1  |  version (1)
+  - 5  |  1  |  codec: 1 = WavPack (lossless), 2 = Opus
+  - 6  |  1  |  number of channels
+  - 7  |  1  |  reserved (0)
+  - 8  |  4  |  sample rate
+  - 12  |  4  |  duration in milliseconds
+  - 16  |  4  |  length of the JSON block
+  - 20  |  n  |  JSON: channel names in order (FL FR FC LFE BL BR SL SR TFL …), layout, title, bit rate, quality, source file name
+  - 20 + n  |  rest  |  a complete .wv (WavPack) file or Ogg Opus file
+
+SPATIAL.JSN is a JSON file in the disc's root folder: {"app": "MiniDiscManager", "version": 1, "tracks": [{"key", "title", "seconds", "file", "codec", "channels", "layout", "quality", "bytes"}]}. key is the 8-byte key of the track's index entry (as hex). Hidden files are named SPnnnnnn.HMS.
+
+Opus: 48 kHz, variable bit rate, total of 256 / 512 / 768 kbps for 12 channels (scaled by the number of channels), mapping family 255 (no stereo coupling, which allows any channel count).
+
+Stereo downmix: left = front left + 0.707 centre + 0.707 back left + 0.707 side left + 0.5 each of the height and top channels + 0.5 bass (and the mirror for the right), then scaled so the largest sum cannot exceed full scale.
+
+Headphone rendering (spatial.py): each channel is placed at its speaker direction (front left ±30°, side ±90°, back ±150°, heights at 45°, and so on). Per ear it applies the interaural delay of a spherical head (Woodworth), the head-shadow filter of Brown and Duda, a gentle high-frequency roll-off behind the listener and a lift near 7 kHz for heights. The bass channel is low-passed at 120 Hz into both ears. It runs about 50 times faster than real time.
+
+TV surround: the channels are mixed to 5.1 with the heights folded into the floor channels, encoded as E-AC-3 (Dolby Digital Plus) at 640 kbps with ffmpeg's own encoder, and sent as an audio-only MP4. In tests the TV passed it on as Dolby Digital Plus 5.1; the same sound sent as AAC reached the soundbar as stereo.
+
+Writing to the disc uses the same verified routine as the picture and lyrics files: the start of the disc's file area is backed up, the file is written, the disc is re-read, and every other file is checked to be unchanged, with the new file read back byte for byte. Names are restricted to SPnnnnnn.HMS and SPATIAL.JSN.
+
+Source files: spatial.py (format, encode, downmix, headphone rendering), spatial_disc.py (adding, linking, playing, saving, removing), helper\himd_helper.js (spatial_put, spatial_get, spatial_remove), ui\index.html (Add window box, labels, Save spatial version, Play on options).
+
+What has been tested
+--------------------
+
+Tested on real hardware: an MZ-NH700 with a Hi-MD disc: adding a 7.1.4 test track, a 5.1 film trailer (from an .ac3 file) and a lossless 83 MB file; reading them back byte for byte; playing the spatial version in the app; removing and tidying; saving as FLAC, Dolby Digital Plus and as-stored files. Surround to a Philips Google TV with a Sonos Arc Ultra, two Era 300 rear speakers and a Sub Mini (Dolby 5.1 shown, rear speakers playing).
+
+Not tested: listening to the headphone mix on headphones; other TVs and soundbars; the MZ-RH1 with spatial files; other MiniDisc software reading a disc with spatial files; spatial files through Clone, Convert, Split and Combine; Windows spatial-sound or HDMI-receiver output from the PC.
+
+Dolby, Dolby Audio, Dolby Digital Plus and Dolby Atmos are trademarks of Dolby Laboratories. This program is not affiliated with or endorsed by Dolby, Sony, Sonos or Google.

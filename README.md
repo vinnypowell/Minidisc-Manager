@@ -2,7 +2,7 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.28.1 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.30.0 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
@@ -13,6 +13,7 @@ Version 0.28.1 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIR
 - Converts a standard (SP / LP) disc to Hi-MD, and rewrites LP2 / LP4 tracks as SP (spreading them over two discs when they do not fit) so that players without LP support can play them.
 - Prints disc labels (HP Sprocket and Polaroid Hi-Print over Bluetooth, or as a picture).
 - Plays the disc on the PC, a Sonos room or a Google TV, with a choice of level-meter and spectrum displays.
+- **Spatial audio (new in 0.30.0):** keeps the surround version of a track on a Hi-MD disc next to its normal stereo track. See below.
 
 ## What is in this repository
 
@@ -30,6 +31,17 @@ The source of the program.
 | `experimental/` | work in progress, not used by the program |
 
 **Not included:** the bundled runtime (Python, Node.js with the MiniDisc libraries, ffmpeg), which is large. The installer and portable zip on the Releases page contain everything and need nothing else installed. To run from source you need Windows, Python 3.12 with the packages in `LICENSES/python`, and the runtime folder from a release (copy its `runtime` folder next to `himd_app.py`).
+
+## Spatial audio (HMSA)
+
+A Hi-MD disc can keep the **surround version of a track** next to its normal stereo track. The recorder plays the stereo track like any other; the surround version is a hidden file on the disc in a small format called **HMSA** (Hi-MD Spatial Audio: ordinary Opus or WavPack audio in a wrapper that keeps every channel). Only this program can read it.
+
+- **Add** a real 5.1, 7.1 or larger surround file (WAV, FLAC, MKA, AC-3 and similar) and tick *Also keep the spatial version on the disc*. Choose Compact (Opus) or Lossless (WavPack).
+- **Listen on the PC** in headphone surround, or on a **Google TV with a soundbar** as 5.1 surround (Dolby Digital Plus). The TV shows no picture in that mode, so the lyric video stays the default.
+- **Save spatial version…** writes the surround as FLAC 5.1 / 7.1, Dolby Digital Plus 5.1 or every channel as stored, for any home-cinema player.
+- It **never makes surround from stereo**, does not render Dolby Atmos objects, and does not remove copy protection.
+
+Read the full guide, including exactly what was and was not tested: **[SPATIAL-AUDIO.md](SPATIAL-AUDIO.md)** (also `SPATIAL-AUDIO.txt` in the download).
 
 ## Download
 
@@ -54,4 +66,4 @@ MiniDisc Manager can write to and erase MiniDiscs. It has been tested on a Sony 
 
 The Python program and the window are under the MIT licence; the helper scripts in `helper/` that load the GPL-2.0 libraries are under GPL-2.0. `LICENSE.txt` says which is which, and `THIRD-PARTY-NOTICES.txt` lists the libraries the program uses.
 
-Not affiliated with, authorised or endorsed by Sony or Sonos. Product and company names belong to their owners.
+Dolby, Dolby Audio, Dolby Digital Plus and Dolby Atmos are trademarks of Dolby Laboratories. Not affiliated with, authorised or endorsed by Sony, Sonos, Google or Dolby. Product and company names belong to their owners.

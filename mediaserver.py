@@ -24,36 +24,53 @@ def media_handler(api):
                 return
             path = os.path.join(job['job'].dir, name)
             try:
-                with open(path, 'rb') as f:
+                with open(path, 'rb') as f:                                    # read whole and closed at once: ffmpeg replaces the playlist all the time, and Windows refuses that while a file is open
                     data = f.read()
             except OSError:
                 self.send_error(404)
                 return
-            mime = 'application/x-mpegurl' if name.endswith('.m3u8') else 'video/mp2t'                 # the usual type for an HLS playlist
+            size = len(data)
+            mime = ('application/x-mpegurl' if name.endswith('.m3u8') else 'video/mp4' if name.endswith(('.m4s', '.mp4')) else 'video/mp2t')       # the usual types for an HLS playlist and its pieces
+            start, end, partial = 0, size - 1, False
             m = re.match(r'bytes=(\d*)-(\d*)$', self.headers.get('Range', ''))
-            start, end = 0, len(data) - 1
-            if m and m.group(1) and not name.endswith('.m3u8'):
-                start = int(m.group(1))
-                end = min(int(m.group(2)), len(data) - 1) if m.group(2) else len(data) - 1
-                if start > end:
+            if m and (m.group(1) or m.group(2)) and not name.endswith('.m3u8'):
+                if m.group(1):
+                    start = int(m.group(1))
+                    end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+                else:                                                       # "the last N bytes"
+                    start = max(size - int(m.group(2)), 0)
+                if start > end or start >= size:
                     self.send_response(416)
+                    self.send_header('Content-Range', 'bytes */%d' % size)
                     self.send_header('Content-Length', '0')
                     self.end_headers()
                     return
-                self.send_response(206)
-                self.send_header('Content-Range', 'bytes %d-%d/%d' % (start, end, len(data)))
-            else:
-                self.send_response(200)
+                partial = True
+            self.send_response(206 if partial else 200)
+            if partial:
+                self.send_header('Content-Range', 'bytes %d-%d/%d' % (start, end, size))
             self.send_header('Content-Type', mime)
             self.send_header('Access-Control-Allow-Origin', '*')            # a Cast receiver fetches from another origin and needs this
             self.send_header('Cache-Control', 'no-cache')
+            if not name.endswith('.m3u8'):
+                self.send_header('Accept-Ranges', 'bytes')                   # the TV's player seeks and reads the finished surround file in pieces
             self.send_header('Content-Length', str(end - start + 1))
             self.end_headers()
-            if not head:
-                try:
-                    self.wfile.write(data[start:end + 1])
-                except OSError:
-                    pass
+            if head:
+                return
+            try:
+                self.wfile.write(data[start:end + 1])
+            except (OSError, ValueError):
+                pass                                                         # the player went away
+
+        def do_OPTIONS(self):
+            """The check a Cast receiver (a web page) makes before it fetches a file from another address."""
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Headers', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
 
         def _serve(self, head):
             parts = self.path.split('?')[0].strip('/').split('/')

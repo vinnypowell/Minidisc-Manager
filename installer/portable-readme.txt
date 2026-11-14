@@ -43,6 +43,10 @@ WHAT IT CAN DO  (README.txt has the full details of every function)
                        you. You choose the recording format: Hi-MD - PCM (lossless), MP3 128-320 kbps, ATRAC3 LP2 / LP4, ATRAC3+ Hi-SP 256 kbps,
                        Hi-LP 64 kbps or 352 kbps; standard disc - SP, LP2, LP4. A preview shows what fits before anything is written. Loud tracks are
                        turned down by just enough when an ATRAC encoder would otherwise make them crackle.
+  Spatial audio        A real 5.1 / 7.1 (or larger) surround file can keep its SURROUND version on a Hi-MD disc, next to its normal stereo track
+                       that the recorder plays. This program plays it in headphone surround, sends 5.1 surround to a Google TV with a
+                       soundbar, or saves it as a normal surround file (FLAC / Dolby Digital Plus) for other equipment. It never makes up
+                       surround from stereo. Read SPATIAL-AUDIO.txt (in this folder) before you use it.
   Rip CD...            Copies an audio CD from this PC's CD drive onto the disc (read twice and compared), with titles and cover looked up for you.
   Yoto                 "Rip Yoto Card..." copies the card in your Yoto player (or one of your own playlists) onto the disc; you sign in to
                        Yoto once, on Yoto's own page, and the program never sees your password. Yoto keeps its audio as Opus, so the copy is of

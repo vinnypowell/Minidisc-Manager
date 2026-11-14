@@ -360,7 +360,7 @@ async function verifyVolume(fsDriver, before, after, expectCover, target = COVER
     const head = await volumeHead(fsDriver), g = head.geometry;
     const fat1 = head.data.subarray(g.res * g.bps, (g.res + g.spf) * g.bps), fat2 = head.data.subarray((g.res + g.spf) * g.bps, (g.res + 2 * g.spf) * g.bps);
     if (g.nf >= 2 && !fat1.equals(fat2)) problems.push('the two copies of the FAT differ');
-    const present = a.has(target), what = target === COVER ? 'the picture' : target === LABEL ? 'the label' : target === LYRICS ? 'the lyrics file' : 'the track list';
+    const present = a.has(target), what = target === COVER ? 'the picture' : target === LABEL ? 'the label' : target === LYRICS ? 'the lyrics file' : /^\/SP[0-9A-Z]*\.(HMS|JSN)$/.test(target) ? 'the spatial audio file' : 'the track list';
     if (expectCover && !present) problems.push(what + ' is not in the root folder');
     if (!expectCover && present) problems.push(what + ' is still in the root folder');
     if (problems.length) throw new Error('Checking the disc afterwards found a problem: ' + problems.join('; ') + '.');
@@ -505,6 +505,51 @@ const commands = {
         if (data.length < 100 || data.length > 1500000) throw new Error('The label must be a JPEG under 1.5 MB.');
         if (data[0] !== 0xFF || data[1] !== 0xD8) throw new Error('The label must be a JPEG.');
         return putRootFile(LABEL, data, 'label', { simulate, backupDir });
+    },
+
+    // WRITES A FILE TO THE DISC (unless simulate): stores `file` as /<name> in the root folder, where name is a spatial-audio sidecar (SPnnnnnn.HMS)
+    // or the index of them (SPATIAL.JSN); replaces an earlier file of that name. Same checks as the other root files.
+    async spatial_put({ name, file, simulate = false, backupDir = null }) {
+        name = String(name || '').toUpperCase();
+        if (!/^(SP[0-9A-Z]{1,6}\.HMS|SPATIAL\.JSN)$/.test(name)) throw new Error('That is not a spatial audio file name.');
+        const data = fs.readFileSync(file);
+        if (data.length < 10 || data.length > 900000000) throw new Error('The spatial audio file has an unexpected size.');
+        return putRootFile('/' + name, data, 'spatial audio file', { simulate, backupDir });
+    },
+
+    // WRITES TO THE DISC (unless simulate): removes one spatial-audio sidecar (or the index) from the root folder.
+    async spatial_remove({ name, simulate = false, backupDir = null }) {
+        name = String(name || '').toUpperCase();
+        if (!/^(SP[0-9A-Z]{1,6}\.HMS|SPATIAL\.JSN)$/.test(name)) throw new Error('That is not a spatial audio file name.');
+        return removeRootFile('/' + name, { simulate, backupDir });
+    },
+
+    // Read-only: copies the root file `name` (a sidecar or the index) from the disc to the PC file `out`.
+    async spatial_get({ name, out }) {
+        name = String(name || '').toUpperCase();
+        if (!/^(SP[0-9A-Z]{1,6}\.HMS|SPATIAL\.JSN)$/.test(name)) throw new Error('That is not a spatial audio file name.');
+        const ctx = await openDisc({});
+        try {
+            const { fsDriver } = ctx;
+            const snap = await snapshotFiles(fsDriver);
+            const f = snap.files.find(x => x.path.toUpperCase() === '/' + name);
+            if (!f) return { found: false };
+            const h = await fsDriver.open('/' + name, 'ro');
+            const fd = fs.openSync(out, 'w');
+            try {
+                for (let done = 0; done < f.size;) {
+                    const n = Math.min(1 << 20, f.size - done);
+                    const buf = Buffer.from(await h.read(n));
+                    if (!buf.length) throw new Error('The disc stopped answering while the spatial file was being read.');
+                    fs.writeSync(fd, buf);
+                    done += buf.length;
+                    await say({ event: 'progress', done, total: f.size });
+                }
+            } finally { fs.closeSync(fd); await h.close(); }
+            return { found: true, size: f.size };
+        } finally {
+            await closeDisc(ctx);
+        }
     },
 
     // WRITES TO THE DISC (unless simulate): removes /LABEL.JPG.

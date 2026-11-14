@@ -3,6 +3,7 @@ CastMixin is mixed into himd_app.Api (the page calls these methods on it). It us
 import http.server
 import json
 import os
+import subprocess
 import threading
 import time
 
@@ -83,7 +84,7 @@ class CastMixin:
         lock = self.__dict__.setdefault('_lv_lock', threading.Lock())
         with lock:
             old = self._lv
-            if not old or not old.get('ctx') or not self._cast_video:
+            if not old or not old.get('ctx') or not self._cast_video :
                 return {'ok': True, 'restarted': False}
             c, seq = old['ctx'], self._cast_seq
             try:
@@ -116,6 +117,38 @@ class CastMixin:
                 return {'ok': True, 'restarted': True}
             except (chromecast.CastError, OSError) as exc:
                 return {'error': str(exc)}
+
+    def _spatial_note(self, track):
+        """The second line on the TV picture of the stereo lyric video, for a track that has a spatial version."""
+        sp = (track or {}).get('spatial')
+        if not sp:
+            return ''
+        kind = 'lossless' if sp.get('codec') != 'opus' else 'Opus ' + (sp.get('quality') or '')
+        return 'Spatial ' + (sp.get('layout') or '%s ch' % sp.get('channels')) + ' (' + kind.strip() + ')  ·  the TV gets stereo'
+
+    def _surround_audio(self, track):
+        """For a Google TV: the track's spatial audio mixed to 5.1 and encoded as Dolby Digital Plus in an audio-only MP4, which the TV passes straight to a
+        soundbar or receiver (decoded by the TV or its Cast player, surround arrived as stereo). Made once per track (about 3 s for 12 minutes) and served
+        like any other stream. Returns the stream entry, or None when it cannot be made."""
+        src = self.spatial_surround_source(track)
+        if not src:
+            return None
+        import hashlib
+        name = 'surround-%s.mp4' % hashlib.sha1((src['path'] + src['filter']).encode('utf-8')).hexdigest()[:14]
+        path = os.path.join(PLAY_DIR, name)
+        if not (os.path.exists(path) and os.path.getsize(path) > 1000):
+            tmp = path + '.part'
+            r = subprocess.run([os.path.join(HERE, 'runtime', 'ffmpeg.exe'), '-hide_banner', '-loglevel', 'error', '-y', '-i', src['path'], '-vn', '-af', src['filter'],
+                                '-c:a', 'eac3', '-b:a', '640k', '-ar', '48000', '-f', 'mp4', '-movflags', '+faststart', tmp],
+                               capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            if r.returncode or not os.path.exists(tmp):
+                self.log('surround audio failed: %s' % (r.stderr or '').strip()[-300:])
+                return None
+            os.replace(tmp, path)
+        st = {'key': 'surround-' + name, 'name': name, 'format': 'mp4', 'path': path, 'total': os.path.getsize(path), 'mime': 'audio/mp4', 'done': True,
+              'failed': False, 'cancelled': False, 'announced': True, 'error': ''}
+        self._streams[name] = st
+        return st
 
     def _caption(self):
         """The small line at the bottom of the TV picture: the recorder and the kind of disc, e.g. 'MZ-NH700 - Playing an SP disc'."""
@@ -154,16 +187,18 @@ class CastMixin:
             vid = '%d' % int(time.time() * 1000)
             num, tracks = track.get('number'), self._tracks or []                   # the deck's track number / time display on the TV picture
             deck = {'pos': sum(1 for t in tracks if t['number'] <= num), 'count': len(tracks), 'length': float(track.get('seconds') or 0)} if num is not None and tracks else None
+            note = self._spatial_note(track)
             job = lyricvideo.Job(os.path.join(HERE, 'runtime', 'ffmpeg.exe'), stream['path'], os.path.join(PLAY_DIR, 'lyricvideo-' + vid),
                                  title or 'Track', artist or '', lines, float(ly.get('offset') or 0), float(track.get('seconds') or 0),
                                  cover, self.log, growing=not stream.get('done'), caption=self._caption(), album=track.get('album') or '',
-                                 viz=getattr(self, '_cast_viz', None), start=start, deck=deck)
+                                 viz=getattr(self, '_cast_viz', None), start=start, deck=deck, note=note)
             self._lv = {'id': vid, 'job': job, 'start': start, 'ctx': {'stream': stream, 'track': track, 'lan': lan, 'ip': ip}}
-            if not job.wait_ready():
+            ready = job.wait_ready()
+            if not ready:
                 self.log('lyric video: not ready (%s); playing the audio only' % (job.error or 'timed out'))
                 self._lv_stop()
                 return None
-            return 'http://%s:%d/%s/lv/%s/index.m3u8' % (lan, self._cast_port, self._token, vid)
+            return 'http://%s:%d/%s/lv/%s/%s' % (lan, self._cast_port, self._token, vid, 'index.m3u8')
         except (OSError, ValueError) as exc:
             self.log('lyric video failed: %s' % exc)
             self._lv_stop()
@@ -181,7 +216,17 @@ class CastMixin:
             if action == 'play':
                 self._cast_seq += 1
                 mine, t0 = self._cast_seq, time.time()
-                r = self.play_prepare(int(device_index), int(track_index) + 1)
+                tr0 = next((t for t in self._tracks if t['number'] == int(track_index) + 1), None) or {}
+                r = None
+                surround = bool(tr0.get('spatial')) and bool(self._app_setting('spatialTvSurround')) and not getattr(self, '_loaded_netmd', False)
+                if surround:
+                    r = self.play_spatial(int(device_index), int(track_index) + 1)           # also pulls the spatial file, and gives a stereo picture of it for the visualizer
+                    self.log('cast: play_spatial for the TV -> %s' % ('error: ' + r['error'] if 'error' in r else 'ok'))
+                    if 'error' in r:
+                        self.log('cast: spatial version not used (%s)' % r['error'])
+                        r, surround = None, False
+                if r is None:
+                    r = self.play_prepare(int(device_index), int(track_index) + 1)
                 if r.get('superseded') or mine != self._cast_seq:
                     return {'superseded': True}
                 if 'error' in r:
@@ -200,16 +245,28 @@ class CastMixin:
                         track['album'] = dt
                 url, mime = 'http://%s:%d/%s' % (lan, self._cast_port, path), st['mime'] if st else 'audio/wav'
                 self._lv_stop()
-                if self._cast_video:
-                    vurl = self._lyric_video(st, track, lan, ip)               # None when it could not be made: the TV then just gets the audio
-                    if vurl:
-                        url, mime = vurl, 'application/x-mpegurl'
-                video = mime.startswith('application/x-mpegurl')
-                dev.play_url(url, track.get('title'), mime, track.get('artist'), track.get('album'), video=video,
-                             source=self._recorder_name or None)
+                sur_st = None
+                if surround:                                                        # sound only: a Google TV shows no picture while it passes surround on, so no lyric video is made
+                    try:
+                        sur_st = self._surround_audio(track)
+                    except Exception as exc:
+                        self.log('spatial surround failed: %s' % exc)
+                if sur_st:
+                    url, mime = 'http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, sur_st['name']), 'audio/mp4'
+                    album = ((track.get('album') or '') + '  ·  ' if track.get('album') else '') + 'Spatial 5.1 (Dolby Digital Plus)'
+                    dev.play_url(url, track.get('title'), mime, track.get('artist'), album, video=False, source=self._recorder_name or None)
+                    kind = 'surround audio'
+                else:
+                    if self._cast_video:
+                        vurl = self._lyric_video(st, track, lan, ip)               # None when it could not be made: the TV then just gets the audio
+                        if vurl:
+                            url, mime = vurl, 'application/x-mpegurl'
+                    video = mime.startswith('application/x-mpegurl')
+                    dev.play_url(url, track.get('title'), mime, track.get('artist'), track.get('album'), video=video,
+                                 source=self._recorder_name or None)
+                    kind = 'lyric video' if video else 'audio only'
                 self._cast_last = {'ip': ip, 'prefix': 'http://%s:%d/' % (lan, self._cast_port), 'cast': True}
-                self.log('cast (Google Cast) play track %d (%s): track ready after %.1fs, device told in %.1fs' % (
-                    int(track_index) + 1, 'lyric video' if mime.startswith('application/x-mpegurl') else 'audio only', t1 - t0, time.time() - t1))
+                self.log('cast (Google Cast) play track %d (%s): track ready after %.1fs, device told in %.1fs' % (int(track_index) + 1, kind, t1 - t0, time.time() - t1))
             elif action in ('pause', 'resume', 'stop', 'seek'):
                 if action == 'stop':
                     self._lv_stop()

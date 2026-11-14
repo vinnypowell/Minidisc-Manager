@@ -232,7 +232,7 @@ class Device:
             if album and not video:
                 meta['albumName'] = album
             media = {'contentId': url, 'contentType': mime, 'streamType': 'BUFFERED', 'metadata': meta}
-            if video:
+            if video and 'mpegurl' in (mime or '').lower():      # these two fields describe an HLS stream; on a plain MP4 they can make the TV drop the picture
                 media.update({'hlsSegmentFormat': 'ts', 'hlsVideoSegmentFormat': 'mpeg2_ts'})
             j = c.ask(NS_MEDIA, transport, {'type': 'LOAD', 'autoplay': True, 'currentTime': 0, 'media': media}, timeout=20)
             if j.get('type') in ('LOAD_FAILED', 'LOAD_CANCELLED', 'INVALID_REQUEST'):

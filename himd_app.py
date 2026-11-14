@@ -54,12 +54,13 @@ import himd_dev
 import himd_disc
 import himd_fs
 import sonos_cast
+import spatial_disc
 import video_links
 from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.28.1'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.30.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -128,7 +129,7 @@ except ImportError:
     _BUILTIN_ACOUSTID_KEY = ''
 
 
-class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
+class Api(spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
           sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, video_links.VideoLinksMixin):
     def __init__(self):
         self._window = None
@@ -306,12 +307,19 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
                             extras['list'] = max(0, extras['list'] - vb)
                 except Exception:
                     pass
+                try:                                                   # spatial (multichannel) versions kept in the root folder: marks the tracks that have one
+                    sp_bytes, sp_orphans = self._spatial_on_load(fs, tracks)
+                    if sp_bytes:
+                        extras['spatial'] = sp_bytes
+                except Exception as exc:
+                    sp_orphans = 0
+                    self.log('spatial on load failed: %s' % exc)
                 out['discState'] = 'ok'
                 self._catalogue_note(self._disc_key, disc.disc_title(), tracks, out.get('model', ''))
                 out['disc'] = {'title': disc.disc_title(), 'total': total, 'free': free,
                                'tracks': tracks, 'seconds': sum(t['seconds'] for t in tracks),
                                'blockSize': 16384, 'cover': cover, 'label': label, 'tracklist': tracklist, 'hasTracklist': has_list, 'groupArt': {'pc': self._ga_state()['pc'], 'disc': self._ga_disc}, 'lyricsStale': lyrics_stale,
-                               'audioBytes': getattr(disc, 'audio_bytes', None), 'extras': extras,
+                               'audioBytes': getattr(disc, 'audio_bytes', None), 'extras': extras, 'spatialOrphans': sp_orphans,
                                'key': ('himd-' + self._disc_key) if self._disc_key else None}       # stable disc id: the page keeps equalizer settings per disc
                 return out
             except usb.core.USBError as exc:
@@ -512,6 +520,21 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
             return {'error': 'Could not open the driver guide: %s' % exc}
         return {'ok': True}
 
+    GUIDES = ('SPATIAL-AUDIO.txt', 'README.txt')
+
+    def open_guide(self, name='SPATIAL-AUDIO.txt'):
+        """Opens one of the guides that come with the program (the spatial audio guide, the full user guide) in the default text viewer."""
+        if name not in self.GUIDES:
+            return {'error': 'Unknown guide.'}
+        path = os.path.join(HERE, name)
+        if not os.path.isfile(path):
+            return {'error': 'The guide (%s) is missing from the program folder.' % name}
+        try:
+            os.startfile(path)
+        except OSError as exc:
+            return {'error': 'Could not open the guide: %s' % exc}
+        return {'ok': True}
+
     def pick_files(self):
         kind = getattr(getattr(webview, 'FileDialog', None), 'OPEN', None) or webview.OPEN_DIALOG
         types = ('Audio files (*.mp3;*.wav;*.flac;*.m4a;*.ogg;*.aac;*.wma;*.aif;*.aiff;*.dts;*.dtshd;*.ac3;*.eac3;*.thd;*.mlp;*.mka;*.mkv;*.m2ts)',)
@@ -681,7 +704,7 @@ def main():
     try:
         page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
         stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
-        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js'):                            # the language files are part of the page too
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js'):                            # the language files are part of the page too
             ex = os.stat(os.path.join(HERE, 'ui', extra))
             stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
     except OSError:
