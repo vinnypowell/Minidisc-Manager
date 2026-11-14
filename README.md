@@ -2,7 +2,7 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.27.5 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.28.1 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
@@ -34,6 +34,17 @@ The source of the program.
 ## Download
 
 See the Releases page for the Windows installer, the portable zip and the user manual.
+
+## Languages and installation help
+
+The program can be used in **English, French (Français), German (Deutsch) and Dutch (Nederlands)**: use the Language button with the flag at the top of the window. The translations are drafts, and corrections are welcome (please open an issue).
+
+Installation and USB driver setup, in your language:
+
+- **USB driver guide:** `DRIVER-SETUP.html` comes with the download and opens in your browser in English, French, German or Dutch (flag buttons at the top of the page). The program opens it in the language you have chosen.
+- **Portable zip, first steps:** [Français](installer/LISEZ-MOI.txt) · [Deutsch](installer/LIES-MICH.txt) · [Nederlands](installer/LEES-MIJ.txt) · [English](installer/portable-readme.txt). They cover unzipping (and the Windows "Unblock" step), the first start, driver setup, backups and requirements.
+
+The full user guide (`README.txt`) is English only.
 
 ## Warning
 
