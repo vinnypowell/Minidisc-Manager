@@ -369,6 +369,8 @@ class CastMixin:
                     kind = 'lyric video' if video else 'audio only'
                 self._cast_last = {'ip': ip, 'prefix': 'http://%s:%d/' % (lan, self._cast_port), 'cast': True}
                 self.log('cast (Google Cast) play track %d (%s): track ready after %.1fs, device told in %.1fs' % (int(track_index) + 1, kind, t1 - t0, time.time() - t1))
+                if kind.startswith('surround'):                                     # read the next spatial track ahead while this one plays
+                    self._sp_prefetch_next(int(track_index) + 1, mine)
             elif action in ('pause', 'resume', 'stop', 'seek'):
                 if action == 'stop':
                     self._lv_stop()

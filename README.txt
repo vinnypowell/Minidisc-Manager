@@ -897,6 +897,8 @@ How writing works
   converted by runtime\ffmpeg.exe (LGPL build, BtbN n8.1).
 
 Status (2026-10-21)
+- 0.31.1 (2026-11-15): playing 5.1 tracks to a Google TV one after another is much quicker: while one plays, the next track's spatial file is read
+  from the disc and its sound, picture and video are prepared (it gives way at once if you use the recorder for anything else).
 - 0.31.0 (2026-11-15): Clone and Split carry spatial versions across; a progress bar while spatial files are written; the Codec column
   says HMSA Lossless / Opus and the layout; 5.1 is the default layout; "Time left" shows spatial 5.1; 5.1 on a Google TV comes with a still
   picture. Clone and Split with spatial files were tested offline, not yet on a real disc.

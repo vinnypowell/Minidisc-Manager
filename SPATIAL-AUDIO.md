@@ -1,6 +1,6 @@
 # Spatial audio (HMSA) in MiniDisc Manager
 
-MiniDisc Manager 0.31.0 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
+MiniDisc Manager 0.31.1 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
 
 - [In one minute](#in-one-minute)
 - [How it works](#how-it-works)
@@ -136,6 +136,7 @@ Press **Play on** (the 🔊 button), pick your Google TV, and a boxed question a
 
 - In **5.1 surround** mode the program makes a Dolby Digital Plus 5.1 audio file from the spatial version (about 3 seconds for a 12-minute track) and the TV passes it to the soundbar or receiver. The first play of a track also copies the spatial file from the disc, so allow up to a minute for a long track.
 - **In surround mode the TV shows a still picture, not the lyric video.** The sound and a picture of the track are sent together as a video file, because the TV's built-in Cast player only comes to the front for video: an audio-only file plays in the background and shows nothing. The lyric video itself is only available with stereo sound. The app checks that playback really carries on, and resets the TV's player and tries again if it stalls (this adds a few seconds to starting a track).
+- **The next track is read ahead.** While a 5.1 track plays, the program reads the next track's spatial file from the disc and prepares its sound, picture and video, so moving on to it takes seconds instead of the better part of a minute. This reads the disc only, and it stops at once if you do anything else that needs the recorder. If you skip to a track that is still being read ahead, the program waits for that read instead of starting again.
 - Tracks *without* a spatial version still get the picture and lyrics in surround mode.
 - **Heights and 7.1 are not sent.** The sound is mixed to 5.1; the height channels are folded into the floor channels. The TV tested refused 7.1.
 - It needs a soundbar or receiver that accepts **Dolby Digital Plus** from the TV (HDMI eARC or ARC), and the TV's own digital audio output left on **Auto** or **Passthrough** (not "Stereo" or "PCM"). Your sound system should show *Dolby Audio* or *5.1* while it plays.

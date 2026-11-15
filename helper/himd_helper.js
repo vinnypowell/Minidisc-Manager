@@ -541,6 +541,9 @@ const commands = {
     async spatial_get({ name, out }) {
         name = String(name || '').toUpperCase();
         if (!/^(SP[0-9A-Z]{1,6}\.HMS|SPATIAL\.JSN)$/.test(name)) throw new Error('That is not a spatial audio file name.');
+        let stop = false;                               // a line containing "stop" on stdin ends the read cleanly between blocks (the read-ahead of the next track gives way to other work)
+        process.stdin.on('data', d => { if (String(d).includes('stop')) stop = true; });
+        process.stdin.resume();
         const ctx = await openDisc({});
         try {
             const { fsDriver } = ctx;
@@ -551,6 +554,7 @@ const commands = {
             const fd = fs.openSync(out, 'w');
             try {
                 for (let done = 0; done < f.size;) {
+                    if (stop) return { found: true, stopped: true, size: f.size, done };
                     const n = Math.min(1 << 20, f.size - done);
                     const buf = Buffer.from(await h.read(n));
                     if (!buf.length) throw new Error('The disc stopped answering while the spatial file was being read.');

@@ -284,12 +284,13 @@ class SpatialMixin:
         if not track or not track.get('spatial'):
             return {'error': 'This track has no spatial version.'}
         sp = track['spatial']
+        pf = self._sp_pf
+        if pf is not None and pf['file'] == sp['file']:        # this very track is being read ahead right now: wait for it instead of starting again
+            pf['ev'].wait(300)
         if self._active is not None:
             self._active['announced'] = False
         self._cancel_extract()
-        key = '%s|%s|%d' % (self._disc_key, sp['file'], sp['bytes'])
-        name = 'spatial-%s.wav' % uuid.uuid5(uuid.NAMESPACE_URL, key).hex[:16]
-        path = os.path.join(PLAY_DIR, name)
+        key, name, path = self._sp_render_target(track)
         os.makedirs(PLAY_DIR, exist_ok=True)
         self._ensure_server()
         if not (os.path.exists(path) and self._sp_cache.get(key) == path):
@@ -318,23 +319,111 @@ class SpatialMixin:
         self._active = None
         return self._play_reply(st)
 
-    def _spatial_pull(self, track):
-        """Copies the track's spatial file from the disc into PLAY_DIR (kept for the next play of the same track). Returns (path, error text or '')."""
+    def _spatial_pull(self, track, raw=False):
+        """Copies the track's spatial file from the disc into PLAY_DIR (kept for the next play of the same track). Returns (path, error text or '').
+        raw: used by the read-ahead of the next track: takes the USB lock without the gate (so it does not cancel itself), gives up at once when the
+        recorder is busy, and can be stopped between blocks by anything else that needs the recorder."""
         sp = track['spatial']
         key = '%s|%s|%d' % (self._disc_key, sp['file'], sp['bytes'])
         path = os.path.join(PLAY_DIR, 'spatial-%s.hms' % uuid.uuid5(uuid.NAMESPACE_URL, key).hex[:16])
         os.makedirs(PLAY_DIR, exist_ok=True)
         if os.path.exists(path) and os.path.getsize(path) == sp['bytes']:
             return path, ''
-        self._sp_say(phase='read', name=track['title'], done=0, total=sp['bytes'])
-        with self._lock:
-            res = self._run_helper('spatial_get', {'name': sp['file'], 'out': path + '.part'},
-                                   lambda m: self._sp_say(phase='read', name=track['title'], done=m.get('done'), total=m.get('total')) if m.get('event') == 'progress' else None)
-        if 'error' in res or not (res.get('result') or {}).get('found'):
+        if not raw:
+            self._sp_say(phase='read', name=track['title'], done=0, total=sp['bytes'])
+        progress = (lambda m: None) if raw else (lambda m: self._sp_say(phase='read', name=track['title'], done=m.get('done'), total=m.get('total')) if m.get('event') == 'progress' else None)
+        if raw:
+            if not self._lock.raw.acquire(False):
+                return '', 'busy'
+            try:
+                res = self._run_helper('spatial_get', {'name': sp['file'], 'out': path + '.part'}, progress)
+            finally:
+                self._lock.raw.release()
+                self._drive_touched()
+        else:
+            with self._lock:
+                res = self._run_helper('spatial_get', {'name': sp['file'], 'out': path + '.part'}, progress)
+        got = res.get('result') or {}
+        if 'error' in res or not got.get('found') or got.get('stopped'):
             self._rm(path + '.part')
-            return '', res.get('error') or 'The spatial file is not on the disc any more.'
+            return '', 'stopped' if got.get('stopped') else (res.get('error') or 'The spatial file is not on the disc any more.')
         os.replace(path + '.part', path)
         return path, ''
+
+    # -- reading the next track ahead while a 5.1 track plays on a TV ----------------------------------------------------
+    _sp_pf = None                         # {'file', 'ev'} while a read-ahead (read + headphone picture + TV files) of one spatial track is running
+
+    def _sp_render_target(self, track):
+        """(cache key, file name, path) of the rendered headphone / visualizer picture of a track's spatial version."""
+        sp = track['spatial']
+        key = '%s|%s|%d' % (self._disc_key, sp['file'], sp['bytes'])
+        name = 'spatial-%s.wav' % uuid.uuid5(uuid.NAMESPACE_URL, key).hex[:16]
+        return key, name, os.path.join(PLAY_DIR, name)
+
+    def _sp_prefetch_next(self, number, mine):
+        """A 5.1 track has just started on a TV. If the next track also has a spatial version, its file is read from the disc and everything the TV needs
+        is made while this one plays, so moving on takes seconds instead of a minute. Reads only; it gives way (stops between blocks) the moment anything
+        else needs the recorder, exactly like the read-ahead of standard discs, and it does nothing when the recorder is busy."""
+        try:
+            self._sp_state()
+            if getattr(self, '_loaded_netmd', False) or not self._app_setting('spatialTvSurround') or mine != self._cast_seq:
+                return
+            track = next((t for t in (self._tracks or []) if t['number'] == int(number) + 1), None)
+            if not track or not track.get('spatial') or self._sp_pf is not None:
+                return
+            if self._thread is not None and self._thread.is_alive():
+                return                                         # a playback read is still running
+            st = {'name': 'sp-prefetch-%d' % track['number'], 'cancelled': False, 'announced': False, 'done': False, 'failed': False, 'ahead': True,
+                  'number': track['number'], 'error': ''}
+            t = threading.Thread(target=self._sp_prefetch_run, args=(dict(track), st, mine), daemon=True)
+            with self._ra_lock:
+                self._thread, self._active = t, st
+            self._sp_pf = {'file': track['spatial']['file'], 'ev': threading.Event()}
+            t.start()
+        except Exception as exc:
+            self.log('spatial read-ahead not started: %s' % exc)
+
+    def _sp_prefetch_run(self, track, st, mine):
+        pf = self._sp_pf
+        t0 = time.time()
+        try:
+            pulled, err = self._spatial_pull(track, raw=True)
+            with self._ra_lock:                                # the disc part is over: nothing may wait for this thread any more
+                if self._active is st:
+                    self._active = None
+                if self._thread is threading.current_thread():
+                    self._thread = None
+            st['done'] = True
+            if err:
+                self.log('spatial read-ahead of track %d: %s' % (track['number'], err))
+                return
+            if st['cancelled'] or mine != self._cast_seq:
+                return
+            key, name, wav = self._sp_render_target(track)     # the picture the window's visualizer uses
+            if not (os.path.exists(wav) and self._sp_cache.get(key) == wav):
+                tmp = wav + '.part'
+                spatial.render_binaural(pulled, tmp)
+                os.replace(tmp, wav)
+                self._sp_cache[key] = wav
+            if mine != self._cast_seq:
+                return
+            sound = self._surround_audio(track)                # the 5.1 sound, the still picture and the video that joins them
+            pic = self._surround_splash(track)
+            if sound and pic:
+                self._surround_video(sound, pic)
+            self.log('spatial read-ahead: track %d ready after %.1f s' % (track['number'], time.time() - t0))
+        except Exception as exc:
+            self.log('spatial read-ahead of track %d failed: %s' % (track['number'], exc))
+        finally:
+            with self._ra_lock:
+                if self._active is st:
+                    self._active = None
+                if self._thread is threading.current_thread():
+                    self._thread = None
+            if pf is not None:
+                pf['ev'].set()
+            if self._sp_pf is pf:
+                self._sp_pf = None
 
     def spatial_surround_source(self, track):
         """For a TV: the track's spatial audio as a plain file plus the ffmpeg filter that mixes it down to 5.1 (heights folded into the floor channels; the TV's
