@@ -119,7 +119,7 @@ class CloneMixin:
         big = [t['number'] for t in tracks if t['codec'] == 'PCM' and t['seconds'] * 176400 > CLONE_MAX_PCM]
         if big:
             return {'error': 'Track %s is a PCM track longer than %d minutes, which is more than can be written back in one piece.' % (', '.join(map(str, big)), CLONE_MAX_PCM // 176400 // 60)}
-        need = sum(t['blocks'] for t in tracks) * 16384
+        need = sum(t['blocks'] for t in tracks) * 16384 + sum(t['spatial']['bytes'] for t in tracks if t.get('spatial'))      # spatial files travel with their tracks
         os.makedirs(CLONE_DIR, exist_ok=True)
         free = shutil.disk_usage(CLONE_DIR).free
         return {'tracks': len(tracks), 'seconds': sum(t['seconds'] for t in tracks), 'needBytes': need, 'freeBytes': free,

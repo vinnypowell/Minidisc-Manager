@@ -212,6 +212,7 @@ class NetMdMixin:
             kept = [t['number'] for t in tracks]
             groups = self._clone_remap_groups(groups, kept)         # the groups, renumbered for the tracks that are copied
             items = []
+            sp_by = {t['number']: t for t in (self._tracks or []) if t.get('spatial')}      # tracks that have a spatial version
             for i, t in enumerate(tracks):
                 kind = self._clone_kind(t)
                 label = t['title'] if t['title'] != '(untitled)' else 'Track %d' % t['number']
@@ -234,14 +235,33 @@ class NetMdMixin:
                 items.append({'kind': kind, 'codec': t['codec'], 'codecId': t['codecId'], 'ci': t['ci'], 'frame': t['frame'], 'seconds': t['seconds'],
                               'title': '' if t['title'] == '(untitled)' else t['title'], 'artist': t['artist'], 'album': t['album'],
                               'file': os.path.basename(path), 'skip': skip, 'bytes': nbytes, 'sha': sha, 'blocks': t['blocks']})
+                st = sp_by.get(t['number'])
+                if st:                                          # its spatial file comes along exactly as stored
+                    tell(phase='reading', n=i, count=len(tracks), name=label + ' (spatial)', done=0, total=0)
+                    pulled, err = self._spatial_pull(st)
+                    if self._clone_cancel:
+                        shutil.rmtree(CLONE_DIR, ignore_errors=True)
+                        return {'cancelled': True}
+                    if err:
+                        raise RuntimeError('The spatial version of “%s” could not be read: %s' % (label, err))
+                    sp_path = os.path.join(stage, 'sp%03d.hms' % (i + 1))
+                    shutil.copyfile(pulled, sp_path)
+                    sp_sha = hashlib.sha256()
+                    with open(sp_path, 'rb') as f:
+                        for chunk in iter(lambda: f.read(1 << 20), b''):
+                            sp_sha.update(chunk)
+                    sp = st['spatial']
+                    items[-1]['spatial'] = {'file': os.path.basename(sp_path), 'bytes': os.path.getsize(sp_path), 'sha': sp_sha.hexdigest(), 'codec': sp['codec'],
+                                            'channels': sp['channels'], 'layout': sp['layout'], 'quality': sp['quality']}
+            sp_bytes = sum(x['spatial']['bytes'] for x in items if x.get('spatial'))
             if cover:
                 with open(os.path.join(stage, 'cover.jpg'), 'wb') as f:
                     f.write(cover)
             manifest = {'complete': True, 'version': 1, 'when': datetime.datetime.now().isoformat(timespec='seconds'), 'discTitle': disc_title,
                         'sourceId': disc_id, 'groups': [{'first': g['first'], 'last': g['last'], 'title': g['title']} for g in groups],
                         'skipped': everything - len(tracks),
-                        'cover': 'cover.jpg' if cover else None, 'tracks': items, 'bytes': sum(os.path.getsize(os.path.join(stage, x['file'])) for x in items),
-                        'seconds': sum(x['seconds'] for x in items), 'needBytes': sum(x['blocks'] for x in items) * 16384}
+                        'cover': 'cover.jpg' if cover else None, 'tracks': items, 'bytes': sum(os.path.getsize(os.path.join(stage, x['file'])) for x in items) + sp_bytes,
+                        'spatialBytes': sp_bytes, 'seconds': sum(x['seconds'] for x in items), 'needBytes': sum(x['blocks'] for x in items) * 16384 + sp_bytes}
             tmp = os.path.join(CLONE_DIR, 'manifest.tmp')
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(manifest, f, indent=1)
@@ -379,6 +399,17 @@ class NetMdMixin:
                     return {'error': 'The saved copy is incomplete (%s is missing). Discard it and copy the disc again.' % it['file']}
                 if self._clone_core(p, it['kind'])[1:] != (it['bytes'], it['sha']):
                     return {'error': 'The saved copy on this PC is damaged (%s). Discard it and copy the disc again.' % it['file']}
+                sp = it.get('spatial')
+                if sp:
+                    sp_p = os.path.join(stage, sp['file'])
+                    sp_sha = hashlib.sha256()
+                    if not os.path.isfile(sp_p) or os.path.getsize(sp_p) != sp['bytes']:
+                        return {'error': 'The saved copy of a spatial file is incomplete (%s). Discard it and copy the disc again.' % sp['file']}
+                    with open(sp_p, 'rb') as f:
+                        for chunk in iter(lambda: f.read(1 << 20), b''):
+                            sp_sha.update(chunk)
+                    if sp_sha.hexdigest() != sp['sha']:
+                        return {'error': 'The saved copy of a spatial file is damaged (%s). Discard it and copy the disc again.' % sp['file']}
             tgt = self.clone_target(index)
             if 'error' in tgt:
                 return tgt
@@ -477,8 +508,16 @@ class NetMdMixin:
                 os.remove(back)
                 if got != (it['bytes'], it['sha']):
                     return {'error': 'Track %d (“%s”) on the new disc does not match the original. Do not rely on this disc.%s' % (k + 1, label, keep), 'partial': True}
+            sp_stored = 0
+            parts = [dict(it['spatial'], hms=os.path.join(stage, it['spatial']['file']), number=k + 1) for k, it in enumerate(items) if it.get('spatial')]
+            if parts:                                                            # the spatial files: stored after the tracks, linked to them, size checked
+                tell(phase='writing', n=count - 1, count=count, name='spatial audio', done=0, total=0)
+                att = self._sp_attach(index, parts, tell)
+                sp_stored = att.get('stored', 0)
+                if 'error' in att:
+                    return {'error': 'The tracks are on the disc, but the spatial files are not complete: %s%s' % (att['error'], keep), 'partial': True}
             shutil.rmtree(CLONE_DIR, ignore_errors=True)                         # everything matched: the PC copy has done its job
-            return {'ok': True, 'tracks': count, 'verified': True, 'bytes': m['bytes'], 'cover': bool(m.get('cover')), 'deleted': not os.path.exists(CLONE_DIR)}
+            return {'ok': True, 'tracks': count, 'verified': True, 'bytes': m['bytes'], 'cover': bool(m.get('cover')), 'spatial': sp_stored, 'deleted': not os.path.exists(CLONE_DIR)}
         except (usb.core.USBError, himd_dev.HiMDError, himd_fs.FatError, RuntimeError, OSError) as exc:
             return {'error': 'Cloning stopped: %s%s' % (exc, keep), 'partial': True}
         finally:

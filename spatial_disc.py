@@ -105,12 +105,23 @@ class SpatialMixin:
                 return name
         raise spatial.SpatialError('No free file name for the spatial audio.')
 
-    def _sp_put(self, name, path):
-        """WRITES A FILE TO THE DISC (the helper checks the volume before and after). Retries a few times: a recorder can stay busy after a write."""
+    def _sp_put(self, name, path, label='', n=0, count=1, tell=None):
+        """WRITES A FILE TO THE DISC (the helper checks the volume before and after). Retries a few times: a recorder can stay busy after a write.
+        A big file reports its progress (writing, then reading back to check): to the Add window as phase 'store', or through `tell` (Clone / Split) as 'writing'."""
+        size = os.path.getsize(path)
+
+        def progress(m):
+            if m.get('event') != 'progress':
+                return
+            write = m.get('phase') == 'write'
+            if tell:
+                tell(phase='writing', n=n, count=count, name=label + (' (spatial audio)' if write else ' (spatial audio, checking)'), done=m.get('done', 0), total=m.get('total', size))
+            else:
+                self._sp_say(phase='store', step='write' if write else 'verify', n=n, count=count, name=label, done=m.get('done', 0), total=m.get('total', size))
         res = {'error': 'not tried'}
         for _ in range(3):
             with self._lock:
-                res = self._run_helper('spatial_put', {'name': name, 'file': path, 'backupDir': os.path.join(BACKUP_DIR, 'spatial_latest')})
+                res = self._run_helper('spatial_put', {'name': name, 'file': path, 'backupDir': os.path.join(BACKUP_DIR, 'spatial_latest')}, progress)
             if 'error' not in res:
                 return res
             time.sleep(2.5)
@@ -152,9 +163,10 @@ class SpatialMixin:
         entries = [dict(e) for e in self._sp_entries if any(t['key'] == e.get('key') for t in tracks)]
         names = set(self._sp_sizes or {})
         stored = 0
-        for t, it in zip(new, items):
+        for k, (t, it) in enumerate(zip(new, items)):
             name = self._sp_next_name(names)
-            r = self._sp_put(name, it['hms'])
+            self._sp_say(phase='store', step='write', n=k, count=len(items), name=t['title'], done=0, total=it['bytes'])
+            r = self._sp_put(name, it['hms'], t['title'], k, len(items))
             if 'error' in r:
                 return {'error': 'The tracks were added, but a spatial file could not be stored: %s' % r['error'], 'stored': stored}
             names.add(name)
@@ -166,6 +178,60 @@ class SpatialMixin:
             stored += 1
         self.spatial_discard(token)
         return {'ok': True, 'stored': stored}
+
+    def _sp_attach(self, index, parts, tell=None):
+        """WRITES FILES TO THE DISC. Stores ready-made spatial files and links each to a track that is now on the disc (used by Clone and Split).
+        parts: [{'number': the track's number on the disc now, 'hms': path, 'seconds', 'codec', 'channels', 'layout', 'quality', 'bytes'}].
+        Reads the disc again first and checks each file arrived with the right size. Returns {'ok', 'stored'} or {'error', 'stored'}."""
+        self._sp_state()
+        parts = [p for p in parts if p]
+        if not parts:
+            return {'ok': True, 'stored': 0}
+        res = self.load(index)
+        if 'error' in res or not res.get('disc'):
+            return {'error': res.get('error') or 'Could not read the disc to link the spatial files.', 'stored': 0}
+        tracks = res['disc']['tracks']
+        by_number = {t['number']: t for t in tracks}
+        entries = [dict(e) for e in self._sp_entries if any(t['key'] == e.get('key') for t in tracks)]
+        names, stored, sizes = set(self._sp_sizes or {}), 0, {}
+        for k, p in enumerate(parts):
+            t = by_number.get(int(p['number']))
+            if t is None:
+                return {'error': 'Track %s is not on the disc, so its spatial file was not stored.' % p['number'], 'stored': stored}
+            name = self._sp_next_name(names)
+            r = self._sp_put(name, p['hms'], t['title'], k, len(parts), tell)
+            if 'error' in r:
+                return {'error': 'A spatial file could not be stored: %s' % r['error'], 'stored': stored}
+            names.add(name)
+            sizes[t['number']] = os.path.getsize(p['hms'])
+            entries.append({'key': t['key'], 'title': t['title'], 'seconds': t['seconds'], 'file': name, 'codec': p.get('codec', ''), 'channels': p.get('channels', 0),
+                            'layout': p.get('layout', ''), 'quality': p.get('quality', ''), 'bytes': sizes[t['number']]})
+            r = self._sp_write_index(entries)
+            if 'error' in r:
+                return {'error': 'A spatial file was stored but its index could not be written: %s' % r['error'], 'stored': stored}
+            stored += 1
+        res = self.load(index)                                     # check: every file is there, linked to its track, and the size is the one that was sent
+        if 'error' in res or not res.get('disc'):
+            return {'error': 'The spatial files were stored but the disc could not be read back to check them.', 'stored': stored}
+        back = {t['number']: t for t in res['disc']['tracks']}
+        bad = [n for n, size in sizes.items() if not (back.get(n) or {}).get('spatial') or back[n]['spatial']['bytes'] != size]
+        if bad:
+            return {'error': 'The spatial file of track %s is not on the disc as it was sent.' % ', '.join(map(str, bad)), 'stored': stored}
+        return {'ok': True, 'stored': stored}
+
+    def _sp_cut_for_split(self, track, spans, folder, titles):
+        """Pulls the track's spatial file off the disc and cuts it into one file per kept part. spans: [(start, duration or None)], titles: one per part.
+        Reads the disc only. Returns the parts [{'hms', 'seconds', 'codec', 'channels', 'layout', 'quality', 'bytes'}] (same order) or raises SpatialError."""
+        pulled, err = self._spatial_pull(track)
+        if err:
+            raise spatial.SpatialError(err)
+        parts = []
+        for i, ((start, dur), title) in enumerate(zip(spans, titles)):
+            self._sp_say(phase='prepare', file=i, count=len(spans), name=title, step='spatial')
+            out = os.path.join(folder, 'sp-part%02d.hms' % (i + 1))
+            r = spatial.cut(pulled, out, start, dur, title)
+            parts.append(dict(r, hms=out))
+        return parts
 
     # -- reading them when a disc is loaded --------------------------------------------------------
     def _spatial_on_load(self, fs, tracks):

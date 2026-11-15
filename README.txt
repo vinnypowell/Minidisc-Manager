@@ -643,17 +643,20 @@ Spatial audio (HMSA): keeping the surround version of a track on a Hi-MD disc
 - Size and time: Opus is about 1, 2 or 3 MB a minute for 5.1 (Low, Medium, High) and double that for 7.1.4; lossless is about 15 to
   20 MB a minute for 5.1. Writing is limited by USB speed (about 150 KB a second on an MZ-NH700, reading about 450 KB a second): a 29 MB
   file takes about three minutes to write, an 83 MB lossless file about nine.
-- Listening: on the recorder the stereo track plays. On this PC, pressing play on a track with a blue SPATIAL label plays a headphone
+- Listening: on the recorder the stereo track plays. On this PC, pressing play on a track whose Codec column reads HMSA (the stereo format is shown beside it) plays a headphone
   surround mix made from the spatial version (an approximation made for headphones; switch it off in Settings to play the stereo
   track). On a Google TV, "Play on" asks how the TV should play: Picture and lyrics (stereo, the default), 5.1 surround sound (a
-  soundbar or receiver then plays real 5.1, but the TV shows no picture while it does) or Sound only. A Sonos room always gets the stereo
+  soundbar or receiver then plays real 5.1, and the TV shows a still picture of the track instead of the lyric video) or Sound only. A Sonos room always gets the stereo
   track.
 - Other equipment: nothing but this program can read the hidden file. "Save spatial version..." (Disc Extras, Copy out) saves the
   surround of the ticked tracks as FLAC 5.1 / 7.1 (lossless; heights are folded into 7.1), as Dolby Digital Plus 5.1 (.mp4) or as every
   channel as stored (.opus / .wv), for a home-cinema player, a media box or a receiver.
-- Looking after it: click a track's SPATIAL label to remove its spatial version. Deleting a track leaves its spatial file behind; the
-  TIDY button in the disc size line removes the unused ones. Renaming, moving and grouping keep the link; Fade & level, Split, Combine,
-  Clone and Convert do not carry the spatial version across.
+- Looking after it: click a track's HMSA codec label to remove its spatial version. Deleting a track leaves its spatial file behind; the
+  TIDY button in the disc size line removes the unused ones. Renaming, moving and grouping keep the link. Clone copies the spatial
+  versions to the new disc, and Split cuts the spatial version at the same places, so each new part gets its own (WavPack parts are cut
+  sample-exactly; Opus parts are cut without re-encoding). Fade & level and Combine do not carry it across; Convert starts from a
+  standard disc, which cannot hold one. The Codec column reads, for example, HMSA Lossless 5.1 or HMSA Opus 7.1.4, and the disc's
+  "Time left" line shows how much 5.1 spatial audio would still fit.
 - What it does not do: no Dolby Atmos objects (an Atmos file gives its plain 5.1 / 7.1 core), no copy-protected tracks (the program
   does not remove copy protection), no stereo-to-surround upmix, no surround on the recorder or on Sonos, and no 7.1 or height speakers
   on a TV.
@@ -694,7 +697,7 @@ Playing to a Google TV (Chromecast built in)
   the artist largest. A track with no timed lyrics shows just the cover, title and artist.
 - When you pick a Google TV in "Play on", a boxed question asks how it should play: "Picture and lyrics" (the lyric video, stereo, the
   default), "5.1 surround sound" (for tracks that have a spatial version: Dolby Digital Plus 5.1 sound for a soundbar or receiver;
-  the TV shows NO picture while it does this, a limit of the TV's built-in player found by testing a Philips Google TV) or "Sound only"
+  the TV shows a still picture of the track instead of the lyric video, because a Philips Google TV drops the picture otherwise) or "Sound only"
   (stereo, no picture, the quickest start). The same switch for surround is in Settings. Tracks without a spatial version always get the
   choice of picture or sound only. See the Spatial audio chapter.
 - The lyric offset you set for a track (in the lyrics panel) is used for the video as well. Skipping ahead inside a track on the TV may
@@ -894,6 +897,9 @@ How writing works
   converted by runtime\ffmpeg.exe (LGPL build, BtbN n8.1).
 
 Status (2026-10-21)
+- 0.31.0 (2026-11-15): Clone and Split carry spatial versions across; a progress bar while spatial files are written; the Codec column
+  says HMSA Lossless / Opus and the layout; 5.1 is the default layout; "Time left" shows spatial 5.1; 5.1 on a Google TV comes with a still
+  picture. Clone and Split with spatial files were tested offline, not yet on a real disc.
 - 0.30.0 (2026-11-14): spatial audio (HMSA), see its chapter and SPATIAL-AUDIO.txt. Tested on an MZ-NH700 and, for 5.1 sound to a TV, on a Philips Google
   TV with a Sonos Arc Ultra; the headphone mix has not been listened to on headphones.
 - Tested on an MZ-NH700 and an MZ-RH1.

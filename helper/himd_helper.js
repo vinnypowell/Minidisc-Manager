@@ -386,15 +386,28 @@ async function putRootFile(target, data, label, { simulate = false, backupDir = 
         }
         if (old) await fsDriver.delete(target);
         const h = await fsDriver.open(target, 'rw');
-        await h.write(new Uint8Array(data));
+        const CHUNK = 2 * 1024 * 1024, big = data.length > CHUNK;     // a big file is written and read back in pieces, so the app can show how far it has got
+        for (let done = 0; done < data.length;) {
+            const n = Math.min(CHUNK, data.length - done);
+            await h.write(new Uint8Array(data.subarray(done, done + n)));
+            done += n;
+            if (big) await say({ event: 'progress', phase: 'write', done, total: data.length });
+        }
         await h.close();
         await fsDriver.initFS();                        // mount again from what is really there (the overlay when simulating)
         const after = await snapshotFiles(fsDriver);
         const checked = await verifyVolume(fsDriver, before, after, true, target);
         const rh = await fsDriver.open(target, 'ro');
-        const back2 = Buffer.from(await rh.read(data.length));
+        let same = true;
+        for (let done = 0; done < data.length && same;) {
+            const n = Math.min(CHUNK, data.length - done);
+            const got = Buffer.from(await rh.read(n));
+            same = got.length === n && got.equals(data.subarray(done, done + n));
+            done += n;
+            if (big && same) await say({ event: 'progress', phase: 'verify', done, total: data.length });
+        }
         await rh.close();
-        if (!back2.equals(data)) throw new Error('Checking the disc afterwards found a problem: the ' + label + ' does not read back the same.');
+        if (!same) throw new Error('Checking the disc afterwards found a problem: the ' + label + ' does not read back the same.');
         return { stored: data.length, clusters: checked.clusters, replaced: !!old, filesChecked: checked.filesChecked, simulated: simulate, readBack: true,
                  sectorsWouldWrite: simulate ? ctx.overlay.size : undefined };
     } finally {

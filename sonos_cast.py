@@ -150,6 +150,104 @@ class CastMixin:
         self._streams[name] = st
         return st
 
+    def _surround_splash(self, track):
+        """A 1280x720 picture for the TV to show while the 5.1 surround SOUND plays (that mode carries no video, and without a picture the TV's player shows
+        nothing): the cover, title, artist, album and a line saying it is playing in 5.1. Made once per track and served like any other file.
+        Returns the stream entry, or None when it cannot be made (the sound then plays with no picture, as before)."""
+        try:
+            import hashlib
+            import io
+            from PIL import Image, ImageDraw, ImageFont
+            import lyrics
+            cover = None
+            if getattr(self, '_loaded_netmd', False):
+                import disc_lookup
+                cover = disc_lookup.cover_bytes(self._netmd_disc_key(self._tracks))
+            else:
+                url = self._ga_for_track(track.get('number')) or self._cover_url
+                if url and url.startswith('data:'):
+                    cover = base64.b64decode(url.split(',', 1)[1])
+            title, artist = lyrics._split_title(track)
+            title, artist, album = title or 'Track', artist or '', track.get('album') or ''
+            line = '5.1 surround  ·  Dolby Digital Plus'
+            name = 'splash-%s.jpg' % hashlib.sha1(repr((title, artist, album, line, self._caption(), len(cover or b''))).encode('utf-8')).hexdigest()[:14]
+            path = os.path.join(PLAY_DIR, name)
+            if not os.path.exists(path):
+                W, H = 1280, 720
+                img = Image.new('RGB', (W, H), (14, 20, 28))
+                d = ImageDraw.Draw(img)
+                for y in range(H):                                              # a soft vertical gradient
+                    k = y / H
+                    d.line([(0, y), (W, y)], fill=(int(14 + 14 * k), int(20 + 18 * k), int(28 + 30 * k)))
+
+                def font(size, bold=False):
+                    try:
+                        return ImageFont.truetype('C:/Windows/Fonts/%s.ttf' % ('segoeuib' if bold else 'segoeui'), size)
+                    except OSError:
+                        return ImageFont.load_default()
+
+                def fit(text, f, width):                                         # shorten a line that is too wide
+                    while text and d.textlength(text, font=f) > width:
+                        text = text[:-2].rstrip() + '…' if not text.endswith('…') else text[:-2] + '…'
+                    return text
+                x = 70
+                if cover:
+                    try:
+                        c = Image.open(io.BytesIO(cover)).convert('RGB')
+                        c.thumbnail((460, 460))
+                        img.paste(c, (70, (H - c.height) // 2 - 10))
+                        x = 70 + c.width + 60
+                    except (OSError, ValueError):
+                        pass
+                tw = W - x - 60
+                y = 210
+                d.text((x, y), fit(title, font(58, True), tw), font=font(58, True), fill=(255, 255, 255)); y += 84
+                if artist:
+                    d.text((x, y), fit(artist, font(38), tw), font=font(38), fill=(210, 220, 232)); y += 56
+                if album:
+                    d.text((x, y), fit(album, font(30), tw), font=font(30), fill=(150, 165, 182)); y += 64
+                d.text((x, y), fit(line, font(30, True), tw), font=font(30, True), fill=(92, 184, 255))
+                cap = self._caption()
+                if cap:
+                    d.text((70, H - 62), fit(cap, font(24), W - 140), font=font(24), fill=(120, 134, 150))
+                os.makedirs(PLAY_DIR, exist_ok=True)
+                img.save(path + '.part', 'JPEG', quality=88)
+                os.replace(path + '.part', path)
+            st = {'key': 'splash-' + name, 'name': name, 'format': 'jpg', 'path': path, 'total': os.path.getsize(path), 'mime': 'image/jpeg', 'done': True,
+                  'failed': False, 'cancelled': False, 'announced': True, 'error': ''}
+            self._streams[name] = st
+            return st
+        except Exception as exc:
+            self.log('surround splash picture failed: %s' % exc)
+            return None
+
+    def _surround_video(self, sound, pic):
+        """The 5.1 sound (the stream `sound`, E-AC-3 in an MP4) plus the still splash picture `pic` as an ordinary VIDEO file. A Google TV's player only comes to
+        the front for a video; for an audio-only file it stays in the background and shows nothing (which is what the sound-only mode did). The sound is copied
+        unchanged, so the surround is exactly the same. Made once per track in a few seconds. Returns the stream entry, or None."""
+        try:
+            import hashlib
+            name = 'surroundvid-%s.mp4' % hashlib.sha1((sound['name'] + pic['name'] + '25fps').encode('utf-8')).hexdigest()[:14]
+            path = os.path.join(PLAY_DIR, name)
+            if not (os.path.exists(path) and os.path.getsize(path) > 1000):
+                tmp = path + '.part'
+                r = subprocess.run([os.path.join(HERE, 'runtime', 'ffmpeg.exe'), '-hide_banner', '-loglevel', 'error', '-y', '-loop', '1', '-framerate', '25', '-i', pic['path'],
+                                    '-i', sound['path'], '-map', '0:v', '-map', '1:a', '-vf', 'scale=in_range=full:out_range=tv,format=yuv420p', '-c:v', 'libopenh264',
+                                    '-r', '25', '-b:v', '1200k', '-g', '50', '-bf', '0', '-allow_skip_frames', '0',         # the same video settings as the lyric video (a Google TV needs them)
+                                    '-c:a', 'copy', '-shortest', '-f', 'mp4', '-movflags', '+faststart', tmp],
+                                   capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                if r.returncode or not os.path.exists(tmp):
+                    self.log('surround picture video failed: %s' % (r.stderr or '').strip()[-300:])
+                    return None
+                os.replace(tmp, path)
+            st = {'key': 'surround-' + name, 'name': name, 'format': 'mp4', 'path': path, 'total': os.path.getsize(path), 'mime': 'video/mp4', 'done': True,
+                  'failed': False, 'cancelled': False, 'announced': True, 'error': ''}
+            self._streams[name] = st
+            return st
+        except Exception as exc:
+            self.log('surround picture video failed: %s' % exc)
+            return None
+
     def _caption(self):
         """The small line at the bottom of the TV picture: the recorder and the kind of disc, e.g. 'MZ-NH700 - Playing an SP disc'."""
         name = self._recorder_name or ''
@@ -254,8 +352,12 @@ class CastMixin:
                 if sur_st:
                     url, mime = 'http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, sur_st['name']), 'audio/mp4'
                     album = ((track.get('album') or '') + '  ·  ' if track.get('album') else '') + 'Spatial 5.1 (Dolby Digital Plus)'
-                    dev.play_url(url, track.get('title'), mime, track.get('artist'), album, video=False, source=self._recorder_name or None)
-                    kind = 'surround audio'
+                    pic = self._surround_splash(track)
+                    vid = self._surround_video(sur_st, pic) if pic else None            # sound + still picture as a video: the TV's player then comes to the front
+                    if vid:
+                        url, mime = 'http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, vid['name']), 'video/mp4'
+                    dev.play_url(url, track.get('title'), mime, track.get('artist'), album, video=bool(vid), source=self._recorder_name or None, confirm=True)
+                    kind = 'surround video with splash picture' if vid else 'surround audio (no picture)'
                 else:
                     if self._cast_video:
                         vurl = self._lyric_video(st, track, lan, ip)               # None when it could not be made: the TV then just gets the audio

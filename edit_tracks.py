@@ -15,6 +15,7 @@ import threading
 import himd_dev
 import himd_disc
 import himd_fs
+import spatial
 import usb.util
 from mdm_common import wav_data_bytes, wav_header
 from mdm_paths import HERE, NETMD_HELPER, SPLIT_DIR
@@ -638,8 +639,20 @@ class EditMixin:
                 for p in srcs:
                     os.remove(p)
 
+            sp_parts, sp_err = None, ''
+            if op == 'split' and params.get('keepSpatial', True) and t0.get('spatial'):       # the track has a spatial version: cut it at the same places
+                try:
+                    tell(phase='preparing')
+                    edges_s = [0.0] + points + [float(t0['seconds'])]
+                    spans = [(edges_s[k], None if k == len(edges_s) - 2 else edges_s[k + 1] - edges_s[k]) for k in v['kept']]
+                    sp_parts = self._sp_cut_for_split(t0, spans, tmp, [o['title'] for o in outs])
+                except (spatial.SpatialError, OSError) as exc:
+                    sp_parts, sp_err = None, str(exc)
+
             if params.get('stage'):                                  # the new tracks do not fit next to the original: keep them on this PC for edit_staged_write
-                res = self._edit_stage(files, outs, t0, lossless, mode, kind, tracks, op, bool(params.get('autoName')))
+                res = self._edit_stage(files, outs, t0, lossless, mode, kind, tracks, op, bool(params.get('autoName')), sp_parts)
+                if sp_err:
+                    res['spatialError'] = sp_err
                 if prep:
                     self._edit_prep_clear()
                 return res
@@ -650,6 +663,14 @@ class EditMixin:
                 return res
             if prep:
                 self._edit_prep_clear()                                         # done with the editor's copy
+            if sp_parts and res.get('new'):                                     # link a cut spatial file to each new track
+                tell(phase='finishing')
+                att = self._sp_attach(index, [dict(p, number=n) for p, n in zip(sp_parts, res['new'])], tell)
+                res['spatial'] = att.get('stored', 0)
+                if 'error' in att:
+                    res['spatialError'] = att['error']
+            elif sp_err:
+                res['spatialError'] = sp_err
             return dict(res, originals=[t['number'] for t in tracks], mode=mode)
         except RuntimeError as exc:
             return {'error': str(exc)}
@@ -795,20 +816,25 @@ class EditMixin:
                 size += len(chunk)
         return size, digest.hexdigest()
 
-    def _edit_stage(self, files, outs, t0, lossless, mode, kind, tracks, op, auto_name=False):
-        """Moves the freshly cut parts from the working folder into SPLIT_DIR\\stage and writes the manifest last."""
+    def _edit_stage(self, files, outs, t0, lossless, mode, kind, tracks, op, auto_name=False, sp_parts=None):
+        """Moves the freshly cut parts from the working folder into SPLIT_DIR\\stage and writes the manifest last. sp_parts: the cut spatial files, one per part."""
         stage = os.path.join(SPLIT_DIR, 'stage')
         shutil.rmtree(SPLIT_DIR, ignore_errors=True)
         os.makedirs(stage)
-        entries = []
+        entries, sp_entries = [], []
         for k, f in enumerate(files):
             name = 'part%02d.%s' % (k + 1, 'frames' if lossless else 'wav')
             shutil.move(f['path'], os.path.join(stage, name))
             entries.append({'file': name, 'sha': f['sha'], 'bytes': f['bytes']})
+        for k, p in enumerate(sp_parts or []):
+            name = 'sp%02d.hms' % (k + 1)
+            shutil.move(p['hms'], os.path.join(stage, name))
+            sp_entries.append({'file': name, 'bytes': p['bytes'], 'seconds': p['seconds'], 'codec': p['codec'], 'channels': p['channels'], 'layout': p['layout'], 'quality': p['quality']})
         manifest = {'complete': True, 'version': 1, 'when': datetime.datetime.now().isoformat(timespec='seconds'), 'op': op, 'kind': kind, 'lossless': lossless, 'autoName': bool(auto_name),     # autoName: Auto split & name went on to naming the new tracks once written
                     'mode': mode, 'sourceId': self._disc_key, 'info': {'frame': t0.get('frame'), 'codecId': t0.get('codecId'), 'ci': t0.get('ci'), 'codec': t0['codec']},
                     'originals': [{'number': t['number'], 'title': t['title'], 'seconds': t['seconds'], 'codec': t['codec'], 'blocks': t['blocks']} for t in tracks],
-                    'outs': [{'title': o['title'], 'artist': o['artist'], 'album': o['album'], 'seconds': o['seconds']} for o in outs], 'files': entries}
+                    'outs': [{'title': o['title'], 'artist': o['artist'], 'album': o['album'], 'seconds': o['seconds']} for o in outs], 'files': entries,
+                    'spatial': sp_entries}
         tmp = os.path.join(SPLIT_DIR, 'manifest.tmp')
         with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, indent=1)
@@ -914,5 +940,15 @@ class EditMixin:
             self._release_devices()
         if 'ok' not in res:
             return dict(res, originalDeleted=bool(delete_originals))
+        sp_note = {}
+        sp_files = m.get('spatial') or []
+        if sp_files and res.get('new'):                      # the cut spatial files kept with the parts: store and link them before the saved copy goes
+            tell(phase='finishing')
+            parts = [dict(sp, hms=os.path.join(stage, sp['file']), number=n) for sp, n in zip(sp_files, res['new']) if os.path.isfile(os.path.join(stage, sp['file']))]
+            att = self._sp_attach(index, parts, tell)
+            sp_note['spatial'] = att.get('stored', 0)
+            if 'error' in att:
+                return dict(res, originals=numbers, mode=m['mode'], deleted=bool(delete_originals), cleaned=False, spatial=att.get('stored', 0),
+                            spatialError=att['error'] + ' The saved copy of the spatial files is still on this PC.')
         shutil.rmtree(SPLIT_DIR, ignore_errors=True)          # everything verified: the saved copy has done its job
-        return dict(res, originals=numbers, mode=m['mode'], deleted=bool(delete_originals), cleaned=not os.path.exists(SPLIT_DIR))
+        return dict(res, originals=numbers, mode=m['mode'], deleted=bool(delete_originals), cleaned=not os.path.exists(SPLIT_DIR), **sp_note)

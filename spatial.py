@@ -77,7 +77,7 @@ def probe(path):
     if not name and n in DEFAULT_BY_COUNT:
         name = DEFAULT_BY_COUNT[n]
     if lay == '5.1(side)' or lay == '5.1':
-        name = lay
+        name = '5.1'                                                 # always default to 5.1; 5.1(side) stays selectable in 'choices'
     return {'channels': n, 'layout': name, 'declared': lay in LAYOUTS or lay in ('stereo', 'mono'), 'rate': rate, 'seconds': round(secs, 2),
             'spatial': n >= SPATIAL_MIN_CHANNELS and n <= MAX_CHANNELS, 'codec': m.group(1).split()[0],
             'choices': [k for k, v in LAYOUTS.items() if len(v) == n]}
@@ -250,6 +250,44 @@ def encode(src, out, codec='opus', quality='medium', layout='', title='', progre
     with open(out, 'wb') as f:
         f.write(data)
     return {'bytes': len(data), 'seconds': info['seconds'], 'channels': len(names), 'layout': layout, 'codec': codec}
+
+
+def cut(src_hms, out_hms, start, duration=None, title=''):
+    """Writes a new spatial file holding the part of `src_hms` from `start` seconds for `duration` seconds (None: to the end), for Split.
+    Lossless (WavPack) parts are cut sample-exactly and stay lossless. Opus parts are cut on the 20 ms packet boundaries WITHOUT re-encoding, so there is no
+    second generation of quality loss (the first 80 ms of a part may sound very slightly different because the decoder has no earlier packets to start from).
+    Returns {'bytes', 'seconds', 'channels', 'layout', 'codec', 'quality'}."""
+    info, payload = unpack(src_hms)
+    ext = '.opus' if info['codec'] == 'opus' else '.wv'
+    audio, tmp = out_hms + '.src' + ext, out_hms + '.cut' + ext
+    try:
+        with open(audio, 'wb') as f:
+            f.write(payload)
+        total = float(info['seconds'])
+        dur = float(duration) if duration is not None and start + float(duration) < total - 0.05 else max(0.1, total - start)
+        if info['codec'] == 'opus':                                 # -ss AFTER -i: read from the start and drop packets before `start`, so the cut is exact to 20 ms
+            args = ['-y', '-loglevel', 'error', '-i', audio, '-ss', '%.3f' % start, '-t', '%.3f' % dur, '-vn', '-map', '0:a:0', '-map_metadata', '-1', '-c:a', 'copy', '-f', 'opus']
+        else:
+            args = ['-y', '-loglevel', 'error', '-ss', '%.3f' % start, '-i', audio, '-t', '%.3f' % dur, '-vn', '-map', '0:a:0', '-map_metadata', '-1',
+                    '-c:a', 'wavpack', '-compression_level', '3', '-f', 'wv']
+        r = _run(args + [tmp], timeout=3600)
+        if r.returncode or not os.path.exists(tmp):
+            raise SpatialError('Could not cut the spatial audio: %s' % ((r.stderr or b'').decode('utf-8', 'replace').strip()[-300:] or 'unknown error'))
+        with open(tmp, 'rb') as f:
+            part = f.read()
+        meta = {k: info[k] for k in ('layout', 'kbps', 'quality') if k in info}
+        meta['title'] = title or info.get('title', '')
+        meta['source'] = info.get('source', '')
+        data = pack(part, CODEC_OPUS if info['codec'] == 'opus' else CODEC_LOSSLESS, info['names'], info['rate'], dur, meta)
+        with open(out_hms, 'wb') as f:
+            f.write(data)
+        return {'bytes': len(data), 'seconds': dur, 'channels': info['channels'], 'layout': info.get('layout', ''), 'codec': info['codec'], 'quality': info.get('quality', '')}
+    finally:
+        for p in (audio, tmp):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
 
 
 def estimate_bytes(seconds, channels, codec, quality='medium'):

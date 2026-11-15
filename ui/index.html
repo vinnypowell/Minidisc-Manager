@@ -238,6 +238,8 @@
   .vid-btn:hover { background: rgba(224, 70, 58, .18); }
   .sp-btn { margin-left: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .04em; border-radius: 5px; border: 1px solid #3aa0e0; color: #5cb8ff; background: transparent; cursor: pointer; }
   .sp-btn:hover { background: rgba(58, 160, 224, .18); }
+  .chip.sp-chip { border: 1px solid #3aa0e0; color: #5cb8ff; background: transparent; letter-spacing: .04em; }
+  .chip.sp-chip:hover { background: rgba(58, 160, 224, .18); }
   tr.dragging { opacity: .45; }
   tr.grp-hidden { display: none; }
   tr.grp-head td { background: var(--panel-2); padding: 6px 10px; border-top: 1px solid var(--line); }
@@ -1088,7 +1090,7 @@ async function load(noSync) {
   $('discSub').textContent = (nGroups ? nGroups + (nGroups === 1 ? ' group · ' : ' groups · ') : '') + d.tracks.length + ' tracks · ' + len(d.seconds) + ' of audio' + (netmd ? ' · standard MiniDisc' : '');
   const amount = n => netmd ? len(Math.round(n / d.perSecond)) + ' SP' : mb(n);       // a standard disc is measured in minutes of SP
   const tl = $('timeLeft'); tl.textContent = 'Time left ';                                // free space as playing time in each recording mode
-  const modes = netmd ? [['SP', 1], ['LP2', 2], ['LP4', 4]] : [['PCM', 1 / 176400], ['Hi-SP', 1 / 32000], ['Hi-LP', 1 / 8000]];   // standard: LP2 and LP4 hold 2x and 4x SP; Hi-MD: PCM 1411 kbps, Hi-SP 256 kbps, Hi-LP 64 kbps
+  const modes = netmd ? [['SP', 1], ['LP2', 2], ['LP4', 4]] : [['PCM', 1 / 176400], ['Hi-SP', 1 / 32000], ['Hi-LP', 1 / 8000], ['Spatial 5.1 lossless', 1 / 316800], ['Spatial 5.1 Opus', 1 / 32000]];   // standard: LP2 and LP4 hold 2x and 4x SP; Hi-MD: PCM 1411 kbps, Hi-SP 256 kbps, Hi-LP 64 kbps; spatial for a 6-channel 5.1 mix: lossless WavPack ~2.5 Mbps (about 55 % of PCM), Opus medium 256 kbps
   modes.forEach(([name, f]) => {
     const secs = Math.max(0, Math.floor(netmd ? d.free / d.perSecond * f : d.free * f));
     tl.append(el('span', {}, name + ' ', el('b', { textContent: len(secs) })));
@@ -1103,7 +1105,7 @@ async function load(noSync) {
     if (ex.cover != null) sp.append(part('Image', fmtSize(ex.cover)));
     if (ex.label != null) sp.append(part('Label', fmtSize(ex.label)));
     if (ex.video != null) sp.append(part('Video', fmtSize(ex.video)));
-    if (ex.spatial != null) { sp.append(part('Spatial', fmtSize(ex.spatial))); if (d.spatialOrphans) sp.append(el('button', { className: 'sp-btn', textContent: 'TIDY', title: 'Remove the spatial files on this disc that no track uses any more (' + d.spatialOrphans + ')', onclick: tidySpatial })); }
+    if (ex.spatial != null) { sp.append(part('Spatial (HMSA)', fmtSize(ex.spatial))); if (d.spatialOrphans) sp.append(el('button', { className: 'sp-btn', textContent: 'TIDY', title: 'Remove the spatial files on this disc that no track uses any more (' + d.spatialOrphans + ')', onclick: tidySpatial })); }
     if (ex.list != null) sp.append(part('Track list', fmtSize(ex.list)));
   }
   sp.classList.toggle('hidden', !sp.childNodes.length);
@@ -1122,8 +1124,13 @@ async function load(noSync) {
     const tr = document.createElement('tr');
     if (t.groupIndex && collapsedGroups.has(d.key + ':' + t.groupIndex)) tr.classList.add('grp-hidden');
     const title = td(t.title); title.className = 'title' + (t.title === '(untitled)' ? ' untitled' : '') + (t.lyrics === 'sync' ? ' lyr-sync' : t.lyrics ? ' lyr-text' : '');
-    const chip = document.createElement('td'); const c = document.createElement('span'); c.className = 'chip'; c.textContent = t.codec; chip.append(c);
-    if (t.spatial) chip.append(el('button', { className: 'sp-btn', textContent: 'SPATIAL', title: 'This track also has a spatial (' + (t.spatial.layout || 'multichannel') + ', ' + (t.spatial.codec === 'opus' ? 'compact' : 'lossless') + ', ' + fmtSize(t.spatial.bytes) + ') version on the disc. Click for options.', onclick: () => spatialOptions(t) }));
+    const chip = document.createElement('td'); const c = document.createElement('span'); c.className = 'chip'; c.textContent = t.codec;
+    if (t.spatial) {                                              // a track with a spatial version: the codec reads HMSA; the stereo format the recorder plays stays visible beside it
+      c.className = 'chip sp-chip'; c.textContent = 'HMSA ' + (t.spatial.codec === 'opus' ? 'Opus' : 'Lossless') + (t.spatial.layout ? ' ' + t.spatial.layout : t.spatial.channels ? ' ' + t.spatial.channels + 'ch' : ''); c.style.cursor = 'pointer'; c.style.whiteSpace = 'nowrap';       // e.g. HMSA Lossless 5.1, HMSA Opus 7.1.4
+      c.title = 'HMSA: this track also has a spatial audio version on the disc (' + (t.spatial.layout || 'multichannel') + ', ' + (t.spatial.codec === 'opus' ? 'compact Opus' : 'lossless WavPack') + ', ' + fmtSize(t.spatial.bytes) + '). The recorder plays the stereo track (' + t.codec + '). Click for options.';
+      c.onclick = () => spatialOptions(t);
+      chip.append(c, el('span', { className: 'meta', style: 'margin-left:7px;font-size:11.5px', title: 'The stereo track the recorder plays', textContent: t.codec }));
+    } else chip.append(c);
     if (t.video) chip.append(el('button', { className: 'vid-btn', textContent: 'YT', title: 'Play the YouTube video for this track in a small window you can move and resize', onclick: async () => { const r = await api().video_popup(t.video); if (r && r.popupError) toast('Pop-up window failed (' + r.popupError + '), opened in the browser instead.', true); } }));
     const artist = td(t.artist), album = td(t.album || ''), group = td(t.group);
     editable(title, t.title === '(untitled)' ? '' : t.title, v => api().rename_track(current, t.number, 'title', v));
@@ -1201,7 +1208,7 @@ function openSettings() {
     ['autoAlign', 'Fine-tune lyric timing automatically when lyrics are found', 'After lyrics are found, a speech recogniser listens to the start of each track and sets the lyric timing to match (a minute or more per track, and it needs the free speech helper). Off: lyrics are only found; use “Fine-tune timing…” on a track when you want it.'],
     ['fillArtist', 'Fill in a missing artist from the lyrics match', 'When lyrics are found and confidently matched for a track that has no artist, the artist the lyrics record names is filled in. A Hi-MD disc stores it on the disc (one change, which Undo can take back); a standard disc keeps it on this PC.'],
     ['spatialBinaural', 'Play the spatial version of a track with headphone surround', 'A track that was added with a spatial (multichannel) version plays that version in this window, mixed down for headphones. The recorder and the Sonos rooms always play the normal stereo track. Switched off: the stereo track plays here too.'],
-    ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). On the TV tested, the screen shows no picture in this mode (it plays in the background). Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
+    ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows a still picture of the track (cover, title, artist), not the lyric video. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
     ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, or has no name, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
     ['askConvert', 'Suggest converting a standard disc to Hi-MD', 'When a standard (SP / LP) disc with audio is inserted in a recorder that also uses Hi-MD, a note under the Recorder card offers to convert it. Switched off: no note; Convert SP Disc to Hi-MD stays in the Disc Conversion card.'],
   ].map(([key, title, text]) => {
@@ -1742,7 +1749,7 @@ async function remotePlay(t) {
   remote.state = 'ready'; remote.base = 0; remote.lastTrack = 0; markNow();
   await remoteCall('play', t.number - 1, 0);
   if (remote.state === 'playing') remoteStartPolling();
-  if (sur && remote.state === 'playing') toast('Playing as 5.1 surround on the TV. The TV shows no picture in this mode.', false, 7000);
+  if (sur && remote.state === 'playing') toast('Playing as 5.1 surround on the TV, with a still picture of the track instead of the lyric video.', false, 7000);
   if (castTarget) { const v = await api().cast_volume(castTarget.ip); if (v.volume !== undefined) $('vol').value = v.volume; }
 }
 const playHint = t => t.hasCopy ? 'Play the copy the app saved when it added this track'
@@ -2051,7 +2058,7 @@ $('castBtn').addEventListener('click', async () => {
     const hasSp = !!curDisc && [...trackMap.values()].some(t => t.spatial);
     const opts = [
       ['picture', 'Picture and lyrics', 'Stereo sound. The TV shows the cover, the title and the timed lyrics.'],
-      ['surround', '5.1 surround sound', 'For a soundbar or receiver on the TV. Used for tracks that have a spatial version; the TV shows no picture while it does this.' + (hasSp ? '' : ' (No track on the disc now has a spatial version.)')],
+      ['surround', '5.1 surround sound', 'For a soundbar or receiver on the TV. Used for tracks that have a spatial version; the TV shows a still picture of the track instead of the lyric video.' + (hasSp ? '' : ' (No track on the disc now has a spatial version.)')],
       ['sound', 'Sound only', 'Stereo sound, no picture. The quickest to start.']];
     const box = el('div', { className: 'notice tv-opts', style: 'display:grid;gap:10px' }, el('b', { textContent: 'How should ' + castTarget.name + ' play?' }));
     for (const [k, name, text] of opts) {
@@ -3265,7 +3272,7 @@ const helpText = () => ({
   spatial: ['Spatial (surround) audio', [
     ['What it is', [
       'A Hi-MD disc can keep the surround version of a track next to its normal stereo track. The recorder plays the stereo track like any other. The surround version is a hidden file on the disc (format name: HMSA, for Hi-MD Spatial Audio) that only this program can read.',
-      'This program plays it to you in headphone surround on the PC, sends it as 5.1 surround to a Google TV with a soundbar, or saves it as an ordinary multichannel file for other equipment. A track that has one shows a blue SPATIAL label.',
+      'This program plays it to you in headphone surround on the PC, sends it as 5.1 surround to a Google TV with a soundbar, or saves it as an ordinary multichannel file for other equipment. A track that has one shows HMSA, in blue, in its Codec column, followed by Lossless or Opus and its layout, for example HMSA Opus 5.1 (the stereo format sits beside it in grey).',
     ]],
     ['What you need', [
       '• A Hi-MD disc (a standard SP / LP disc cannot hold it).',
@@ -3283,17 +3290,17 @@ const helpText = () => ({
     ]],
     ['Listening', [
       '• Recorder: the stereo track, as normal.',
-      '• This PC: press play on a SPATIAL track. A headphone surround mix is made from the spatial version (an approximation, made for headphones; on speakers it sounds wide, not surround). Switch it off in Settings to play the stereo track instead.',
-      '• Google TV: in Play on, pick the TV and choose “5.1 surround sound”. A soundbar or receiver that accepts Dolby Digital Plus then plays real 5.1 (heights are folded into the floor channels). The TV shows no picture while it does this; choose “Picture and lyrics” for the picture, with stereo sound.',
+      '• This PC: press play on a track whose Codec reads HMSA. A headphone surround mix is made from the spatial version (an approximation, made for headphones; on speakers it sounds wide, not surround). Switch it off in Settings to play the stereo track instead.',
+      '• Google TV: in Play on, pick the TV and choose “5.1 surround sound”. A soundbar or receiver that accepts Dolby Digital Plus then plays real 5.1 (heights are folded into the floor channels). The TV shows a still picture of the track (cover, title, artist) instead of the lyric video; choose “Picture and lyrics” for the lyric video, with stereo sound.',
       '• Sonos rooms: always the stereo track.',
     ]],
     ['On other equipment', [
       'Nothing else can read the hidden file. Press “Save spatial version…” (Disc Extras, Copy out) to save the surround as FLAC 5.1 / 7.1 (lossless), Dolby Digital Plus 5.1 (.mp4), or every channel as stored (.opus / .wv). Play those in a home-cinema player, a media box, or from a USB stick in a receiver.',
     ]],
     ['Looking after it', [
-      '• Click a track’s SPATIAL label to remove its spatial version and free the room.',
+      '• Click a track’s HMSA codec to remove its spatial version and free the room.',
       '• Deleting a track leaves its spatial file behind; the TIDY button in the disc size line removes the unused ones.',
-      '• Renaming, moving and grouping keep the link. Fade & level, Split, Combine, Clone and Convert do not carry the spatial version across.',
+      '• Renaming, moving and grouping keep the link. Clone and Split carry the spatial version across (a split track gets a spatial version for each part). Fade & level and Combine do not; Convert starts from a standard disc, which cannot hold one.',
     ]],
     ['What it does not do', [
       '• No Dolby Atmos objects: only channel-based mixes (an Atmos file gives its plain 5.1 / 7.1 core).',
@@ -3310,8 +3317,8 @@ const helpText = () => ({
     ]],
     ['Google TV', [
       'A Google TV can only show a title and a picture itself, so by default the app makes it a video: the disc picture, the title and artist, and the timed lyrics, with the music.',
-      '• When you pick a Google TV, the chooser asks how it should play: “Picture and lyrics” (stereo, the default), “5.1 surround sound” (for a soundbar or receiver; the TV then shows no picture) or “Sound only” (stereo, no picture).',
-      '• 5.1 surround applies to tracks that have a spatial version (a blue SPATIAL label); see the Spatial audio help.',
+      '• When you pick a Google TV, the chooser asks how it should play: “Picture and lyrics” (stereo, the default), “5.1 surround sound” (for a soundbar or receiver; the TV shows a still picture instead of the lyric video) or “Sound only” (stereo, no picture).',
+      '• 5.1 surround applies to tracks that have a spatial version (its Codec reads HMSA); see the Spatial audio help.',
       '• The TV starts a few seconds slower with the video, and skipping ahead inside a track may not work.',
       '• A standard (SP / LP) disc has no picture, so its video shows the title and lyrics only.',
     ]],
@@ -4317,7 +4324,7 @@ async function openEditPlan(op, nums, params) {
 }
 // ---- Saved new tracks waiting to be written (a split that did not fit next to the original) ----------------------------------------
 // runEdit(... { stage: true }) saved them on this PC; this sheet then deletes the original (only if they still do not fit) and writes them.
-const EDIT_VERBS = { reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Checking the saved copy', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check' };
+const EDIT_VERBS = { reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Checking the saved copy', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check', finishing: 'Storing the spatial audio' };
 let stagedShown = false;
 // The saved new tracks are offered once per run; after a failed write they are offered again, unless the disc needs a format first (then after the format).
 function reofferStaged(error) { if (!/fat backup invalid|filesystem damaged/i.test(error || '')) stagedShown = false; }
@@ -4385,7 +4392,7 @@ async function runStagedWrite(deleteOriginals) {
   openSheet(el('h2', { textContent: 'Done' }),
     el('div', { className: 'notice', textContent: (r.new.length > 1 ? 'The new tracks are at positions ' : 'The new track is at position ') + where + ', and ' + (r.new.length > 1 ? 'were' : 'was') + ' read back from the disc and matched byte for byte. ' +
       (r.placed ? '' : 'They could not be moved into the original’s place, so they are at the end of the disc; use Move… if you like. ') +
-      (r.deleted ? 'The original was deleted from the disc to make room. ' : 'The original is still on the disc. ') + (r.cleaned ? 'The saved copy on this PC has been removed.' : 'The saved copy on this PC could not be removed; it is in the folder shown earlier.') }),
+      (r.deleted ? 'The original was deleted from the disc to make room. ' : 'The original is still on the disc. ') + (r.cleaned ? 'The saved copy on this PC has been removed.' : 'The saved copy on this PC could not be removed; it is in the folder shown earlier.') + spatialLine(r) }),
     el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
 }
 function identifyNewAuto(nums) {                               // tick the new tracks and open the Identify sheet, already listening
@@ -4394,13 +4401,17 @@ function identifyNewAuto(nums) {                               // tick the new t
   nums.forEach(n => { const b = document.querySelector('tr[data-num="' + n + '"] input[type=checkbox]'); if (b && !b.disabled) { b.checked = true; selected.add(n); } });
   updateDel(); openNaming('listen', true);
 }
+function spatialLine(r, verb) {                               // a sentence about the spatial versions after a split or a clone
+  return (r.spatial ? ' ' + r.spatial + (r.spatial === 1 ? ' spatial version was ' : ' spatial versions were ') + (verb || 'cut and stored with the new tracks') + '.' : '') +
+    (r.spatialError ? ' The spatial audio was NOT carried across: ' + r.spatialError : '');
+}
 async function runEdit(op, nums, params) {
   uploading = true; stopPlayer();
   const prog = liveProgress('Starting…', 4, true);
   const cancel = el('button', { textContent: 'Cancel', onclick: () => { cancel.disabled = true; api().edit_cancel(); } });
   const note = el('div', { className: 'notice warn', textContent: 'Do not unplug the recorder or close this window until it finishes.' });
   openSheet(el('h2', { textContent: params && params.stage ? 'Saving the new tracks…' : op === 'split' ? 'Splitting…' : op === 'adjust' ? 'Adjusting…' : 'Combining…' }), prog.what, prog.bar, prog.stallBox, note, el('div', { className: 'row' }, cancel));
-  const verbs = { reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Saving and checking a copy of the original on this PC', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check' };
+  const verbs = { reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Saving and checking a copy of the original on this PC', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check', finishing: 'Storing the spatial audio' };
   window.onEditProgress = m => {
     const step = m.count > 1 && m.name ? ' (' + (m.n + 1) + ' of ' + m.count + ')' : '';
     prog.set((verbs[m.phase] || '') + (m.name && m.phase !== 'copycheck' ? ' “' + m.name + '”' : '') + step + '…' + (m.total ? ' ' + Math.round(100 * m.done / m.total) + '%' : ''), m.total ? m.done / m.total : 0,
@@ -4409,7 +4420,7 @@ async function runEdit(op, nums, params) {
   };
   const r = await api().edit_run(current, op, nums, params);
   prog.stop(); window.onEditProgress = null; uploading = false;
-  if (r.staged) { stagedShown = true; await load(); openStagedWrite(); return; }            // saved on this PC: now the original can be deleted to make room
+  if (r.staged) { stagedShown = true; await load(); if (r.spatialError) toast('The spatial audio could not be cut, so the saved parts have none: ' + r.spatialError, true, 12000); openStagedWrite(); return; }            // saved on this PC: now the original can be deleted to make room
   if (r.cancelled) { closeSheet(); toast('Cancelled. Nothing was written.'); return; }
   if (r.error) {
     errorSheet('It didn’t finish', r.error, { kept: 'If the new tracks were saved on this PC, they are still there: the program offers to write them again when you close this (after a format, if the disc needed one).', onClose: () => { reofferStaged(r.error); load(); } });
@@ -4423,7 +4434,7 @@ async function runEdit(op, nums, params) {
   if (r.originalDeleted) {
     openSheet(el('h2', { textContent: 'Done' }),
       el('div', { className: 'notice', textContent: (r.new.length > 1 ? 'The new tracks are at positions ' : 'The new track is at position ') + (r.new.length > 2 ? r.new[0] + ' to ' + r.new[r.new.length - 1] : r.new.join(' and ')) +
-        ', written to the disc and checked against its track list. The original was deleted to make room. A copy of the whole original is kept on this PC: remove it in Saved copies… when you no longer need it.' }),
+        ', written to the disc and checked against its track list. The original was deleted to make room. A copy of the whole original is kept on this PC: remove it in Saved copies… when you no longer need it.' + spatialLine(r) }),
       el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
     return;
   }
@@ -4431,7 +4442,7 @@ async function runEdit(op, nums, params) {
     el('div', { className: 'notice', textContent: (r.new.length > 1 ? 'The new tracks are' : 'The new track is') + ' at ' + (r.new.length > 1 ? 'positions ' : 'position ') + (r.new.length > 2 ? r.new[0] + ' to ' + r.new[r.new.length - 1] : r.new.join(' and ')) + ', and ' + (r.new.length > 1 ? 'were' : 'was') +
       (r.netmd ? ' written to the disc; its track list shows ' + (r.new.length > 1 ? 'them' : 'it') + ' with the expected length' + (r.new.length > 1 ? 's' : '') + '. ' : ' read back from the disc and matched byte for byte. ') +
       (r.placed ? '' : 'They could not be moved next to the originals, so they are at the end of the disc; use Move… if you like. ') +
-      'The original' + (r.originals.length > 1 ? 's are' : ' is') + ' still on the disc.' }),
+      'The original' + (r.originals.length > 1 ? 's are' : ' is') + ' still on the disc.' + spatialLine(r) }),
     el('div', { className: 'row' }, el('button', { textContent: 'Keep the original' + (r.originals.length > 1 ? 's' : ''), onclick: closeSheet }),
       el('button', { className: 'danger', textContent: 'Delete the original' + (r.originals.length > 1 ? 's' : '') + '…', onclick: () => {
         closeSheet(); selected.clear();
@@ -5193,7 +5204,7 @@ async function cloneWrite() {
       ? r.tracks + ' tracks, the disc name and the groups were written, and the new disc’s track list matches the original’s (count, titles, formats and lengths). A standard disc cannot be read back byte for byte, so play it on the recorder to check it. ' +
         (r.deleted ? 'The copy on this PC has been deleted.' : 'The copy on this PC could not be deleted; discard it from Clone disc…')
       : r.tracks + ' tracks' + (r.cover ? ', the disc picture' : '') + ', the groups and the disc name were written, and every track was read back and matched byte for byte. ' +
-        (r.deleted ? 'The copy on this PC has been deleted.' : 'The copy on this PC could not be deleted; discard it from Clone disc…') }),
+        (r.deleted ? 'The copy on this PC has been deleted.' : 'The copy on this PC could not be deleted; discard it from Clone disc…') + spatialLine(r, 'copied and stored with their tracks') }),
     el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: cloneClose })));
 }
 
@@ -5445,10 +5456,18 @@ async function startAdd(paths) {
   let spNote = '';
   if (spToken) {                                                                  // the tracks are on the disc: now the hidden spatial files, linked to them
     uploading = true;
-    openFloat(el('h2', { textContent: 'Storing the spatial audio…' }), el('div', { className: 'notice', textContent: 'Writing the spatial copies to the disc. This can take a minute or two. Do not unplug the recorder.' }));
+    const sprog = liveProgress('Starting…', 10, true);                          // which file, writing or checking, how much of it, the time left
+    openFloat(el('h2', { textContent: 'Storing the spatial audio…' }), sprog.what, sprog.bar, sprog.stallBox,
+      el('div', { className: 'notice', textContent: 'The spatial copies are written to the disc one after the other, then each is read back and checked. A lossless 5.1 track of a few minutes can take 10 minutes or more; Opus is much quicker. Do not unplug the recorder or close this window.' }));
+    window.onSpatialProgress = m => {
+      if (m.phase !== 'store') return;
+      const f = m.total ? Math.min(1, m.done / m.total) : 0, w = m.step === 'verify';
+      sprog.set('Spatial file ' + (m.n + 1) + ' of ' + m.count + ' — “' + m.name + '”: ' + (w ? 'reading back to check it' : 'writing to the disc') + (m.total ? '  ' + Math.round(100 * f) + '%  (' + fmtSize(m.done) + ' of ' + fmtSize(m.total) + ')' : '…'),
+        f, (m.n + (w ? 0.75 + 0.25 * f : 0.75 * f)) / m.count);                // writing is about three quarters of a file's time, the check the rest
+    };
     try { const c = await api().spatial_commit(spToken, current, rows.length, spPos); spNote = c.error ? ' Spatial audio: ' + c.error : ' The spatial version of ' + c.stored + (c.stored === 1 ? ' track' : ' tracks') + ' is stored on the disc.'; if (c.error) api().log('spatial_commit: ' + c.error); }
     catch (e) { spNote = ' The spatial audio could not be stored.'; }
-    finally { uploading = false; }
+    finally { uploading = false; window.onSpatialProgress = null; sprog.stop(); }
   }
   const gn = await groupNew(before, commonAlbum(rows.map(x => x.f.album)), group);
   let named = '', art = '', nameWarn = false;

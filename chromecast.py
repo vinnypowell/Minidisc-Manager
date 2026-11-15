@@ -206,7 +206,7 @@ class Device:
         finally:
             c.close()
 
-    def play_url(self, url, title, mime, artist=None, album=None, video=False, source=None, _retry=True):
+    def play_url(self, url, title, mime, artist=None, album=None, video=False, source=None, _retry=True, image=None, confirm=False):
         """Starts the track on the TV and checks that it really is playing; a TV player that stays stuck on "buffering" at 0 seconds (it happens after a
         read was cancelled or a stream was replaced) is reset and tried once more."""
         c = self._open()
@@ -231,6 +231,8 @@ class Device:
                 meta['subtitle' if video else 'artist'] = who
             if album and not video:
                 meta['albumName'] = album
+            if image:
+                meta['images'] = [{'url': image, 'width': 1280, 'height': 720}]      # what the TV's player shows while a sound-only stream plays
             media = {'contentId': url, 'contentType': mime, 'streamType': 'BUFFERED', 'metadata': meta}
             if video and 'mpegurl' in (mime or '').lower():      # these two fields describe an HLS stream; on a plain MP4 they can make the TV drop the picture
                 media.update({'hlsSegmentFormat': 'ts', 'hlsVideoSegmentFormat': 'mpeg2_ts'})
@@ -246,6 +248,10 @@ class Device:
                 if s.get('playerState') == 'IDLE' and s.get('idleReason') in ('ERROR', 'INTERRUPTED', 'CANCELLED'):
                     break
                 time.sleep(1.0)
+            if playing and confirm:                          # the TV reports PLAYING for the first second and can then stall on BUFFERING for good (a player left stuck by earlier casts)
+                time.sleep(4.0)
+                s2 = self._media_status(c, transport) or {}
+                playing = s2.get('playerState') == 'PLAYING' or (s2.get('currentTime') or 0) > (s.get('currentTime') or 0) + 2.0
             stuck = not playing
         finally:
             c.close()
@@ -253,7 +259,7 @@ class Device:
             if not _retry:
                 raise CastError('The TV did not start playing. Switch it off and on again, then try again.')
             self._reset_player()
-            self.play_url(url, title, mime, artist, album, video, source, _retry=False)
+            self.play_url(url, title, mime, artist, album, video, source, _retry=False, image=image, confirm=confirm)
 
     def control(self, action, seconds=0):
         c = self._open()

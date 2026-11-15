@@ -1,6 +1,6 @@
 # Spatial audio (HMSA) in MiniDisc Manager
 
-MiniDisc Manager 0.30.0 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
+MiniDisc Manager 0.31.0 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
 
 - [In one minute](#in-one-minute)
 - [How it works](#how-it-works)
@@ -85,7 +85,7 @@ Anything the bundled ffmpeg can open and decode works: multichannel **WAV** and 
    1. it makes the stereo version and the spatial file on the PC;
    2. it writes the stereo track to the disc (the usual step);
    3. it stores the spatial file and its index on the disc (**Storing the spatial audio…**).
-5. The new track shows a blue **SPATIAL** label next to its format.
+5. In the track list the new track's **Codec** column reads **HMSA** (in blue), with the stereo format the recorder plays shown beside it in grey.
 
 The disc checks that everything else on it is unchanged before and after each file is written, the same checks used for the picture and lyrics, and keeps a backup of the start of the disc's file area in the program's `backups` folder (`spatial_latest`). If the spatial step fails, the stereo track is already on the disc and works normally. The message says what failed.
 
@@ -119,7 +119,7 @@ So **Compact (Opus)** is the practical choice. Lossless is for tracks where you 
 The stereo track plays as normal. Nothing else is needed.
 
 ### On the PC, in headphones
-Press play on a track with the **SPATIAL** label. The status line reads *Reading the spatial version from the disc…* (about 20 seconds for a three-minute 5.1 track the first time, then it is remembered for the session) and then *Preparing the headphone surround mix…* (a few seconds). The program then plays a **binaural** mix: each channel is placed where its speaker would be around your head, with the timing and level differences your ears use to place sounds, a little muffling for sounds behind you and a lift for sounds above.
+Press play on a track whose Codec reads **HMSA**. The status line reads *Reading the spatial version from the disc…* (about 20 seconds for a three-minute 5.1 track the first time, then it is remembered for the session) and then *Preparing the headphone surround mix…* (a few seconds). The program then plays a **binaural** mix: each channel is placed where its speaker would be around your head, with the timing and level differences your ears use to place sounds, a little muffling for sounds behind you and a lift for sounds above.
 
 - It is an **approximation** built from a simple head model, not a measured head response, and it is made for **headphones**. On speakers it sounds wide but not truly surround.
 - If the spatial version cannot be played, the program says why and plays the stereo track instead.
@@ -131,11 +131,11 @@ Press **Play on** (the 🔊 button), pick your Google TV, and a boxed question a
 | Choice | Sound | The TV shows |
 |---|---|---|
 | **Picture and lyrics** | stereo | the cover, title, artist and timed lyrics (the default) |
-| **5.1 surround sound** | **5.1 surround** for tracks with a spatial version | **no picture** |
+| **5.1 surround sound** | **5.1 surround** for tracks with a spatial version | a **still picture** of the track (cover, title, artist), not the lyric video |
 | **Sound only** | stereo | no picture, quickest start |
 
 - In **5.1 surround** mode the program makes a Dolby Digital Plus 5.1 audio file from the spatial version (about 3 seconds for a 12-minute track) and the TV passes it to the soundbar or receiver. The first play of a track also copies the spatial file from the disc, so allow up to a minute for a long track.
-- **The TV shows no picture in surround mode.** That is a limit of the TV's built-in Cast player: in every form we tried (an MP4, an HLS stream, a music track with cover art, with or without video), it stayed on the home screen while passing surround on. A picture appears only with the stereo lyric video. The app tells you this when surround starts.
+- **In surround mode the TV shows a still picture, not the lyric video.** The sound and a picture of the track are sent together as a video file, because the TV's built-in Cast player only comes to the front for video: an audio-only file plays in the background and shows nothing. The lyric video itself is only available with stereo sound. The app checks that playback really carries on, and resets the TV's player and tries again if it stalls (this adds a few seconds to starting a track).
 - Tracks *without* a spatial version still get the picture and lyrics in surround mode.
 - **Heights and 7.1 are not sent.** The sound is mixed to 5.1; the height channels are folded into the floor channels. The TV tested refused 7.1.
 - It needs a soundbar or receiver that accepts **Dolby Digital Plus** from the TV (HDMI eARC or ARC), and the TV's own digital audio output left on **Auto** or **Passthrough** (not "Stereo" or "PCM"). Your sound system should show *Dolby Audio* or *5.1* while it plays.
@@ -161,10 +161,10 @@ Files are named `NN - Title (surround).ext` and carry the title, artist, album a
 
 ## Looking after spatial files on a disc
 
-- **Disc size line.** The *Spatial* figure shows how much room the spatial files use.
-- **Remove one.** Click the blue **SPATIAL** label of a track and confirm. Its hidden file is deleted and the room freed. The stereo track stays.
+- **Disc size line.** The *Spatial (HMSA)* figure shows how much room the spatial files use.
+- **Remove one.** Click the blue **HMSA** in a track's Codec column and confirm. Its hidden file is deleted and the room freed. The stereo track stays.
 - **Deleting a track leaves its hidden file behind.** A **TIDY** button then appears in the disc size line; it removes spatial files that no track uses any more.
-- **Renaming, moving and grouping** a track keep its spatial version. Features that rewrite or recreate tracks (such as Fade & level, Split, Combine, Clone and Convert) have **not** been made to carry the spatial version across. Treat the spatial version as belonging to the original track, and re-add the track if you need to.
+- **Renaming, moving and grouping** a track keep its spatial version. **Clone** copies each track's spatial file to the new disc along with the track (the file is copied exactly as stored, then its size is checked on the new disc). **Split** cuts the spatial file at the same places as the stereo track, so every part gets its own spatial version: lossless (WavPack) parts are cut sample-exactly, Opus parts are cut without re-encoding, so there is no further quality loss (the first 80 ms of an Opus part may sound very slightly different). If the spatial file cannot be cut, the split still happens and the result says so. Deleting the original after a split leaves its spatial file behind; TIDY removes it. **Fade & level and Combine** do not carry the spatial version across, and **Convert** starts from a standard disc, which cannot hold one.
 - **Copy first.** As with any writing, copy recordings you cannot replace to your PC before editing a disc.
 
 ## Settings
@@ -174,7 +174,7 @@ Two switches in *Settings*, both also reachable from the player:
 | Switch | Default | Meaning |
 |---|---|---|
 | Play the spatial version of a track with headphone surround | on | PC playback uses the spatial version, mixed for headphones. |
-| Play a spatial track on a Google TV as 5.1 surround | off | A spatial track goes to a Google TV as 5.1 sound with no picture. The *Play on* window shows the same choice as *Picture and lyrics / 5.1 surround sound / Sound only*. |
+| Play a spatial track on a Google TV as 5.1 surround | off | A spatial track goes to a Google TV as 5.1 sound with a still picture of the track. The *Play on* window shows the same choice as *Picture and lyrics / 5.1 surround sound / Sound only*. |
 
 ## Troubleshooting
 
@@ -183,11 +183,12 @@ Two switches in *Settings*, both also reachable from the player:
 | The Spatial audio box does not appear in the Add window | The file needs 6 or more channels, and the disc must be a Hi-MD disc. Check the file in a player. |
 | The speakers are in the wrong places | The file's channels are in a different order. Re-export in the standard order (front left, front right, centre, bass, then surrounds). |
 | "There is not enough free space" | The spatial copies share the disc's space. Choose a lower Opus setting, or untick the spatial option for some files. |
-| The spatial step failed but the stereo track is there | The stereo track is fine. Check the message, then press the SPATIAL label's remove option if a stray file is left, or use TIDY, and try again. |
+| The spatial step failed but the stereo track is there | The stereo track is fine. Check the message, then click its HMSA codec to remove it if a stray file is left, or use TIDY, and try again. |
 | It is slow to start on the PC | The first play copies the hidden file over USB. Later plays in the session are quick. |
 | The Play on window shows no TV options | Pick the Google TV (marked "Cast") in the list. The options appear when a TV is chosen. |
 | Surround to the TV gives stereo | Check the TV's digital audio output is Auto / Passthrough, and that the soundbar input shows Dolby. A VPN can also stop the TV from reaching this PC. |
-| The TV shows no picture in surround mode | This is expected; see *On a Google TV*. Choose *Picture and lyrics* to get the picture. |
+| The TV shows a still picture, not the lyric video, in surround mode | This is expected; see *On a Google TV*. Choose *Picture and lyrics* for the lyric video (stereo sound). |
+| The TV shows nothing and the sound does not start | The TV's Cast player can get stuck after many casts. The app resets it and retries; if it still fails, switch the TV off and on, or play the track again. |
 | A play on the TV stalls or never starts | Switch the TV's Cast player off and on, try again, and check `app.log` for lines mentioning "cast". |
 | The recorder cannot be found | Close any other recorder program (only one program can use the recorder), and see `DRIVER-SETUP.html`. |
 
@@ -244,6 +245,6 @@ Two switches in *Settings*, both also reachable from the player:
 
 **Tested on real hardware:** an MZ-NH700 with a Hi-MD disc: adding a 7.1.4 test track, a 5.1 film trailer (from an `.ac3` file) and a lossless 83 MB file; reading them back byte for byte; playing the spatial version in the app; removing and tidying; saving as FLAC, Dolby Digital Plus and as-stored files. Surround to a Philips Google TV with a Sonos Arc Ultra, two Era 300 rear speakers and a Sub Mini (Dolby 5.1 shown, rear speakers playing).
 
-**Not tested:** listening to the headphone mix on headphones; other TVs and soundbars; the MZ-RH1 with spatial files; other MiniDisc software reading a disc with spatial files; spatial files through Clone, Convert, Split and Combine; Windows spatial-sound or HDMI-receiver output from the PC.
+**Not tested:** listening to the headphone mix on headphones; other TVs and soundbars; the MZ-RH1 with spatial files; other MiniDisc software reading a disc with spatial files; spatial files through Clone and Split on a real disc (tested offline, and the cutting and linking steps with a stand-in disc), and through Combine; Windows spatial-sound or HDMI-receiver output from the PC.
 
 *Dolby, Dolby Audio, Dolby Digital Plus and Dolby Atmos are trademarks of Dolby Laboratories. This program is not affiliated with or endorsed by Dolby, Sony, Sonos or Google.*

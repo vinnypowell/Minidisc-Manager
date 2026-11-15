@@ -2,7 +2,7 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.30.0 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.31.0 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
@@ -13,7 +13,7 @@ Version 0.30.0 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIR
 - Converts a standard (SP / LP) disc to Hi-MD, and rewrites LP2 / LP4 tracks as SP (spreading them over two discs when they do not fit) so that players without LP support can play them.
 - Prints disc labels (HP Sprocket and Polaroid Hi-Print over Bluetooth, or as a picture).
 - Plays the disc on the PC, a Sonos room or a Google TV, with a choice of level-meter and spectrum displays.
-- **Spatial audio (new in 0.30.0):** keeps the surround version of a track on a Hi-MD disc next to its normal stereo track. See below.
+- **Spatial audio:** keeps the surround version of a track on a Hi-MD disc next to its normal stereo track; Clone and Split carry it across (0.31.0). See below.
 
 ## What is in this repository
 
@@ -37,7 +37,8 @@ The source of the program.
 A Hi-MD disc can keep the **surround version of a track** next to its normal stereo track. The recorder plays the stereo track like any other; the surround version is a hidden file on the disc in a small format called **HMSA** (Hi-MD Spatial Audio: ordinary Opus or WavPack audio in a wrapper that keeps every channel). Only this program can read it.
 
 - **Add** a real 5.1, 7.1 or larger surround file (WAV, FLAC, MKA, AC-3 and similar) and tick *Also keep the spatial version on the disc*. Choose Compact (Opus) or Lossless (WavPack).
-- **Listen on the PC** in headphone surround, or on a **Google TV with a soundbar** as 5.1 surround (Dolby Digital Plus). The TV shows no picture in that mode, so the lyric video stays the default.
+- **Listen on the PC** in headphone surround, or on a **Google TV with a soundbar** as 5.1 surround (Dolby Digital Plus). In that mode the TV shows a still picture of the track instead of the lyric video, which stays the default.
+- **Clone and Split** carry the spatial versions across: Clone copies them to the new disc, and Split cuts them at the same places so each part gets its own. A progress bar shows each spatial file being written and checked.
 - **Save spatial version…** writes the surround as FLAC 5.1 / 7.1, Dolby Digital Plus 5.1 or every channel as stored, for any home-cinema player.
 - It **never makes surround from stereo**, does not render Dolby Atmos objects, and does not remove copy protection.
 
