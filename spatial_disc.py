@@ -219,15 +219,19 @@ class SpatialMixin:
             return {'error': 'The spatial file of track %s is not on the disc as it was sent.' % ', '.join(map(str, bad)), 'stored': stored}
         return {'ok': True, 'stored': stored}
 
-    def _sp_cut_for_split(self, track, spans, folder, titles):
+    def _sp_cut_for_split(self, track, spans, folder, titles, tell=None):
         """Pulls the track's spatial file off the disc and cuts it into one file per kept part. spans: [(start, duration or None)], titles: one per part.
         Reads the disc only. Returns the parts [{'hms', 'seconds', 'codec', 'channels', 'layout', 'quality', 'bytes'}] (same order) or raises SpatialError."""
+        if tell:
+            tell(phase='spatialread', n=0, count=1, name=track.get('title') or '', done=0, total=0)
         pulled, err = self._spatial_pull(track)
         if err:
             raise spatial.SpatialError(err)
         parts = []
         for i, ((start, dur), title) in enumerate(zip(spans, titles)):
             self._sp_say(phase='prepare', file=i, count=len(spans), name=title, step='spatial')
+            if tell:
+                tell(phase='spatialcut', n=i, count=len(spans), name=title, done=0, total=0)
             out = os.path.join(folder, 'sp-part%02d.hms' % (i + 1))
             r = spatial.cut(pulled, out, start, dur, title)
             parts.append(dict(r, hms=out))

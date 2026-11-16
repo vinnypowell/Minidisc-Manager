@@ -1,6 +1,6 @@
 # Spatial audio (HMSA) in MiniDisc Manager
 
-MiniDisc Manager 0.31.1 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
+MiniDisc Manager 0.31.2 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
 
 - [In one minute](#in-one-minute)
 - [How it works](#how-it-works)

@@ -4324,7 +4324,7 @@ async function openEditPlan(op, nums, params) {
 }
 // ---- Saved new tracks waiting to be written (a split that did not fit next to the original) ----------------------------------------
 // runEdit(... { stage: true }) saved them on this PC; this sheet then deletes the original (only if they still do not fit) and writes them.
-const EDIT_VERBS = { reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Checking the saved copy', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check', finishing: 'Storing the spatial audio' };
+const EDIT_VERBS = { spatialread: 'Reading the spatial audio from the disc (the slowest step: several minutes for a long track)', spatialcut: 'Cutting the spatial audio to match', reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Checking the saved copy', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check', finishing: 'Storing the spatial audio' };
 let stagedShown = false;
 // The saved new tracks are offered once per run; after a failed write they are offered again, unless the disc needs a format first (then after the format).
 function reofferStaged(error) { if (!/fat backup invalid|filesystem damaged/i.test(error || '')) stagedShown = false; }
@@ -4340,7 +4340,7 @@ async function openStagedWrite() {
   } });
   const later = el('button', { textContent: 'Not now', onclick: closeSheet });
   const parts = [el('h2', { textContent: 'New tracks saved on this PC' }),
-    el('div', { className: 'sub', textContent: st.parts + ' new track' + (st.parts > 1 ? 's' : '') + ' (' + fmtSize(st.bytes) + ') were cut from ' + names + ' and saved in ' + st.folder + '. They are not on the disc yet.' }), list];
+    el('div', { className: 'sub', textContent: st.parts + ' new track' + (st.parts > 1 ? 's' : '') + ' (' + fmtSize(st.bytes) + ') were cut from ' + names + ' and saved in ' + st.folder + '. They are not on the disc yet.' + (st.spatial ? ' Their ' + st.spatial + ' spatial audio version' + (st.spatial > 1 ? 's are' : ' is') + ' saved with them: ' + (st.spatial > 1 ? 'each goes' : 'it goes') + ' onto the disc, linked to its track, when you write them.' : '') }), list];
   if (st.sameDisc && st.originalsPresent && st.fitsNow) {
     parts.push(el('div', { className: 'notice', textContent: 'There is room for them next to the original now, so the original does not need to be deleted. It will stay on the disc.' }),
       el('div', { className: 'row' }, discard, later, el('button', { className: 'primary', textContent: 'Write the new tracks', onclick: () => runStagedWrite(false) })));
@@ -4366,10 +4366,11 @@ async function openStagedWrite() {
 }
 async function runStagedWrite(deleteOriginals) {
   uploading = true; stopPlayer();
-  let auto = false;                                              // the saved tracks came from Auto split & name: go on to naming them once written
-  try { const st = await api().edit_staged_status(); auto = !!(st && st.staged && st.staged.autoName); } catch (e) { /* no naming then */ }
+  let auto = false, stagedSpatial = 0;                           // the saved tracks came from Auto split & name: go on to naming them once written
+  try { const st = await api().edit_staged_status(); auto = !!(st && st.staged && st.staged.autoName); stagedSpatial = (st && st.staged && st.staged.spatial) || 0; } catch (e) { /* no naming then */ }
   const prog = liveProgress('Starting…', 4, true);
   openSheet(el('h2', { textContent: deleteOriginals ? 'Making room and writing…' : 'Writing…' }), prog.what, prog.bar, prog.stallBox,
+    stepsNote(deleteOriginals ? ['Deleting the original from the disc', 'Writing the new tracks', 'Reading them back to check every one'] : ['Writing the new tracks', 'Reading them back to check every one'], stagedSpatial),
     el('div', { className: 'notice warn', textContent: 'Do not unplug the recorder or close this window until it finishes.' }));
   window.onEditProgress = m => {
     const step = m.count > 1 && m.name ? ' (' + (m.n + 1) + ' of ' + m.count + ')' : '';
@@ -4385,7 +4386,8 @@ async function runStagedWrite(deleteOriginals) {
     return;
   }
   if (auto && r.new && r.new.length) {
-    toast('Written: ' + r.new.length + (r.new.length === 1 ? ' track' : ' tracks') + '. Now to naming them…', false, 9000);
+    toast('Written: ' + r.new.length + (r.new.length === 1 ? ' track' : ' tracks') + (r.spatial ? ', with ' + r.spatial + ' spatial audio version' + (r.spatial > 1 ? 's' : '') + ' stored' : '') + '. Now to naming them…', false, 12000);
+    if (r.spatialError) toast('The spatial audio was NOT carried across: ' + r.spatialError, true, 60000);
     identifyNewAuto(r.new); return;
   }
   const where = r.new.length > 2 ? r.new[0] + ' to ' + r.new[r.new.length - 1] : r.new.join(' and ');
@@ -4401,6 +4403,11 @@ function identifyNewAuto(nums) {                               // tick the new t
   nums.forEach(n => { const b = document.querySelector('tr[data-num="' + n + '"] input[type=checkbox]'); if (b && !b.disabled) { b.checked = true; selected.add(n); } });
   updateDel(); openNaming('listen', true);
 }
+function stepsNote(list, spatial) {                           // a short numbered list of what a long job will do, so a slow step is not mistaken for a stuck one
+  const all = list.concat(spatial ? ['Storing the spatial audio: each spatial file is written, then read back to check it'] : []);
+  return el('div', { className: 'sub', style: 'margin:10px 0' }, el('div', { textContent: 'What happens, in order:' }), ...all.map((t, i) => el('div', { textContent: (i + 1) + '. ' + t })),
+    el('div', { style: 'margin-top:6px', textContent: 'This can take a long time for a long track, and the bar may sit still while the recorder works. The elapsed time keeps counting, so that means it is working. Nothing is lost if it takes a while.' }));
+}
 function spatialLine(r, verb) {                               // a sentence about the spatial versions after a split or a clone
   return (r.spatial ? ' ' + r.spatial + (r.spatial === 1 ? ' spatial version was ' : ' spatial versions were ') + (verb || 'cut and stored with the new tracks') + '.' : '') +
     (r.spatialError ? ' The spatial audio was NOT carried across: ' + r.spatialError : '');
@@ -4410,8 +4417,12 @@ async function runEdit(op, nums, params) {
   const prog = liveProgress('Starting…', 4, true);
   const cancel = el('button', { textContent: 'Cancel', onclick: () => { cancel.disabled = true; api().edit_cancel(); } });
   const note = el('div', { className: 'notice warn', textContent: 'Do not unplug the recorder or close this window until it finishes.' });
-  openSheet(el('h2', { textContent: params && params.stage ? 'Saving the new tracks…' : op === 'split' ? 'Splitting…' : op === 'adjust' ? 'Adjusting…' : 'Combining…' }), prog.what, prog.bar, prog.stallBox, note, el('div', { className: 'row' }, cancel));
-  const verbs = { reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Saving and checking a copy of the original on this PC', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check', finishing: 'Storing the spatial audio' };
+  const sp0 = op === 'split' && !(params && params.keepSpatial === false) && !!((trackMap.get(nums[0]) || {}).spatial);
+  const steps = stepsNote(op === 'adjust' ? ['Reading the track from the disc', 'Changing the sound', 'Writing the new track and checking it'] : params && params.stage
+    ? ['Reading the track from the disc', 'Cutting it into the new tracks and saving them on this PC'].concat(sp0 ? ['Reading the spatial audio from the disc and cutting it to match'] : [], ['Next: the original is deleted and the new tracks are written (you are asked first)'])
+    : ['Reading the track from the disc', 'Cutting it up'].concat(sp0 ? ['Reading the spatial audio from the disc and cutting it to match'] : [], ['Writing the new tracks and checking each one']), sp0 && !(params && params.stage));
+  openSheet(el('h2', { textContent: params && params.stage ? 'Saving the new tracks…' : op === 'split' ? 'Splitting…' : op === 'adjust' ? 'Adjusting…' : 'Combining…' }), prog.what, prog.bar, prog.stallBox, steps, note, el('div', { className: 'row' }, cancel));
+  const verbs = { spatialread: 'Reading the spatial audio from the disc (the slowest step: several minutes for a long track)', spatialcut: 'Cutting the spatial audio to match', reading: 'Reading', preparing: 'Preparing the new audio', copycheck: 'Saving and checking a copy of the original on this PC', deleting: 'Deleting the original from the disc', writing: 'Writing', checking: 'Checking the disc', verifying: 'Reading back to check', finishing: 'Storing the spatial audio' };
   window.onEditProgress = m => {
     const step = m.count > 1 && m.name ? ' (' + (m.n + 1) + ' of ' + m.count + ')' : '';
     prog.set((verbs[m.phase] || '') + (m.name && m.phase !== 'copycheck' ? ' “' + m.name + '”' : '') + step + '…' + (m.total ? ' ' + Math.round(100 * m.done / m.total) + '%' : ''), m.total ? m.done / m.total : 0,
@@ -4428,7 +4439,8 @@ async function runEdit(op, nums, params) {
   }
   await load();
   if (params && params.autoName) {                              // Auto split & name: on to naming the new tracks (they were just written, so their audio is already on this PC)
-    toast('Written: ' + r.new.length + (r.new.length === 1 ? ' track' : ' tracks') + (r.originalDeleted ? '. The original was deleted; a copy stays in Saved copies until you remove it' : '') + '. Now identifying…', false, 9000);
+    toast('Written: ' + r.new.length + (r.new.length === 1 ? ' track' : ' tracks') + (r.spatial ? ', with ' + r.spatial + ' spatial audio version' + (r.spatial > 1 ? 's' : '') + ' stored' : '') + (r.originalDeleted ? '. The original was deleted; a copy stays in Saved copies until you remove it' : '') + '. Now identifying…', false, 12000);
+    if (r.spatialError) toast('The spatial audio was NOT carried across: ' + r.spatialError, true, 60000);
     identifyNewAuto(r.new); return;
   }
   if (r.originalDeleted) {

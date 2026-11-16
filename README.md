@@ -2,7 +2,7 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.31.1 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.31.2 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
@@ -13,7 +13,7 @@ Version 0.31.1 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIR
 - Converts a standard (SP / LP) disc to Hi-MD, and rewrites LP2 / LP4 tracks as SP (spreading them over two discs when they do not fit) so that players without LP support can play them.
 - Prints disc labels (HP Sprocket and Polaroid Hi-Print over Bluetooth, or as a picture).
 - Plays the disc on the PC, a Sonos room or a Google TV, with a choice of level-meter and spectrum displays.
-- **Spatial audio:** keeps the surround version of a track on a Hi-MD disc next to its normal stereo track; Clone and Split carry it across (0.31.0). See below.
+- **Spatial audio:** keeps the surround version of a track on a Hi-MD disc next to its normal stereo track; Clone and Split carry it across (0.31.0); splitting a long track is explained step by step (0.31.2). See below.
 
 ## What is in this repository
 

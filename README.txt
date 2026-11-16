@@ -897,6 +897,7 @@ How writing works
   converted by runtime\ffmpeg.exe (LGPL build, BtbN n8.1).
 
 Status (2026-10-21)
+- 0.31.2 (2026-11-16): splitting a long track that has a spatial version is clearer and safer. The Split, Auto split and write-back screens now list what will happen, in order, with a note that long steps are normal; reading and cutting the spatial audio each show their own status line. The room check counts the spatial files, the original's own spatial file is removed when the original is deleted to make room, and if the spatial audio cannot be stored a message stays on screen even during Auto split & name.
 - 0.31.1 (2026-11-15): playing 5.1 tracks to a Google TV one after another is much quicker: while one plays, the next track's spatial file is read
   from the disc and its sound, picture and video are prepared (it gives way at once if you use the recorder for anything else).
 - 0.31.0 (2026-11-15): Clone and Split carry spatial versions across; a progress bar while spatial files are written; the Codec column

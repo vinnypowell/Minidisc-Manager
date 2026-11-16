@@ -645,7 +645,7 @@ class EditMixin:
                     tell(phase='preparing')
                     edges_s = [0.0] + points + [float(t0['seconds'])]
                     spans = [(edges_s[k], None if k == len(edges_s) - 2 else edges_s[k + 1] - edges_s[k]) for k in v['kept']]
-                    sp_parts = self._sp_cut_for_split(t0, spans, tmp, [o['title'] for o in outs])
+                    sp_parts = self._sp_cut_for_split(t0, spans, tmp, [o['title'] for o in outs], tell)
                 except (spatial.SpatialError, OSError) as exc:
                     sp_parts, sp_err = None, str(exc)
 
@@ -839,7 +839,7 @@ class EditMixin:
         with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, indent=1)
         os.replace(tmp, os.path.join(SPLIT_DIR, 'manifest.json'))
-        return {'staged': True, 'parts': len(files), 'folder': stage, 'bytes': sum(e['bytes'] for e in entries)}
+        return {'staged': True, 'parts': len(files), 'spatial': len(sp_entries), 'folder': stage, 'bytes': sum(e['bytes'] for e in entries)}
 
     @staticmethod
     def _edit_need(m):
@@ -849,7 +849,8 @@ class EditMixin:
             blocks = sum(-(-(f['bytes'] // frame) // ((16320 - 1) // frame)) for f in m['files'])
         else:
             blocks = sum(-(-f['bytes'] // 16320) for f in m['files'])
-        return blocks * 16384 + 2 * 16384
+        sp = sum(int(x.get('bytes') or 0) for x in (m.get('spatial') or []))        # the cut spatial files go in the disc's root folder too
+        return blocks * 16384 + 2 * 16384 + (-(-sp // 16384) * 16384 + 16384 if sp else 0)
 
     def edit_staged_status(self):
         """The saved parts waiting on this PC (None when there are none), and how they relate to the disc that is loaded now."""
@@ -864,7 +865,7 @@ class EditMixin:
                            'fitsNow': need < free * 0.98, 'fitsAfterDelete': need < (free + freed) * 0.98,
                            'originals': [{'number': o['number'], 'title': o['title'], 'seconds': o['seconds']} for o in m['originals']],
                            'sameDisc': bool(self._disc_key) and self._disc_key == m['sourceId'], 'originalsPresent': present,
-                           'bytes': sum(f['bytes'] for f in m['files']), 'folder': os.path.join(SPLIT_DIR, 'stage'), 'autoName': bool(m.get('autoName'))}}
+                           'bytes': sum(f['bytes'] for f in m['files']), 'spatial': len(m.get('spatial') or []), 'folder': os.path.join(SPLIT_DIR, 'stage'), 'autoName': bool(m.get('autoName'))}}
 
     def edit_staged_discard(self):
         shutil.rmtree(SPLIT_DIR, ignore_errors=True)
@@ -909,9 +910,16 @@ class EditMixin:
         if delete_originals:
             if not (same and present):
                 return {'error': 'This is not the disc the original track(s) were split from, or they are no longer on it. Insert that disc, or write the saved parts without deleting.' + keep}
-            freed = sum(o['blocks'] for o in m['originals']) * 16384
+            freed = sum(o['blocks'] for o in m['originals']) * 16384 + sum(((by_number.get(n) or {}).get('spatial') or {}).get('bytes', 0) for n in numbers)
             if not need < (free + freed) * 0.98:
                 return {'error': 'Even with the original track(s) deleted there would not be enough room on the disc.' + keep}
+            if m.get('spatial'):                                  # the cut spatial files replace the original's: drop its one first, or it keeps the room they need
+                for n in numbers:
+                    if (by_number.get(n) or {}).get('spatial'):
+                        tell(phase='deleting', n=0, count=len(numbers), name=m['originals'][0]['title'] + ' (spatial audio)', done=0, total=0)
+                        rr = self.spatial_remove(index, n)
+                        if 'error' in rr:
+                            return {'error': 'Removing the original’s spatial audio failed: %s%s' % (rr['error'], keep)}
             tell(phase='deleting', n=0, count=len(numbers), name=m['originals'][0]['title'], done=0, total=0)
             res = self.delete_tracks(index, numbers)
             if 'error' in res:
