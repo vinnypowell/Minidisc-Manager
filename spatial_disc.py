@@ -5,6 +5,7 @@ On the disc each spatial track is an ordinary stereo track (the recorder plays i
 index file SPATIAL.JSN in the root folder says which file belongs to which track: the track's own key (the random 8 bytes in its index entry)
 plus the title and length as a second check. Standard discs have no file system, so they cannot hold these files."""
 import json
+import base64
 import os
 import re
 import shutil
@@ -330,13 +331,47 @@ class SpatialMixin:
         self._active = None
         return self._play_reply(st)
 
+    def _sp_pull_path(self, track):
+        """Where the track's spatial file is kept on this PC once it has been read from the disc (the file may not be there yet)."""
+        sp = track['spatial']
+        key = '%s|%s|%d' % (self._disc_key, sp['file'], sp['bytes'])
+        return os.path.join(PLAY_DIR, 'spatial-%s.hms' % uuid.uuid5(uuid.NAMESPACE_URL, key).hex[:16])
+
+    _sp_lv_cache = None
+    _sp_lv_lock = None
+
+    def spatial_levels(self, number):
+        """For the "Surround channels" display: how loud each channel of a track's spatial version is, 20 times a second. Reads nothing from the disc: it works on the
+        copy that playing the track has already pulled (until then it answers {'pending': True} and the page asks again). Returns {names, hz, frames, data (base64)},
+        {'none': True} for a track without a spatial version, or {'error'}."""
+        self._sp_state()
+        track = next((t for t in (self._tracks or []) if t['number'] == int(number)), None)
+        if not track or not track.get('spatial') or getattr(self, '_loaded_netmd', False):
+            return {'none': True}
+        path = self._sp_pull_path(track)
+        if not (os.path.exists(path) and os.path.getsize(path) == track['spatial']['bytes']):
+            return {'pending': True}
+        if self._sp_lv_lock is None:
+            self._sp_lv_lock = threading.Lock()
+            self._sp_lv_cache = {}
+        with self._sp_lv_lock:
+            hit = self._sp_lv_cache.get(path)
+            if hit is None:
+                try:
+                    hit = spatial.levels(path)
+                except (spatial.SpatialError, OSError) as exc:
+                    return {'error': str(exc)}
+                if len(self._sp_lv_cache) >= 4:
+                    self._sp_lv_cache.pop(next(iter(self._sp_lv_cache)))
+                self._sp_lv_cache[path] = hit
+        return {'names': hit['names'], 'hz': hit['hz'], 'frames': hit['frames'], 'seconds': hit['seconds'], 'data': base64.b64encode(hit['data']).decode('ascii')}
+
     def _spatial_pull(self, track, raw=False):
         """Copies the track's spatial file from the disc into PLAY_DIR (kept for the next play of the same track). Returns (path, error text or '').
         raw: used by the read-ahead of the next track: takes the USB lock without the gate (so it does not cancel itself), gives up at once when the
         recorder is busy, and can be stopped between blocks by anything else that needs the recorder."""
         sp = track['spatial']
-        key = '%s|%s|%d' % (self._disc_key, sp['file'], sp['bytes'])
-        path = os.path.join(PLAY_DIR, 'spatial-%s.hms' % uuid.uuid5(uuid.NAMESPACE_URL, key).hex[:16])
+        path = self._sp_pull_path(track)
         os.makedirs(PLAY_DIR, exist_ok=True)
         if os.path.exists(path) and os.path.getsize(path) == sp['bytes']:
             return path, ''

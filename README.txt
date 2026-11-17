@@ -590,9 +590,15 @@ Pre-recorded (commercial) standard discs
 
 Visualizer (top of the Disc Information panel, while a track plays on this PC)
 - Choose the display: Spectrum bars, Mirror bars, Oscilloscope (stereo), Circular spectrum, Waterfall, and three stereo VU meters (needles, LED columns,
-  bars), or Off. Colour (Accent, Rainbow, Fire, Ice, Green - red, White), Sensitivity and Peak marks can be changed while it plays; the choices are kept.
+  bars), or, for a track that has a spatial version (HMSA), Surround channels (see below), or Off. Colour (Accent, Rainbow, Fire, Ice, Green - red, White), Sensitivity and Peak marks can be changed while it plays; the choices are kept.
 - The sound is only read, never changed (apart from the equalizer, below: the display shows the sound after it). It is not shown for a standard disc
   played on the recorder itself or on a Sonos speaker, because the program does not receive that sound.
+
+Surround channels display (for a track with a spatial version, playing on this PC or on a Google TV in 5.1 mode)
+- Three styles in the Visualiser list: Surround channels (a circle per speaker laid out like the room, heights as diamonds, the bass box at the bottom), the same with vertical bars,
+  and Surround channels, horizontal bars (one bar per channel, a small gap between bars, name on the left, level in dB on the right).
+- Each channel shows its own live level, its dB figure and, with Peak marks on, a peak mark. In the two room layouts a see-through ring called Sound centre floats
+  to where the sound as a whole is coming from, with a short trail. The display is drawn in the program window only; the TV keeps its still picture.
 
 Deck time display (just under the visualiser, while any track plays: here, on the recorder, a speaker or a TV)
 - Modelled on a Sony MiniDisc deck's display: "Track 05 / 22", the title of the playing track with its artist and album underneath (when the disc,
@@ -905,6 +911,7 @@ How writing works
   converted by runtime\ffmpeg.exe (LGPL build, BtbN n8.1).
 
 Status (2026-10-21)
+- 0.32.0 (2026-11-17): new SURROUND CHANNELS display for tracks that have a spatial version: the level of every channel (5.1, 7.1 and height speakers) live, in dB, with peak marks, as speaker circles, vertical bars or horizontal bars, and a see-through Sound centre ring that follows where the sound is coming from. It also works while a 5.1 track plays on a Google TV. The Add tracks button now says it takes surround files too. The HMSA word on the capacity ring no longer overflows on discs with many tracks. French, German, Dutch and Spanish texts for all of it.
 - 0.31.3 (2026-11-17): a long file can be SPLIT INTO ITS TRACKS BEFORE IT IS ADDED to the disc (a whole album ripped as one file: paste the track lengths or start times, or use the file's own chapter marks; cuts snap to the quietest moment; 5.1 / 7.1 pieces each get their own spatial version; the disc is written once instead of writing one long track and splitting it afterwards). The Add window has Disc details (Artist, Album, Disc name for all the added tracks). Spanish (Español) joins English, French, German and Dutch, including the USB driver guide and LEEME.txt. Disc capacity ring: each track's arc now includes its own spatial file and an outer ring marks the tracks that have one with the word HMSA, so the ring is as full as the percentage. Playing a spatial track as 5.1 on a Google TV starts sooner (the still-picture video is built from a short loop and the TV files are made while the headphone picture is made), and the TV picture shows the real codec of the track. The Add tracks help has an entry for spatial audio and one for splitting a long file first.
 - 0.31.2 (2026-11-16): splitting a long track that has a spatial version is clearer and safer. The Split, Auto split and write-back screens now list what will happen, in order, with a note that long steps are normal; reading and cutting the spatial audio each show their own status line. The room check counts the spatial files, the original's own spatial file is removed when the original is deleted to make room, and if the spatial audio cannot be stored a message stays on screen even during Auto split & name.
 - 0.31.1 (2026-11-15): playing 5.1 tracks to a Google TV one after another is much quicker: while one plays, the next track's spatial file is read

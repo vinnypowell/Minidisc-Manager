@@ -61,7 +61,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.31.3'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.32.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware

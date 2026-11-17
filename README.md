@@ -2,12 +2,13 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.31.3 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.32.0 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **Surround channels display (0.32.0):** for a track that has a spatial version, three new visualiser styles show the live level of every channel in dB with peak marks: speaker circles laid out like the room, vertical bars, or horizontal bars, with a see-through Sound centre ring that follows where the sound is coming from. It also works while a 5.1 track plays on a Google TV.
 - **Split a long file before adding it (0.31.3):** a whole album ripped as one long file (a DVD-Audio or vinyl rip, 5.1 and 7.1 included) can be cut into its tracks on the PC before it is added, from a pasted list of lengths or start times or from the file's own chapter marks, rather than written to the disc as one long track and split afterwards. Each cut is moved to the quietest moment nearby, each surround piece keeps its own spatial version, and the disc is written once.
 - Name the disc as you add: the Add window has Artist, Album and Disc name boxes that apply to every added track.
 - Splits, combines, moves, fades and renames tracks, with groups, auto split, album look-up and timed lyrics.

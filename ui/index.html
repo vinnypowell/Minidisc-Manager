@@ -201,6 +201,8 @@
   .tool-buttons .yoto-pair { display: flex; gap: 6px; }
   .tool-buttons .yoto-pair button { flex: 1 1 0; min-width: 0; padding: 4px 11px; font-size: 12px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
   .tool-text { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .mc-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; font-size: 10px; font-weight: 800; letter-spacing: .05em; line-height: 1.5; border-radius: 99px; border: 1px solid rgba(255,255,255,.7); background: rgba(255,255,255,.2); color: #fff; vertical-align: 1px; }
+  .mc-note { color: #5cb8ff; }
   .help-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
   .help-link:hover { text-decoration: underline; }
   .help-sheet { display: grid; gap: 10px; max-height: 70vh; overflow-y: auto; padding-right: 6px; }
@@ -312,7 +314,8 @@
   .deck-grid b svg.dg .on { fill: var(--deck-ink); }
   .deck-grid b svg.dg .off { fill: var(--deck-ink); opacity: .09; }
   .deck-grid .na b { color: var(--muted); text-shadow: none; opacity: .6; }
-  #vizCanvas.tall { height: 250px; }          /* the round VU dials get more room, so they come out larger */
+  #vizCanvas.tall { height: 250px; }
+  #vizCanvas.xtall { height: 278px; border: none; box-shadow: none; background: transparent; }          /* the surround channels display: a wide room needs the height too */          /* the round VU dials get more room, so they come out larger */
   /* the "screen" of the visualiser and of the deck time display under it: the same dark glass, so they read as one retro machine display */
   :root { --screen: linear-gradient(180deg, rgba(0, 0, 0, .52), rgba(0, 0, 0, .34)); --screen-edge: inset 0 0 22px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .05); }
   #vizCanvas { width: 100%; height: 130px; display: block; border-radius: 12px; background: var(--screen); border: 1px solid var(--line); box-shadow: var(--screen-edge); }
@@ -597,9 +600,9 @@
       <section class="card record-card" id="recordCard" data-card="record">
         <h2 class="card-title">Recording</h2>
         <div class="tool-group g-add rec-tools">
-          <div class="tool-buttons"><button id="add" class="primary">Add tracks from PC…</button><button id="rip" title="Copy an audio CD from this PC’s CD drive onto the disc">Rip CD…</button><div class="yoto-pair"><button id="yt" title="Copy the card that is in your Yoto player onto the disc">Rip Yoto Card…</button><button id="yts" title="Copy the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, ready to link to a blank MYO card">Send to Yoto Card…</button></div><button id="bc" title="Play music on Bandcamp and record it onto the disc as it plays">Add tracks from Bandcamp…</button><button id="sc" title="Play music on SoundCloud and record it onto the disc as it plays">Add tracks from SoundCloud…</button><button id="rd" title="Record an internet radio station, song by song, onto the disc">Add tracks from Internet Radio…</button></div>
+          <div class="tool-buttons"><button id="add" class="primary" title="Add music files from this PC: ordinary stereo files, and also surround (multichannel) files, 5.1 / 7.1 and larger, which can keep their spatial version on a Hi-MD disc.">Add tracks from PC…<span class="mc-badge">also 5.1 · 7.1</span></button><button id="rip" title="Copy an audio CD from this PC’s CD drive onto the disc">Rip CD…</button><div class="yoto-pair"><button id="yt" title="Copy the card that is in your Yoto player onto the disc">Rip Yoto Card…</button><button id="yts" title="Copy the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, ready to link to a blank MYO card">Send to Yoto Card…</button></div><button id="bc" title="Play music on Bandcamp and record it onto the disc as it plays">Add tracks from Bandcamp…</button><button id="sc" title="Play music on SoundCloud and record it onto the disc as it plays">Add tracks from SoundCloud…</button><button id="rd" title="Record an internet radio station, song by song, onto the disc">Add tracks from Internet Radio…</button></div>
           <label id="grpNewRow" class="tool-text" style="display:flex;gap:7px;align-items:center;cursor:pointer" title="Hi-MD discs: after files, a CD, a Yoto card or an online recording have been added, the new tracks are put in one new group named after their album (a single new track is left ungrouped)"><input type="checkbox" id="grpNew"> Put each batch of added tracks in a new group</label>
-          <div class="tool-text">Put music on the disc from files, CDs, Yoto cards or online recordings. Bandcamp, SoundCloud and radio are recorded in real time. <a href="#" class="help-link" data-help="add">ⓘ How it works…</a></div>
+          <div class="tool-text">Put music on the disc from files, CDs, Yoto cards or online recordings. Bandcamp, SoundCloud and radio are recorded in real time. <span class="mc-note">Surround (multichannel) files, 5.1 / 7.1 and larger, can also be added, and keep their spatial version on a Hi-MD disc.</span> <a href="#" class="help-link" data-help="add">ⓘ How it works…</a></div>
         </div>
                 <div class="tool-group g-label rec-tools">
           <div class="tool-buttons"><button id="printLabel" title="Make a sticker label for the disc (picture, album, artist and track list) as a 2x3 inch picture">Make disc label…</button></div>
@@ -1720,7 +1723,7 @@ function remoteApply(r) {
 async function remoteRequest(action, index, seconds) {
   // A Sonos room only ever plays the track we sent it, so every command after 'play' names that track (the status checks pass 0).
   if (castTarget && action === 'play') {                               // the TV's lyric video draws the visualizer chosen here, as it is when this track starts
-    try { await api().cast_viz(vizSet.style, vizSet.color, vizSet.gain, false, vizSet.peaks, vizAccentNow()); } catch (e) { /* the TV just gets no display */ }
+    try { await api().cast_viz(/^surround/.test(vizSet.style) ? 'bars' : vizSet.style, vizSet.color, vizSet.gain, false, vizSet.peaks, vizAccentNow()); } catch (e) { /* the TV just gets no display */ }
   }
   return castTarget ? api().cast(action, current, action === 'play' ? index : nowNum - 1, seconds, castTarget.ip) : api().remote(action, index, seconds);
 }
@@ -2281,7 +2284,7 @@ function drawDisc(d) {
       const arc = mk('circle', { class: 'seg sp', cx: 80, cy: 80, r: RS, 'data-num': p.num,
         'stroke-dasharray': Math.max(CS * span / TAU - 1, 1) + ' ' + CS, 'stroke-dashoffset': -CS * a0 / TAU, transform: 'rotate(-90 80 80)' });
       g.append(arc);
-      if (RS * span >= 15) {                                                  // long enough for the word: it follows the ring, and reads upright at the bottom
+      if (RS * span >= 23) {                                                  // long enough for the word (the word is about 20 units wide): it follows the ring, and reads upright at the bottom
         const mid = (a0 + a1) / 2, low = Math.cos(mid) < 0;
         const rt = low ? RS + 1.6 : RS - 1.6, id = 'spPath' + p.num;
         const d = low ? 'M ' + pt(rt, a1) + ' A ' + rt + ' ' + rt + ' 0 ' + (span > Math.PI ? 1 : 0) + ' 0 ' + pt(rt, a0) : 'M ' + pt(rt, a0) + ' A ' + rt + ' ' + rt + ' 0 ' + (span > Math.PI ? 1 : 0) + ' 1 ' + pt(rt, a1);
@@ -7187,7 +7190,7 @@ $('idf').addEventListener('click', () => openNaming('listen'));
 audio.crossOrigin = 'anonymous';
 const VIZ_STYLES = [['bars', 'Spectrum bars'], ['mirror', 'Mirror bars'], ['scope', 'Oscilloscope (stereo)'], ['radial', 'Circular spectrum'], ['fall', 'Waterfall'],
   ['vcream', 'Vintage VU – cream'], ['vamber', 'Vintage VU – amber'], ['rcream', 'Round VU – cream'], ['ramber', 'Round VU – amber'],['needle', 'Stereo VU – needles'], ['led', 'Stereo VU – LED columns'], ['hbars', 'Stereo VU – bars'],
-  ['rh1meter', 'MZ-RH1 – level meter'], ['rh1std', 'MZ-RH1 – spectrum (standard)'], ['rh1circle', 'MZ-RH1 – spectrum (circle)'], ['off', 'Off']];
+  ['rh1meter', 'MZ-RH1 – level meter'], ['rh1std', 'MZ-RH1 – spectrum (standard)'], ['rh1circle', 'MZ-RH1 – spectrum (circle)'], ['surround', 'Surround channels (spatial tracks)'], ['surround2', 'Surround channels, vertical bars (spatial tracks)'], ['surround3', 'Surround channels, horizontal bars (spatial tracks)'],['off', 'Off']];
 const VIZ_COLORS = [['accent', 'Accent'], ['oled', 'MZ-RH1 OLED blue'], ['rainbow', 'Rainbow'], ['fire', 'Fire'], ['ice', 'Ice'], ['classic', 'Green – red'], ['white', 'White']];
 const vizSet = { style: localStorage.getItem('vizStyle') || 'bars', color: localStorage.getItem('vizColor') || 'accent',
   gain: Number(localStorage.getItem('vizGain')) || 1, peaks: localStorage.getItem('vizPeaks') !== '0' };
@@ -7219,7 +7222,7 @@ function vizCastApply() {
     if (!(playingRemote && castTarget) || remote.busy) { if (playingRemote && castTarget) vizCastApply(); return; }      // busy with another command: try again shortly
     remote.busy = true; setStatus('Updating the TV display…');
     try {
-      const r = await api().cast_viz(vizSet.style, vizSet.color, vizSet.gain, true, vizSet.peaks, vizAccentNow());
+      const r = await api().cast_viz(/^surround/.test(vizSet.style) ? 'bars' : vizSet.style, vizSet.color, vizSet.gain, true, vizSet.peaks, vizAccentNow());
       if (r && r.error) toast(r.error, true);
     } catch (e) { dbg('TV display update failed: ' + e); }
     finally { remote.busy = false; setStatus(''); }
@@ -7451,6 +7454,151 @@ function vizRh1(g, W, H, w, style) {
   }
   mesh(10 * w, cy - dMax / 2 - 3 * w, W - 20 * w, dMax + 6 * w);
 }
+// ---- Surround channels ---------------------------------------------------------------------------------------------------------------------
+// For a track that has a spatial (HMSA) version and plays on this PC: the room seen from above, a marker for each speaker of the file's layout (5.1, 7.1, 7.1.4 ...) that swells and
+// glows with that channel's level, and a dot that shows where the sound as a whole is coming from. The levels (about 20 a second) are measured by the program from the spatial file
+// (spatial_levels); the display follows the playing position, so it also works after a seek. Heights are drawn as diamonds on an inner ring.
+const SURROUND_POS = {                                                // the room seen from above: [across -1..1, front (-1) to back (1), 1 = a height speaker (drawn inside)]
+  FL: [-0.62, -1], FR: [0.62, -1], FC: [0, -1], FLC: [-0.31, -1], FRC: [0.31, -1], SL: [-1, 0.05], SR: [1, 0.05], BL: [-0.62, 1], BR: [0.62, 1], BC: [0, 1],
+  TFL: [-0.62, 0, 1], TSL: [-0.4, 0, 1], TBL: [-0.18, 0, 1], TBR: [0.18, 0, 1], TSR: [0.4, 0, 1], TFR: [0.62, 0, 1], TFC: [0, 0, 1], TBC: [0, 0, 1], TC: [0, 0, 1] };
+const SURROUND_NAMES = { FL: 'Front L', FR: 'Front R', FC: 'Centre', LFE: 'Bass', BL: 'Rear L', BR: 'Rear R', SL: 'Side L', SR: 'Side R', FLC: 'Front L-C', FRC: 'Front R-C', BC: 'Rear C',
+  TFL: 'Top front L', TFR: 'Top front R', TBL: 'Top rear L', TBR: 'Top rear R', TSL: 'Top side L', TSR: 'Top side R', TFC: 'Top front C', TBC: 'Top rear C', TC: 'Top' };
+const sl = { num: 0, state: '', names: [], hz: 20, frames: 0, data: null, lv: [], pk: [], pkAt: [], dot: [0, 0], trail: [], tries: 0 };
+function surroundTime() { return playingRemote ? remoteNow() : (audio.currentTime || 0); }              // the position of the TV while casting (a plain function so a test can set it)
+function surroundTrack() {                                         // the playing track if its channels can be shown: playing here, or on a Google TV in 5.1 mode (the TV plays the same spatial version)
+  const t = nowNum && trackMap.get(nowNum);
+  if (!t || !t.spatial || netmd) return null;
+  if (playingRemote && !(castTarget && castTarget.kind === 'cast' && appSettings.spatialTvSurround === true)) return null;
+  return t;
+}
+async function surroundLoad(num) {
+  Object.assign(sl, { num, state: 'loading', names: [], data: null, frames: 0, lv: [], pk: [], pkAt: [], dot: [0, 0], trail: [], tries: 0 });
+  for (;;) {
+    let r;
+    try { r = await api().spatial_levels(num); } catch (e) { r = { error: String(e) }; }
+    if (sl.num !== num) return;                                       // another track has started meanwhile
+    if (r && r.pending && sl.tries++ < 90) { await new Promise(ok => setTimeout(ok, 1000)); if (sl.num !== num) return; continue; }
+    if (!r || r.error || r.none || !r.data) { sl.state = 'none'; return; }
+    const bin = atob(r.data), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    const step = Math.max(1, Math.floor(buf.length / 30000)), samp = []; for (let i = 0; i < buf.length; i += step) if (buf[i] > 8) samp.push(buf[i]);
+    samp.sort((a, b) => a - b);
+    const refB = samp.length ? samp[Math.floor(samp.length * 0.98)] : 200;                 // loud, but not the one stray peak
+    Object.assign(sl, { names: r.names, hz: r.hz, frames: r.frames, data: buf, state: 'ready', ref: refB / 255 * 60 - 60, lv: r.names.map(() => 0), db: r.names.map(() => -60), pk: r.names.map(() => 0), pkAt: r.names.map(() => 0) });
+    return;
+  }
+}
+function drawSurround(g, W, H, dpr, bars) {
+  const t = surroundTrack();
+  const say = text => { g.fillStyle = 'rgba(200,208,222,.8)'; g.font = Math.round(13 * dpr) + 'px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(I18N.t(text), W / 2, H / 2); };
+  if (!t) { say(playingRemote ? 'The channel display needs a spatial track playing on this PC or on a Google TV in 5.1 mode' : 'Play a track with a spatial version (HMSA) to see its channels'); return; }
+  if (sl.num !== t.number) surroundLoad(t.number);
+  if (sl.state === 'loading') { say('Reading the channels…'); return; }
+  if (sl.state !== 'ready') { say('The channel levels could not be read for this track'); return; }
+  const n = sl.names.length, cx = W / 2, cy = H / 2, k = Math.max(0.5, Math.min(W / dpr / 760, H / dpr / 278, 1.25)),
+    Rx = W / 2 - 66 * k * dpr, Ry = H / 2 - 5 * k * dpr, Ys = Ry - 72 * k * dpr, R = Math.min(Rx, Ry), rb = 15 * k * dpr, now = performance.now();       // the speakers sit at the middle of the outline; its margins hold the labels
+  const pos = surroundTime() * sl.hz, i0 = Math.max(0, Math.min(sl.frames - 1, Math.floor(pos))), i1 = Math.min(sl.frames - 1, i0 + 1), fr = pos - Math.floor(pos);
+  g.save(); g.lineCap = 'round';
+  // the room: the ring of speakers, the inner ring of heights, a mark for straight ahead
+  g.strokeStyle = 'rgba(150,160,180,.22)'; g.lineWidth = 1 * dpr; const box = (hx, hy, rad) => { g.beginPath(); if (g.roundRect) g.roundRect(cx - hx, cy - hy, hx * 2, hy * 2, rad); else g.rect(cx - hx, cy - hy, hx * 2, hy * 2); g.stroke(); };
+  g.fillStyle = 'rgba(150,160,180,.5)'; g.beginPath(); g.moveTo(cx, cy - Ry * 0.5 - 7 * k * dpr); g.lineTo(cx - 6 * k * dpr, cy - Ry * 0.5 + 3 * k * dpr); g.lineTo(cx + 6 * k * dpr, cy - Ry * 0.5 + 3 * k * dpr); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(200,208,222,.7)'; g.beginPath(); g.arc(cx, cy, 3.5 * dpr, 0, Math.PI * 2); g.fill();      // the listener
+  let sx = 0, sy = 0, sp = 0;
+  sl.names.forEach((name, c) => {
+    const b = sl.data[i0 * n + c] * (1 - fr) + sl.data[i1 * n + c] * fr, db = b / 255 * 60 - 60;
+    const SPAN = 30, lin = Math.max(0, Math.min(1.15, (db - (sl.ref - SPAN)) / SPAN));         // 30 dB below this track's own loud level is nothing, that level is full
+    const target = Math.min(1, Math.pow(lin, 1.6) * vizSet.gain);                               // the curve pulls quiet channels down and loud ones apart
+    sl.lv[c] += (target - sl.lv[c]) * (target > sl.lv[c] ? 0.6 : 0.2);
+    sl.db[c] += (db - sl.db[c]) * 0.3;                                              // the figure shown beside the speaker: smoothed a little so it can be read
+    const v = sl.lv[c];
+    if (v >= sl.pk[c]) { sl.pk[c] = v; sl.pkAt[c] = now; } else if (now - sl.pkAt[c] > 900) sl.pk[c] = Math.max(v, sl.pk[c] - 0.012);
+    if (bars === 'h') return;                                                     // the horizontal version is drawn below, one row per channel
+    let x, y, low = name === 'LFE';
+    if (low) { x = cx; y = cy + Ys; }                // the bass channel has no direction: it sits at the bottom, between the rear speakers
+    else { const p = SURROUND_POS[name] || [0, -1]; x = cx + p[0] * Rx; y = cy + p[1] * Ys; const q = v * v; sx += p[0] * q; sy += p[1] * q; sp += q; }
+    const height = !low && !!(SURROUND_POS[name] && SURROUND_POS[name][2]), r = rb * (height ? 1.7 : (sl.names.includes('FLC') ? 1.6 : 2.1)), col = vizColor(v, c, n);      // a fixed-size housing: the level moves inside it
+    if (bars) {                                                                  // the second version: a narrow vertical column of segments that fill upward instead of a circle
+      const M = 10, half = r * 0.6, hh = r * 2, base = y + r, sh = hh / M, gp = Math.max(1, sh * 0.2);
+      for (let i = 0; i < M; i++) {
+        const sy0 = base - (i + 1) * sh, fill = Math.max(0, Math.min(1, v * M - i));
+        g.fillStyle = 'rgba(18,24,36,.88)'; g.fillRect(x - half, sy0, half * 2, sh - gp);             // the empty segment
+        if (fill > 0.02) { g.globalAlpha = 0.55 + 0.45 * fill; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = fill * 10 * dpr; g.fillRect(x - half, sy0, half * 2, sh - gp); g.shadowBlur = 0; g.globalAlpha = 1; }
+        g.strokeStyle = 'rgba(150,160,180,.35)'; g.lineWidth = 1 * dpr; g.strokeRect(x - half, sy0, half * 2, sh - gp);
+      }
+      if (vizSet.peaks && sl.pk[c] > 0.03) { const pi = Math.min(M - 1, Math.floor(sl.pk[c] * M)); g.fillStyle = 'rgba(255,255,255,.95)'; g.fillRect(x - half, base - (pi + 1) * sh - 2 * dpr, half * 2, 2 * dpr); }
+    } else {
+    const top = low ? y - r * 0.8 : y - r, hgt = low ? r * 1.6 : r * 2, bot = top + hgt;
+    const shape = () => {
+      g.beginPath();
+      if (low) g.rect(x - r, top, r * 2, hgt);
+      else if (height) { g.moveTo(x, y - r * 1.12); g.lineTo(x + r * 1.12, y); g.lineTo(x, y + r * 1.12); g.lineTo(x - r * 1.12, y); g.closePath(); }
+      else g.arc(x, y, r, 0, Math.PI * 2);
+    };
+    shape(); g.fillStyle = 'rgba(18,24,36,.88)'; g.fill();                       // the empty housing
+    g.save(); shape(); g.clip();
+    const lvH = v * (height ? r * 2.24 : hgt), yb = height ? y + r * 1.12 : bot;      // the bar rises from the bottom of the shape
+    const gr = g.createLinearGradient(0, yb, 0, yb - (height ? r * 2.24 : hgt)); gr.addColorStop(0, col); gr.addColorStop(1, col);
+    g.globalAlpha = 0.55; g.fillStyle = gr; g.fillRect(x - r * 1.2, yb - lvH, r * 2.4, lvH);
+    g.globalAlpha = 1; g.fillStyle = col; g.fillRect(x - r * 1.2, yb - lvH, r * 2.4, Math.min(lvH, 4 * dpr));      // a brighter top edge
+    g.fillStyle = 'rgba(18,24,36,.38)';                                          // the segments of a level meter
+    for (let k = 1; k < 6; k++) g.fillRect(x - r * 1.2, yb - k * (height ? r * 2.24 : hgt) / 6 - 0.5 * dpr, r * 2.4, 1 * dpr);
+    if (v > 0.03) { g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(x - r * 1.2, yb - lvH - 1 * dpr, r * 2.4, 2 * dpr); }
+    if (vizSet.peaks && sl.pk[c] > 0.03) { g.fillStyle = 'rgba(255,255,255,.95)'; g.fillRect(x - r * 1.2, yb - sl.pk[c] * (height ? r * 2.24 : hgt) - 1 * dpr, r * 2.4, 2 * dpr); }      // the peak mark
+    g.restore();
+    shape(); g.strokeStyle = col; g.globalAlpha = 0.5 + 0.5 * Math.min(1, v * 1.5); g.lineWidth = 2 * dpr; g.shadowColor = col; g.shadowBlur = v * 16 * dpr; g.stroke(); g.shadowBlur = 0; g.globalAlpha = 1;
+    }
+    g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const lab = height ? name : (SURROUND_NAMES[name] || name), up = height ? /^TF/.test(name) : (!low && (SURROUND_POS[name] || [0, 0])[1] < -0.2);
+    const nm = I18N.t(lab), silent = sl.db[c] < -57, dbt = silent ? '\u2212\u221e dB' : Math.round(sl.db[c]).toString().replace('-', '\u2212') + ' dB';          // e.g. "-23 dB", or minus infinity for silence
+    const f1 = Math.round(13 * k * dpr) + 'px system-ui, sans-serif', f2 = 'bold ' + Math.round(17 * k * dpr) + 'px system-ui, sans-serif', gap = 8 * k * dpr;
+    g.font = f1; const w1 = g.measureText(nm).width; g.font = f2; const w2 = g.measureText(dbt).width;
+    const pp = SURROUND_POS[name] || [0, 0], inward = false, rr = height ? r * 1.12 : r;
+    const ly = inward ? y : y + (up ? -(rr + 13 * k * dpr) : (rr + 13 * k * dpr));
+    const lx = inward ? (pp[0] < 0 ? x + rr + 9 * k * dpr : x - rr - 9 * k * dpr - (w1 + gap + w2)) : x - (w1 + gap + w2) / 2;
+    g.strokeStyle = 'rgba(14,19,30,.92)'; g.lineWidth = 4 * k * dpr;                    // a dark outline behind the text keeps it legible
+    g.font = f1; g.strokeText(nm, lx, ly); g.fillStyle = 'rgba(220,226,238,.92)'; g.fillText(nm, lx, ly);
+    g.font = f2; g.strokeText(dbt, lx + w1 + gap, ly); g.fillStyle = silent ? 'rgba(220,226,238,.5)' : '#ffffff'; g.fillText(dbt, lx + w1 + gap, ly);
+  });
+  g.fillStyle = 'rgba(160,170,190,.6)'; g.font = Math.round(11.5 * k * dpr) + 'px system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(I18N.t('dB (0 dB = full scale)'), 8 * dpr, 6 * dpr); g.textBaseline = 'middle';
+  if (bars === 'h') {                                                              // the third version: one horizontal bar per channel with a small gap (about 1 mm) between them
+    const top = 24 * dpr, gap = 3.8 * dpr, rh = Math.min(34 * dpr, (H - top - 6 * dpr - (n - 1) * gap) / n), y0 = top + Math.max(0, (H - top - 6 * dpr - n * rh - (n - 1) * gap) / 2);
+    const labW = 120 * dpr, dbW = 84 * dpr, bx = 10 * dpr + labW, bw = Math.max(20 * dpr, W - bx - dbW - 10 * dpr);
+    sl.names.forEach((name, c) => {
+      const v = sl.lv[c], y = y0 + c * (rh + gap), col = vizColor(v, c, n), silent = sl.db[c] < -57;
+      const nm = I18N.t(name === 'LFE' ? (SURROUND_NAMES[name] || name) : (SURROUND_POS[name] && SURROUND_POS[name][2] ? name : (SURROUND_NAMES[name] || name)));
+      g.fillStyle = 'rgba(18,24,36,.88)'; g.fillRect(bx, y, bw, rh);                  // the empty track
+      if (v > 0.005) {
+        g.globalAlpha = 0.55; g.fillStyle = col; g.fillRect(bx, y, bw * v, rh); g.globalAlpha = 1;
+        g.fillStyle = col; g.shadowColor = col; g.shadowBlur = v * 10 * dpr; g.fillRect(bx + bw * v - 3 * dpr, y, 3 * dpr, rh); g.shadowBlur = 0;      // a brighter leading edge
+      }
+      g.fillStyle = 'rgba(18,24,36,.38)'; for (let s = 1; s < 10; s++) g.fillRect(bx + bw * s / 10 - 0.5 * dpr, y, 1 * dpr, rh);      // the segments of a level meter
+      if (vizSet.peaks && sl.pk[c] > 0.03) { g.fillStyle = 'rgba(255,255,255,.95)'; g.fillRect(bx + bw * sl.pk[c] - 1 * dpr, y, 2 * dpr, rh); }
+      g.strokeStyle = 'rgba(150,160,180,.35)'; g.lineWidth = 1 * dpr; g.strokeRect(bx, y, bw, rh);
+      g.textBaseline = 'middle'; g.lineJoin = 'round'; g.strokeStyle = 'rgba(14,19,30,.92)'; g.lineWidth = 4 * dpr;
+      g.textAlign = 'right'; g.font = Math.round(Math.min(14 * dpr, rh * 0.6)) + 'px system-ui, sans-serif';
+      g.strokeText(nm, bx - 8 * dpr, y + rh / 2); g.fillStyle = 'rgba(220,226,238,.92)'; g.fillText(nm, bx - 8 * dpr, y + rh / 2);
+      const dbt = silent ? '−∞ dB' : Math.round(sl.db[c]).toString().replace('-', '−') + ' dB';
+      g.textAlign = 'left'; g.font = 'bold ' + Math.round(Math.min(17 * dpr, rh * 0.72)) + 'px system-ui, sans-serif';
+      g.strokeText(dbt, bx + bw + 8 * dpr, y + rh / 2); g.fillStyle = silent ? 'rgba(220,226,238,.5)' : '#ffffff'; g.fillText(dbt, bx + bw + 8 * dpr, y + rh / 2);
+    });
+    g.restore(); return;
+  }
+  // where the sound as a whole is coming from: the pull of every speaker by its power, smoothed, with a short trail
+  const tx = sp > 0.0004 ? sx / sp * 0.85 : 0, ty = sp > 0.0004 ? sy / sp * 0.85 : 0;
+  const dtS = Math.min(0.1, (now - (sl.tPrev || now)) / 1000); sl.tPrev = now; const al = 1 - Math.exp(-dtS / 0.5);      // heavy smoothing (about half a second), the same at any frame rate
+  sl.dot[0] += (tx - sl.dot[0]) * al; sl.dot[1] += (ty - sl.dot[1]) * al;
+  sl.trail.push([sl.dot[0], sl.dot[1]]); if (sl.trail.length > 30) sl.trail.shift();
+  sl.trail.forEach((p, k) => { g.fillStyle = 'rgba(255,255,255,' + (0.04 + 0.16 * k / sl.trail.length) + ')'; g.beginPath(); g.arc(cx + p[0] * Rx, cy + p[1] * Ys, 4.5 * dpr, 0, Math.PI * 2); g.fill(); });
+  g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2 * dpr; g.fillStyle = 'rgba(255,255,255,.13)'; g.beginPath(); g.arc(cx + sl.dot[0] * Rx, cy + sl.dot[1] * Ys, 12 * k * dpr, 0, Math.PI * 2); g.fill(); g.stroke();      // a larger, see-through ring so the speaker underneath still shows
+  {                                                                                // a small caption that says what the floating dot is
+    const dx = cx + sl.dot[0] * Rx, dy = cy + sl.dot[1] * Ys, cap = I18N.t('Sound centre');
+    g.font = Math.round(11.5 * k * dpr) + 'px system-ui, sans-serif'; g.textBaseline = 'middle';
+    const cw = g.measureText(cap).width, left = dx + 14 * dpr + cw > W - 4 * dpr, tx0 = left ? dx - 14 * dpr - cw : dx + 14 * dpr;     // flips to the left near the right edge
+    g.textAlign = 'left'; g.lineJoin = 'round'; g.strokeStyle = 'rgba(14,19,30,.92)'; g.lineWidth = 3.5 * k * dpr; g.strokeText(cap, tx0, dy);
+    g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText(cap, tx0, dy);
+  }
+  g.restore();
+}
 function vizDraw() {
   viz.raf = 0;
   const dpr = window.devicePixelRatio || 1, W = Math.round(vizCv.clientWidth * dpr), H = Math.round(vizCv.clientHeight * dpr);
@@ -7471,6 +7619,8 @@ function vizDraw() {
       if (mid) { g.fillRect(x, H / 2 - hh, w, hh * 2 || 1); } else g.fillRect(x, H - hh, w, hh || 1);
       if (vizSet.peaks) { const ph = viz.peak[i] * (mid ? H / 2 - 4 : H - 6); g.fillStyle = 'rgba(255,255,255,.85)'; if (mid) { g.fillRect(x, H / 2 - ph - 2 * dpr, w, 2 * dpr); g.fillRect(x, H / 2 + ph, w, 2 * dpr); } else g.fillRect(x, H - ph - 3 * dpr, w, 2 * dpr); }
     }
+  } else if (style === 'surround' || style === 'surround2' || style === 'surround3') {
+    drawSurround(g, W, H, dpr, style === 'surround3' ? 'h' : style === 'surround2');
   } else if (style === 'scope') {
     viz.aL.getByteTimeDomainData(viz.wL); viz.aR.getByteTimeDomainData(viz.wR);
     [[viz.wL, 0.0, 'L'], [viz.wR, 0.55, 'R']].forEach(([a, shade], c) => {
@@ -7556,7 +7706,7 @@ function vizSync() {
   const show = !!curDisc || (!!nowNum && (playingRemote ? (!!castTarget && vizSh.on) : !!audio.getAttribute('src')));      // with a disc loaded the display and its choices are always there, so they can be set before playing or casting
   $('viz').classList.toggle('hidden', !show);
   const off = vizSet.style === 'off';
-  vizCv.classList.toggle('tall', /^r(cream|amber)$/.test(vizSet.style));
+  vizCv.classList.toggle('tall', /^(r(cream|amber)|surround[23]?)$/.test(vizSet.style)); vizCv.classList.toggle('xtall', /^surround[23]?$/.test(vizSet.style));
   vizCv.style.display = off ? 'none' : ''; $('vizMore').style.display = off ? 'none' : 'contents';
   $('vizColor').parentElement.style.display = $('vizGain').parentElement.style.display = $('vizPeaks').parentElement.style.display = off ? 'none' : '';
   if (!show || off || !viz.ok) return;

@@ -198,6 +198,56 @@ def unpack_audio(hms_path, out_path):
     return info
 
 
+def levels(hms_path, hz=20, cancel=None):
+    """How loud each channel of a spatial file is, `hz` times a second (for the "Surround channels" display). The audio is decoded here at a low sample rate (the levels need no
+    detail) and the RMS level of every channel in every 1/hz second is measured. Returns {'names', 'hz', 'frames', 'seconds', 'data'}: data is `frames` x channels bytes,
+    row by row, each byte the level 0..255 on a -60 dB .. 0 dB scale. Nothing is written except a temporary copy of the audio, which is removed."""
+    info = peek(hms_path)
+    names, n = info['names'], info['channels']
+    ext = '.opus' if info['codec'] == 'opus' else '.wv'
+    tmp = hms_path + '.lvl' + ext
+    unpack_audio(hms_path, tmp)
+    rate = 12000
+    win = max(1, rate // hz)
+    out = bytearray()
+    try:
+        p = subprocess.Popen([FFMPEG, '-hide_banner', '-loglevel', 'error', '-i', tmp, '-vn', '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(rate), '-ac', str(n), 'pipe:1'],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=NOWIN)
+        try:
+            carry = b''
+            row = win * n * 4
+            while True:
+                if cancel is not None and cancel.is_set():
+                    raise SpatialError('Cancelled.')
+                raw = p.stdout.read(row * 100)
+                if not raw:
+                    break
+                raw = carry + raw
+                whole = len(raw) // row * row
+                carry = raw[whole:]
+                if whole:
+                    x = np.frombuffer(raw[:whole], dtype='<f4').reshape(-1, win, n)
+                    rms = np.sqrt((x.astype(np.float64) ** 2).mean(axis=1))
+                    db = 20.0 * np.log10(rms + 1e-9)
+                    out += np.clip((db + 60.0) / 60.0 * 255.0, 0, 255).astype(np.uint8).tobytes()
+            if len(carry) >= row // 2:                                      # the last, shorter window
+                x = np.frombuffer(carry[:len(carry) // (4 * n) * 4 * n], dtype='<f4').reshape(-1, n)
+                rms = np.sqrt((x.astype(np.float64) ** 2).mean(axis=0))
+                out += np.clip((20.0 * np.log10(rms + 1e-9) + 60.0) / 60.0 * 255.0, 0, 255).astype(np.uint8).tobytes()
+        finally:
+            try:
+                p.kill()
+            except OSError:
+                pass
+            p.wait()
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+    return {'names': list(names), 'hz': hz, 'frames': len(out) // n, 'seconds': info['seconds'], 'data': bytes(out)}
+
+
 def encode(src, out, codec='opus', quality='medium', layout='', title='', progress=None, cancel=None):
     """Writes the spatial container `out` from the multichannel file `src`. codec 'lossless' | 'opus'; quality 'low' | 'medium' | 'high' (Opus only).
     Returns {'bytes', 'seconds', 'channels', 'layout', 'codec'}."""
