@@ -2,12 +2,14 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.31.2 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.31.3 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **Split a long file before adding it (0.31.3):** a whole album ripped as one long file (a DVD-Audio or vinyl rip, 5.1 and 7.1 included) can be cut into its tracks on the PC before it is added, from a pasted list of lengths or start times or from the file's own chapter marks, rather than written to the disc as one long track and split afterwards. Each cut is moved to the quietest moment nearby, each surround piece keeps its own spatial version, and the disc is written once.
+- Name the disc as you add: the Add window has Artist, Album and Disc name boxes that apply to every added track.
 - Splits, combines, moves, fades and renames tracks, with groups, auto split, album look-up and timed lyrics.
 - Clones a disc, saves tracks to the PC, burns an audio CD, keeps a track list on the disc.
 - Converts a standard (SP / LP) disc to Hi-MD, and rewrites LP2 / LP4 tracks as SP (spreading them over two discs when they do not fit) so that players without LP support can play them.
@@ -50,12 +52,12 @@ See the Releases page for the Windows installer, the portable zip and the user m
 
 ## Languages and installation help
 
-The program can be used in **English, French (Français), German (Deutsch) and Dutch (Nederlands)**: use the Language button with the flag at the top of the window. The translations are drafts, and corrections are welcome (please open an issue).
+The program can be used in **English, French (Français), German (Deutsch), Dutch (Nederlands) and Spanish (Español)**: use the Language button with the flag at the top of the window. The translations are drafts, and corrections are welcome (please open an issue).
 
 Installation and USB driver setup, in your language:
 
-- **USB driver guide:** `DRIVER-SETUP.html` comes with the download and opens in your browser in English, French, German or Dutch (flag buttons at the top of the page). The program opens it in the language you have chosen.
-- **Portable zip, first steps:** [Français](installer/LISEZ-MOI.txt) · [Deutsch](installer/LIES-MICH.txt) · [Nederlands](installer/LEES-MIJ.txt) · [English](installer/portable-readme.txt). They cover unzipping (and the Windows "Unblock" step), the first start, driver setup, backups and requirements.
+- **USB driver guide:** `DRIVER-SETUP.html` comes with the download and opens in your browser in English, French, German, Dutch or Spanish (flag buttons at the top of the page). The program opens it in the language you have chosen.
+- **Portable zip, first steps:** [Français](installer/LISEZ-MOI.txt) · [Deutsch](installer/LIES-MICH.txt) · [Nederlands](installer/LEES-MIJ.txt) · [Español](installer/LEEME.txt) · [English](installer/portable-readme.txt). They cover unzipping (and the Windows "Unblock" step), the first start, driver setup, backups and requirements.
 
 The full user guide (`README.txt`) is English only.
 

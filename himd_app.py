@@ -54,13 +54,14 @@ import himd_dev
 import himd_disc
 import himd_fs
 import sonos_cast
+import presplit
 import spatial_disc
 import video_links
 from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.31.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.31.3'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -129,7 +130,7 @@ except ImportError:
     _BUILTIN_ACOUSTID_KEY = ''
 
 
-class Api(spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
+class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
           sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, video_links.VideoLinksMixin):
     def __init__(self):
         self._window = None
@@ -506,12 +507,12 @@ class Api(spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSetti
 
     def open_driver_guide(self, lang=''):
         """Opens DRIVER-SETUP.html (how to put the WinUSB driver on a recorder) in the default browser, in the program's language (the page holds
-        English, French, German and Dutch and reads the language from the part after the #)."""
+        English, French, German, Dutch and Spanish and reads the language from the part after the #)."""
         path = os.path.join(HERE, 'DRIVER-SETUP.html')
         if not os.path.isfile(path):
             return {'error': 'The driver guide (DRIVER-SETUP.html) is missing from the app folder.'}
         try:
-            lang = lang if lang in ('en', 'fr', 'de', 'nl') else ''
+            lang = lang if lang in ('en', 'fr', 'de', 'nl', 'es') else ''
             if lang:
                 webbrowser.open(pathlib.Path(path).as_uri() + '#' + lang)
             else:
@@ -584,7 +585,7 @@ def _sweep_temp(min_age=300):
         return
     now = time.time()
     for name in names:
-        if name.startswith(('mdm-split-', 'mdm-edit-', 'mdm-clone-', 'mdm-cover-', 'mdm-preview-', 'mdm-listen-')):
+        if name.startswith(('mdm-split-', 'mdm-edit-', 'mdm-clone-', 'mdm-cover-', 'mdm-preview-', 'mdm-listen-', 'mdm-presplit-')):
             path = os.path.join(base, name)
             try:
                 if os.path.isdir(path) and now - os.path.getmtime(path) > min_age:
@@ -704,7 +705,7 @@ def main():
     try:
         page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
         stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
-        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js'):                            # the language files are part of the page too
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_es.js', 'lang_es_more.js'):                            # the language files are part of the page too
             ex = os.stat(os.path.join(HERE, 'ui', extra))
             stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
     except OSError:
@@ -727,7 +728,7 @@ def main():
     def cleanup():                                                      # every step on its own, so one failing step cannot skip the rest
         for step in (api._cancel_extract, api.stop_cast, api._edit_prep_clear, api._preview_clear, lambda: shutil.rmtree(PLAY_DIR, ignore_errors=True),
                      lambda: [r.stop() for r in list(api._recs.values())], lambda: shutil.rmtree(BC_DIR, ignore_errors=True),
-                     lambda: shutil.rmtree(REC_DIR, ignore_errors=True)):          # recordings live only until the program is closed
+                     lambda: shutil.rmtree(REC_DIR, ignore_errors=True), api.presplit_clear):          # recordings live only until the program is closed
             try:
                 step()
             except Exception:

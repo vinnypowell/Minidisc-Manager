@@ -1,0 +1,54 @@
+MiniDisc Manager - versión portátil (español)
+=============================================
+Copyright (c) 2026 Vinny Powell. Licencia: ver LICENSE.txt.
+(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Deutsch: LIES-MICH.txt · Nederlands: LEES-MIJ.txt)
+
+Esta es la versión sin instalador. Descomprímela donde quieras (una carpeta en el Escritorio o en Documentos sirve) y ejecuta
+«MiniDisc Manager.exe». Para quitarla, cierra el programa y borra la carpeta.
+
+ANTES DE DESCOMPRIMIR (así evitas muchos avisos de Windows)
+  Haz clic derecho en el archivo .zip -> Propiedades -> marca «Desbloquear» abajo -> Aceptar. Después descomprímelo.
+  Si te olvidas, Windows puede avisarte por cada archivo del programa.
+  Si te olvidas, el programa también puede no abrirse en absoluto (un error de Python sobre Python.Runtime.dll).
+  Solución: haz doble clic en Unblock.bat en esta carpeta y vuelve a iniciar el programa.
+
+PRIMER INICIO
+  1. Windows SmartScreen puede mostrar «Windows protegió su PC / editor desconocido», porque el programa no está firmado.
+     Haz clic en «Más información» y luego en «Ejecutar de todas formas».
+  2. Aparece un aviso «Antes de empezar» una sola vez. Léelo, por favor.
+  3. Mientras no esté instalado el controlador USB, el programa muestra «No se encontró ninguna grabadora». Abre DRIVER-SETUP.html (en
+     esta carpeta; existe en español) y síguelo. Lleva unos dos minutos, una vez por grabadora, con una herramienta gratuita
+     llamada Zadig.
+  4. La primera vez que reproduces en un altavoz Sonos o un Google TV, el Firewall de Windows puede hacerte una pregunta.
+     Elige «Permitir» para redes privadas.
+  5. Un MiniDisc estándar (no Hi-MD) solo se ve si la grabadora se conecta CON el disco ya dentro.
+
+HAZ COPIA DE SEGURIDAD PRIMERO
+  MiniDisc Manager puede escribir en los MiniDiscs y borrarlos. Solo se ha probado con una Sony MZ-NH700 y una MZ-RH1, y un disco
+  puede quedar ilegible si se interrumpe una escritura. Copia al PC las grabaciones que no puedas reemplazar antes de
+  cambiar un disco, y no desconectes la grabadora mientras el programa indique que está trabajando.
+
+QUÉ NECESITAS
+  - Windows 10 u 11 de 64 bits.
+  - El Microsoft Edge WebView2 Runtime (Windows 11 lo trae; en Windows 10, instala el «Evergreen Standalone Installer» desde
+    https://developer.microsoft.com/microsoft-edge/webview2/ si la ventana no se abre).
+  - Una grabadora Sony Hi-MD o NetMD, con el controlador WinUSB instalado como se describe en DRIVER-SETUP.html.
+  - Para Extraer un CD: una unidad de CD o DVD con un CD de audio y (opcional) conexión a Internet para buscar el álbum.
+  - Para Grabar un CD de audio y Guardar en disco: una grabadora de CD / DVD / Blu-ray y un disco virgen.
+
+DÓNDE QUEDAN TUS DATOS
+  Las copias de seguridad del índice de pistas de cada disco y un pequeño registro se guardan en %LOCALAPPDATA%\MiniDiscManager (no en
+  esta carpeta); así puedes mover o borrar la carpeta del programa sin perderlos. Las copias FLAC de las pistas añadidas a
+  discos estándar también están allí (en «copies»), igual que una copia en el PC de un disco mientras se clona (en «clone»).
+
+IDIOMA
+  El programa existe en inglés, francés, alemán, neerlandés y español: usa el botón Idioma (con una bandera) arriba en la
+  ventana. Las traducciones son borradores; se agradecen las correcciones. Este archivo y DRIVER-SETUP.html son los únicos
+  documentos traducidos; README.txt (la descripción completa) sigue en inglés.
+
+ARCHIVOS
+  README.txt              qué hace el programa, con detalle (inglés)
+  DRIVER-SETUP.html       guía del controlador USB (inglés, francés, alemán, neerlandés, español)
+  LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    licencias y componentes de código abierto usados
+
+MiniDisc Manager no está afiliado a Sony ni a Sonos, ni aprobado por ellos. MusicBrainz y la Cover Art Archive son servicios aparte.

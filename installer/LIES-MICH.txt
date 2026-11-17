@@ -1,7 +1,7 @@
 MiniDisc Manager - portable Version (Deutsch)
 =============================================
 Copyright (c) 2026 Vinny Powell. Lizenz: siehe LICENSE.txt.
-(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Nederlands: LEES-MIJ.txt)
+(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Nederlands: LEES-MIJ.txt · Español: LEEME.txt)
 
 Dies ist die Version ohne Installationsprogramm. Entpacken Sie sie, wohin Sie möchten (ein Ordner auf dem Desktop oder in Dokumente
 genügt), und starten Sie „MiniDisc Manager.exe“. Zum Entfernen schließen Sie das Programm und löschen den Ordner.
@@ -42,13 +42,13 @@ WOHIN IHRE DATEN GEHEN
   hinzugefügt wurden, liegen ebenfalls dort (in „copies“), ebenso eine PC-Kopie einer Disc, während sie geklont wird (in „clone“).
 
 SPRACHE
-  Das Programm gibt es auf Englisch, Französisch, Deutsch und Niederländisch: Verwenden Sie die Schaltfläche Sprache (mit Flagge) oben im
+  Das Programm gibt es auf Englisch, Französisch, Deutsch, Niederländisch und Spanisch: Verwenden Sie die Schaltfläche Sprache (mit Flagge) oben im
   Fenster. Die Übersetzungen sind Entwürfe; Korrekturen sind willkommen. Diese Datei und DRIVER-SETUP.html sind die einzigen übersetzten
   Dokumente; README.txt (die vollständige Beschreibung) bleibt auf Englisch.
 
 DATEIEN
   README.txt              was das Programm kann, ausführlich (Englisch)
-  DRIVER-SETUP.html       USB-Treiber-Anleitung (Englisch, Französisch, Deutsch, Niederländisch)
+  DRIVER-SETUP.html       USB-Treiber-Anleitung (Englisch, Französisch, Deutsch, Niederländisch, Spanisch)
   LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    Lizenzen und verwendete Open-Source-Komponenten
 
 MiniDisc Manager steht in keiner Verbindung zu Sony oder Sonos und wird von ihnen nicht unterstützt. MusicBrainz und das Cover Art Archive sind eigenständige Dienste.

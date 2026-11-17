@@ -12,6 +12,7 @@ import shutil
 
 import chromecast
 import lyricvideo
+
 import mediaserver
 import sonos
 from mdm_paths import HERE, PLAY_DIR
@@ -139,7 +140,8 @@ class CastMixin:
         if not (os.path.exists(path) and os.path.getsize(path) > 1000):
             tmp = path + '.part'
             r = subprocess.run([os.path.join(HERE, 'runtime', 'ffmpeg.exe'), '-hide_banner', '-loglevel', 'error', '-y', '-i', src['path'], '-vn', '-af', src['filter'],
-                                '-c:a', 'eac3', '-b:a', '640k', '-ar', '48000', '-f', 'mp4', '-movflags', '+faststart', tmp],
+                                '-c:a', 'eac3', '-b:a', '640k',
+                                '-ar', '48000', '-f', 'mp4', '-movflags', '+faststart', tmp],
                                capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             if r.returncode or not os.path.exists(tmp):
                 self.log('surround audio failed: %s' % (r.stderr or '').strip()[-300:])
@@ -149,6 +151,20 @@ class CastMixin:
               'failed': False, 'cancelled': False, 'announced': True, 'error': ''}
         self._streams[name] = st
         return st
+
+    @staticmethod
+    def _codec_line(track):
+        """What the track really is, for the TV picture: 'HMSA Opus 7.1  (stereo track: ATRAC3plus 352 kbps)', 'ATRAC3plus 352 kbps', 'ATRAC SP 292 kbps', 'PCM' ...
+        The same names as the Codec column of the track list."""
+        names = {'A3+': 'ATRAC3plus', 'AT3': 'ATRAC3', 'SP': 'ATRAC SP', 'SP mono': 'ATRAC SP mono', 'LP2': 'ATRAC3 LP2', 'LP4': 'ATRAC3 LP4', 'PCM': 'PCM', 'MP3': 'MP3'}
+        c = str((track or {}).get('codec') or '').strip()
+        stereo = (names.get(c, c) + (' %d kbps' % track['kbps'] if track.get('kbps') else '')).strip()
+        sp = (track or {}).get('spatial')
+        if sp:
+            kind = 'Opus' if sp.get('codec') == 'opus' else 'Lossless'
+            lay = sp.get('layout') or ('%s ch' % sp.get('channels') if sp.get('channels') else '')
+            return ('HMSA %s %s' % (kind, lay)).strip() + ('  (stereo track: %s)' % stereo if stereo else '')
+        return stereo
 
     def _surround_splash(self, track):
         """A 1280x720 picture for the TV to show while the 5.1 surround SOUND plays (that mode carries no video, and without a picture the TV's player shows
@@ -170,7 +186,7 @@ class CastMixin:
             title, artist = lyrics._split_title(track)
             title, artist, album = title or 'Track', artist or '', track.get('album') or ''
             line = '5.1 surround  ·  Dolby Digital Plus'
-            name = 'splash-%s.jpg' % hashlib.sha1(repr((title, artist, album, line, self._caption(), len(cover or b''))).encode('utf-8')).hexdigest()[:14]
+            name = 'splash-%s.jpg' % hashlib.sha1(repr((title, artist, album, line, self._caption(), self._codec_line(track), len(cover or b''))).encode('utf-8')).hexdigest()[:14]
             path = os.path.join(PLAY_DIR, name)
             if not os.path.exists(path):
                 W, H = 1280, 720
@@ -207,6 +223,9 @@ class CastMixin:
                 if album:
                     d.text((x, y), fit(album, font(30), tw), font=font(30), fill=(150, 165, 182)); y += 64
                 d.text((x, y), fit(line, font(30, True), tw), font=font(30, True), fill=(92, 184, 255))
+                cod = self._codec_line(track)                                    # the real codec, one line above the recorder line
+                if cod:
+                    d.text((70, H - 100), fit(cod, font(26, True), W - 140), font=font(26, True), fill=(150, 170, 190))
                 cap = self._caption()
                 if cap:
                     d.text((70, H - 62), fit(cap, font(24), W - 140), font=font(24), fill=(120, 134, 150))
@@ -231,11 +250,27 @@ class CastMixin:
             path = os.path.join(PLAY_DIR, name)
             if not (os.path.exists(path) and os.path.getsize(path) > 1000):
                 tmp = path + '.part'
-                r = subprocess.run([os.path.join(HERE, 'runtime', 'ffmpeg.exe'), '-hide_banner', '-loglevel', 'error', '-y', '-loop', '1', '-framerate', '25', '-i', pic['path'],
-                                    '-i', sound['path'], '-map', '0:v', '-map', '1:a', '-vf', 'scale=in_range=full:out_range=tv,format=yuv420p', '-c:v', 'libopenh264',
-                                    '-r', '25', '-b:v', '1200k', '-g', '50', '-bf', '0', '-allow_skip_frames', '0',         # the same video settings as the lyric video (a Google TV needs them)
-                                    '-c:a', 'copy', '-shortest', '-f', 'mp4', '-movflags', '+faststart', tmp],
-                                   capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                ff, nowin = os.path.join(HERE, 'runtime', 'ffmpeg.exe'), getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+                # The picture never changes, so only 2 seconds of it are encoded (the same video settings as the lyric video; a Google TV needs them) and that
+                # clip is repeated by copying: the whole video is made in well under a second instead of encoding every frame (about 12 s for 8 minutes).
+                clip = os.path.join(PLAY_DIR, 'splashclip-%s.mp4' % hashlib.sha1((pic['name'] + '25fps').encode('utf-8')).hexdigest()[:14])
+                r = None
+                if not (os.path.exists(clip) and os.path.getsize(clip) > 500):
+                    r = subprocess.run([ff, '-hide_banner', '-loglevel', 'error', '-y', '-loop', '1', '-framerate', '25', '-i', pic['path'], '-t', '2',
+                                        '-vf', 'scale=in_range=full:out_range=tv,format=yuv420p', '-c:v', 'libopenh264', '-r', '25', '-b:v', '1200k', '-g', '50', '-bf', '0',
+                                        '-allow_skip_frames', '0', '-f', 'mp4', clip + '.part'], capture_output=True, text=True, creationflags=nowin)
+                    if not r.returncode and os.path.exists(clip + '.part'):
+                        os.replace(clip + '.part', clip)
+                if os.path.exists(clip):
+                    r = subprocess.run([ff, '-hide_banner', '-loglevel', 'error', '-y', '-stream_loop', '-1', '-i', clip, '-i', sound['path'], '-map', '0:v', '-map', '1:a',
+                                        '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-f', 'mp4', '-movflags', '+faststart', tmp],
+                                       capture_output=True, text=True, creationflags=nowin)
+                if r is None or r.returncode or not os.path.exists(tmp):          # the looped copy did not work: encode every frame, the slow way
+                    r = subprocess.run([ff, '-hide_banner', '-loglevel', 'error', '-y', '-loop', '1', '-framerate', '25', '-i', pic['path'],
+                                        '-i', sound['path'], '-map', '0:v', '-map', '1:a', '-vf', 'scale=in_range=full:out_range=tv,format=yuv420p', '-c:v', 'libopenh264',
+                                        '-r', '25', '-b:v', '1200k', '-g', '50', '-bf', '0', '-allow_skip_frames', '0',
+                                        '-c:a', 'copy', '-shortest', '-f', 'mp4', '-movflags', '+faststart', tmp],
+                                       capture_output=True, text=True, creationflags=nowin)
                 if r.returncode or not os.path.exists(tmp):
                     self.log('surround picture video failed: %s' % (r.stderr or '').strip()[-300:])
                     return None
@@ -318,7 +353,23 @@ class CastMixin:
                 r = None
                 surround = bool(tr0.get('spatial')) and bool(self._app_setting('spatialTvSurround')) and not getattr(self, '_loaded_netmd', False)
                 if surround:
-                    r = self.play_spatial(int(device_index), int(track_index) + 1)           # also pulls the spatial file, and gives a stereo picture of it for the visualizer
+                    early = {}                                                       # the TV's files, started the moment the disc read is over (while the headphone picture renders)
+                    tr_e = dict(tr0)
+
+                    def _early():
+                        def work():
+                            try:
+                                te = time.time()
+                                s_ = self._surround_audio(tr_e)
+                                p_ = self._surround_splash(tr_e) if s_ else None
+                                early.update(sound=s_, pic=p_, vid=self._surround_video(s_, p_) if s_ and p_ else None, secs=time.time() - te)
+                            except Exception as exc:
+                                self.log('spatial surround (early) failed: %s' % exc)
+                        early['thread'] = threading.Thread(target=work, daemon=True)
+                        early['thread'].start()
+                    tp = time.time()
+                    r = self.play_spatial(int(device_index), int(track_index) + 1, on_pulled=_early)    # also pulls the spatial file, and gives a stereo picture of it for the visualizer
+                    self.log('cast: disc read + headphone picture took %.1fs' % (time.time() - tp))
                     self.log('cast: play_spatial for the TV -> %s' % ('error: ' + r['error'] if 'error' in r else 'ok'))
                     if 'error' in r:
                         self.log('cast: spatial version not used (%s)' % r['error'])
@@ -343,20 +394,29 @@ class CastMixin:
                         track['album'] = dt
                 url, mime = 'http://%s:%d/%s' % (lan, self._cast_port, path), st['mime'] if st else 'audio/wav'
                 self._lv_stop()
-                sur_st = None
+                sur_st, pic, vid = None, None, None
                 if surround:                                                        # sound only: a Google TV shows no picture while it passes surround on, so no lyric video is made
                     try:
-                        sur_st = self._surround_audio(track)
+                        if early.get('thread'):                                     # already being made since the disc read finished
+                            early['thread'].join()
+                            sur_st, pic, vid = early.get('sound'), early.get('pic'), early.get('vid')
+                            if early.get('secs') is not None:
+                                self.log('cast: TV surround files made in %.1fs' % early['secs'])
+                        if not sur_st:
+                            sur_st = self._surround_audio(track)
                     except Exception as exc:
                         self.log('spatial surround failed: %s' % exc)
                 if sur_st:
-                    url, mime = 'http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, sur_st['name']), 'audio/mp4'
+                    if not pic:
+                        pic = self._surround_splash(track)
+                    if not vid:
+                        vid = self._surround_video(sur_st, pic) if pic else None        # sound + still picture as a video: the TV's player then comes to the front
+                    fu, fm = ((vid['name'], 'video/mp4') if vid else (sur_st['name'], 'audio/mp4'))
                     album = ((track.get('album') or '') + '  ·  ' if track.get('album') else '') + 'Spatial 5.1 (Dolby Digital Plus)'
-                    pic = self._surround_splash(track)
-                    vid = self._surround_video(sur_st, pic) if pic else None            # sound + still picture as a video: the TV's player then comes to the front
-                    if vid:
-                        url, mime = 'http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, vid['name']), 'video/mp4'
-                    dev.play_url(url, track.get('title'), mime, track.get('artist'), album, video=bool(vid), source=self._recorder_name or None, confirm=True)
+                    tq = time.time()
+                    dev.play_url('http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, fu), track.get('title'), fm, track.get('artist'), album,
+                                 video=bool(vid), source=self._recorder_name or None, confirm=True)
+                    self.log('cast: the TV took %.1fs to start playing' % (time.time() - tq))
                     kind = 'surround video with splash picture' if vid else 'surround audio (no picture)'
                 else:
                     if self._cast_video:

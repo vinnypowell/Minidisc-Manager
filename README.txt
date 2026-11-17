@@ -92,6 +92,14 @@ What it does - both kinds of disc
 - Adds tracks: drag files onto the window, or press "Add tracks from PC...". A dry run (nothing written) shows what fits and what
   will happen, then you confirm. Every file in the list has a tick box: if they will not all fit, untick the ones to leave out (the
   fit check and the "needs" line are worked out again from the ticked files), or press "Untick files from the end until the rest fit".
+- A long file that is really a whole album (a DVD-Audio or vinyl rip that could not be split) can be split BEFORE it is added, instead of
+  writing one long track and splitting it afterwards on the disc: add the file on its own and tick "This is one long recording: split it into
+  tracks first" in the Add window. Paste or type the tracks, one per line, with each track's length (or its start time); if the file carries
+  chapter marks they are filled in for you. The file is cut on this PC into one lossless file per track (the original is not changed; a 5.1 or
+  7.1 file stays 5.1 or 7.1 and each piece gets its own spatial version), each cut is moved to the quietest moment within 2 seconds of the
+  listed time, and all the tracks are then added to the disc together. It works with any audio file and any kind of disc, for one file at a time.
+- The Add window also has Disc details: Artist, Album and Disc name boxes (filled from the files' tags when they have them) that are applied to
+  every track you add, so the disc can be named at the same time as the tracks are written.
 - Deletes any track (tick the box, press Delete). A confirmation sheet comes first.
 - Moves a track to another position (Move...).
 - Renames track titles and the disc name (double-click).
@@ -897,6 +905,7 @@ How writing works
   converted by runtime\ffmpeg.exe (LGPL build, BtbN n8.1).
 
 Status (2026-10-21)
+- 0.31.3 (2026-11-17): a long file can be SPLIT INTO ITS TRACKS BEFORE IT IS ADDED to the disc (a whole album ripped as one file: paste the track lengths or start times, or use the file's own chapter marks; cuts snap to the quietest moment; 5.1 / 7.1 pieces each get their own spatial version; the disc is written once instead of writing one long track and splitting it afterwards). The Add window has Disc details (Artist, Album, Disc name for all the added tracks). Spanish (Español) joins English, French, German and Dutch, including the USB driver guide and LEEME.txt. Disc capacity ring: each track's arc now includes its own spatial file and an outer ring marks the tracks that have one with the word HMSA, so the ring is as full as the percentage. Playing a spatial track as 5.1 on a Google TV starts sooner (the still-picture video is built from a short loop and the TV files are made while the headphone picture is made), and the TV picture shows the real codec of the track. The Add tracks help has an entry for spatial audio and one for splitting a long file first.
 - 0.31.2 (2026-11-16): splitting a long track that has a spatial version is clearer and safer. The Split, Auto split and write-back screens now list what will happen, in order, with a note that long steps are normal; reading and cutting the spatial audio each show their own status line. The room check counts the spatial files, the original's own spatial file is removed when the original is deleted to make room, and if the spatial audio cannot be stored a message stays on screen even during Auto split & name.
 - 0.31.1 (2026-11-15): playing 5.1 tracks to a Google TV one after another is much quicker: while one plays, the next track's spatial file is read
   from the disc and its sound, picture and video are prepared (it gives way at once if you use the recorder for anything else).

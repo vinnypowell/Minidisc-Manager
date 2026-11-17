@@ -267,9 +267,11 @@ class SpatialMixin:
         return used, len(orphans)
 
     # -- playing ----------------------------------------------------------------------------------
-    def play_spatial(self, index, number):
+    def play_spatial(self, index, number, on_pulled=None):
         """Reads a track's spatial file from the disc, renders it for headphones and returns a URL like play_prepare does (or an error, in which case the page
-        plays the stereo track instead). Reads only."""
+        plays the stereo track instead). Reads only.
+        on_pulled: called (no arguments) as soon as the file has been read from the disc and before the headphone picture is rendered, so a caller can start
+        its own work on the file at the same time (the TV's surround files)."""
         self._sp_state()
         self._play_seq += 1
         mine = self._play_seq
@@ -277,13 +279,13 @@ class SpatialMixin:
             if mine != self._play_seq:
                 return {'superseded': True}
             try:
-                return self._play_spatial_locked(index, int(number), mine)
+                return self._play_spatial_locked(index, int(number), mine, on_pulled)
             except spatial.SpatialError as exc:
                 return {'error': str(exc)}
             except OSError as exc:
                 return {'error': 'Could not play the spatial version: %s' % exc}
 
-    def _play_spatial_locked(self, index, number, mine):
+    def _play_spatial_locked(self, index, number, mine, on_pulled=None):
         track = next((t for t in self._tracks if t['number'] == number), None)
         if not track or not track.get('spatial'):
             return {'error': 'This track has no spatial version.'}
@@ -307,6 +309,11 @@ class SpatialMixin:
                 return {'superseded': True}
             if err:
                 return {'error': err}
+            if on_pulled:
+                try:
+                    on_pulled()
+                except Exception as exc:
+                    self.log('spatial: early start failed: %s' % exc)
             try:
                 self._sp_say(phase='render', name=track['title'], done=0, total=track['seconds'])
                 tmp = path + '.part'
@@ -351,6 +358,10 @@ class SpatialMixin:
         if 'error' in res or not got.get('found') or got.get('stopped'):
             self._rm(path + '.part')
             return '', 'stopped' if got.get('stopped') else (res.get('error') or 'The spatial file is not on the disc any more.')
+        ms = got.get('ms')
+        if ms:
+            self.log('spatial file read: %.1f MB; opening the disc %.1fs, listing files %.1fs, copying %.1fs (%.2f MB/s)' % (
+                sp['bytes'] / 1e6, ms['open'] / 1000, ms['files'] / 1000, ms['read'] / 1000, sp['bytes'] / 1e6 / max(ms['read'] / 1000, 0.001)))
         os.replace(path + '.part', path)
         return path, ''
 

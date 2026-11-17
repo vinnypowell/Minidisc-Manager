@@ -324,6 +324,30 @@ async function volumeHead(fsDriver) {
 }
 
 // Every file in the root and in HMDHIFI: size, first cluster and the cluster chain.
+// Reads a file straight from the disc in big pieces: the file system library reads one cluster per USB command, which is slow (about 0.4 MB/s), so the
+// file's clusters are grouped into runs that follow each other on the disc and each run is read with a single command. Returns the bytes copied.
+async function readFileFast(fsDriver, f, clusterSize, fd, { runBytes = 1 << 19, limit = Infinity, stop = () => false, onProgress = async () => {} } = {}) {
+    const fat = fsDriver.fatfs.getUnderlying();
+    const ss = fat.driver.sectorSize;
+    const want = Math.min(f.size, limit);
+    const maxRun = Math.max(1, Math.floor(runBytes / clusterSize));
+    const chain = f.chain;
+    if (chain.length * clusterSize < f.size) throw new Error('The file is not fully listed on the disc.');
+    let done = 0;
+    for (let i = 0; i < chain.length && done < want;) {
+        if (stop()) return { done, stopped: true };
+        let n = 1;
+        while (i + n < chain.length && n < maxRun && chain[i + n] === chain[i + n - 1] + 1) n++;
+        const data = Buffer.from(await fsDriver.fsUncachedDriver.readSectors(fat.clusterToSector(chain[i]), n * clusterSize / ss));
+        const take = Math.min(data.length, want - done);
+        fs.writeSync(fd, data, 0, take);
+        done += take;
+        i += n;
+        await onProgress(done);
+    }
+    return { done };
+}
+
 async function snapshotFiles(fsDriver) {
     const fat = fsDriver.fatfs.getUnderlying();
     const files = [];
@@ -538,32 +562,51 @@ const commands = {
     },
 
     // Read-only: copies the root file `name` (a sidecar or the index) from the disc to the PC file `out`.
-    async spatial_get({ name, out }) {
+    async spatial_get({ name, out, limit = 0, runKB = 128, slow = false }) {
         name = String(name || '').toUpperCase();
         if (!/^(SP[0-9A-Z]{1,6}\.HMS|SPATIAL\.JSN)$/.test(name)) throw new Error('That is not a spatial audio file name.');
         let stop = false;                               // a line containing "stop" on stdin ends the read cleanly between blocks (the read-ahead of the next track gives way to other work)
         process.stdin.on('data', d => { if (String(d).includes('stop')) stop = true; });
         process.stdin.resume();
+        const t0 = Date.now();
         const ctx = await openDisc({});
         try {
             const { fsDriver } = ctx;
+            const tOpen = Date.now() - t0;
             const snap = await snapshotFiles(fsDriver);
+            const tSnap = Date.now() - t0 - tOpen;
             const f = snap.files.find(x => x.path.toUpperCase() === '/' + name);
             if (!f) return { found: false };
-            const h = await fsDriver.open('/' + name, 'ro');
             const fd = fs.openSync(out, 'w');
+            const tRead0 = Date.now();
+            let lastReport = 0;
             try {
-                for (let done = 0; done < f.size;) {
-                    if (stop) return { found: true, stopped: true, size: f.size, done };
-                    const n = Math.min(1 << 20, f.size - done);
-                    const buf = Buffer.from(await h.read(n));
-                    if (!buf.length) throw new Error('The disc stopped answering while the spatial file was being read.');
-                    fs.writeSync(fd, buf);
-                    done += buf.length;
-                    await say({ event: 'progress', done, total: f.size });
+                if (!slow) {
+                    try {
+                        const r = await readFileFast(fsDriver, f, snap.clusterSize, fd, {
+                            runBytes: runKB * 1024, limit: limit || Infinity, stop: () => stop,
+                            onProgress: async done => { if (Date.now() - lastReport > 250) { lastReport = Date.now(); await say({ event: 'progress', done, total: f.size }); } } });
+                        if (r.stopped) return { found: true, stopped: true, size: f.size, done: r.done };
+                        return { found: true, size: f.size, got: r.done, ms: { open: tOpen, files: tSnap, read: Date.now() - tRead0 }, fast: true };
+                    } catch (e) {
+                        await say({ event: 'note', text: 'fast read failed (' + e.message + '); reading the slow way' });
+                        fs.ftruncateSync(fd, 0);
+                    }
                 }
-            } finally { fs.closeSync(fd); await h.close(); }
-            return { found: true, size: f.size };
+                const h = await fsDriver.open('/' + name, 'ro');
+                try {
+                    for (let done = 0; done < f.size;) {
+                        if (stop) return { found: true, stopped: true, size: f.size, done };
+                        const n = Math.min(1 << 20, f.size - done);
+                        const buf = Buffer.from(await h.read(n));
+                        if (!buf.length) throw new Error('The disc stopped answering while the spatial file was being read.');
+                        fs.writeSync(fd, buf);
+                        done += buf.length;
+                        await say({ event: 'progress', done, total: f.size });
+                    }
+                } finally { await h.close(); }
+            } finally { fs.closeSync(fd); }
+            return { found: true, size: f.size, ms: { open: tOpen, files: tSnap, read: Date.now() - tRead0 } };
         } finally {
             await closeDisc(ctx);
         }

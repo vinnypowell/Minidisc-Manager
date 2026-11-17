@@ -1,0 +1,22 @@
+/* Spanish: strings added after lang_es.js was generated. Rows: [english, español]. */
+I18N.add([
+  ["Disc details", "Detalles del disco"],
+  ["Filled in from the files when they have tags. Type here to set them for every track you add; leave a box empty to keep what each file has. Nothing is stored on the disc until you press Add.", "Se rellena a partir de los archivos cuando tienen etiquetas. Escribe aquí para ponerlos en todas las pistas que añadas; deja una casilla vacía para conservar lo que tenga cada archivo. No se guarda nada en el disco hasta que pulses Añadir."],
+  ["Rename the disc", "Renombrar el disco"],
+  ["Name the disc", "Poner nombre al disco"],
+  ["Artist (empty: each file keeps its own)", "Artista (vacío: cada archivo conserva el suyo)"],
+  ["Album (empty: each file keeps its own)", "Álbum (vacío: cada archivo conserva el suyo)"],
+  ["Disc name (now “{x1}”)", "Nombre del disco (ahora «{x1}»)"],
+  ["Split one long file first", "Dividir primero un archivo largo"],
+  ["If you have one long file that is really a whole album (a DVD-Audio or vinyl rip that could not be split), add it on its own: the Add window then shows “This is one long recording: split it into tracks first”. Tick it and paste or type the tracks, one per line, with each track’s length (or its start time). If the file carries chapter marks, they are filled in for you. The program cuts the file on this PC into one lossless file per track (a 5.1 or 7.1 file stays 5.1 or 7.1 and gets its own spatial version), moves each cut to the quietest moment within 2 seconds of the listed time, and then adds all the tracks to the disc in one go. The original file is not changed, and nothing is written to the disc until you press Add.", "Si tienes un archivo largo que en realidad es un álbum entero (una extracción de DVD-Audio o de vinilo que no se pudo dividir), añádelo solo: la ventana de añadir muestra entonces «Esto es una grabación larga: dividirla primero en pistas». Márcalo y pega o escribe las pistas, una por línea, con la duración de cada una (o su hora de inicio). Si el archivo lleva marcas de capítulo, se rellenan por ti. El programa corta el archivo en este PC en un archivo sin pérdidas por pista (un archivo 5.1 o 7.1 sigue siendo 5.1 o 7.1 y recibe su propia versión espacial), mueve cada corte al momento más silencioso a menos de 2 segundos de la hora indicada y luego añade todas las pistas al disco de una vez. El archivo original no se modifica y no se escribe nada en el disco hasta que pulses Añadir."],
+  ["This is one long recording: split it into tracks first", "Esto es una grabación larga: dividirla primero en pistas"],
+  ["If this file is a whole album in one piece, it can be split into its tracks first.", "Si este archivo es un álbum entero de una pieza, se puede dividir primero en sus pistas."],
+  ["Paste or type the tracks, one per line, in order. The file is cut here on this PC into one lossless file per track (the original is not changed), then the tracks are added to the disc together.", "Pega o escribe las pistas, una por línea y en orden. El archivo se corta aquí, en este PC, en un archivo sin pérdidas por pista (el original no se modifica), y luego las pistas se añaden juntas al disco."],
+  ["Each line ends with the track’s length (5:41)", "Cada línea termina con la duración de la pista (5:41)"],
+  ["Each line ends with the track’s start time (0:00, 5:41, …)", "Cada línea termina con la hora de inicio de la pista (0:00, 5:41, …)"],
+  ["Move each cut to the quietest moment within 2 seconds of the time (recommended: lengths from a listing are rounded to the second)", "Mover cada corte al momento más silencioso a menos de 2 segundos de la hora (recomendado: las duraciones de un listado están redondeadas al segundo)"],
+  ["Split the file and continue", "Dividir el archivo y continuar"],
+  ["Splitting the file", "Dividiendo el archivo"],
+  ["The file could not be split", "No se pudo dividir el archivo"],
+  ["The original file was not changed and nothing was written to the disc.", "El archivo original no se modificó y no se escribió nada en el disco."],
+], 'es');

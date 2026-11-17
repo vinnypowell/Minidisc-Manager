@@ -466,6 +466,9 @@
   #disc .groove { fill: none; stroke: var(--line); stroke-width: 1; opacity: .7; }
   #disc .seg { fill: none; stroke-width: 17; transition: stroke-width .15s, opacity .15s; cursor: default; }
   #disc .seg:hover, #disc .seg.hl { stroke-width: 20; }
+  #disc .seg.sp { stroke: var(--muted); stroke-width: 9; opacity: .4; }
+  #disc .seg.sp:hover, #disc .seg.sp.hl { stroke-width: 11; opacity: .6; }
+  #disc .sptext { fill: var(--text); font: 700 4.6px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; text-anchor: middle; letter-spacing: .6px; pointer-events: none; }
   #disc .gband { cursor: pointer; transition: stroke-width .15s; }
   #disc .gband:hover { stroke-width: 11; }
   #rows tr.hl td { background: var(--chip); }
@@ -494,6 +497,8 @@
 <script src="lang_p8.js"></script>
 <script src="lang_p9.js"></script>
 <script src="lang_p10.js"></script>
+<script src="lang_es.js"></script>
+<script src="lang_es_more.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -2188,7 +2193,7 @@ function hlRows(nums, on, scroll) {                                          // 
     if (!seen) listScrollTo(rows[0]);
   }, 180);
 }
-function hlArc(num, on) { const a = document.querySelector('#disc .seg[data-num="' + num + '"]'); if (a) a.classList.toggle('hl', on); }
+function hlArc(num, on) { document.querySelectorAll('#disc .seg[data-num="' + num + '"]').forEach(a => a.classList.toggle('hl', on)); }
 function focusGroup(gi) {                                                    // unfold the group, tick (or untick) its tracks and scroll to it
   const head = document.querySelector('#rows tr.grp-head[data-group="' + gi + '"]'); if (!head) return;
   const fold = head.querySelector('.grp-fold'); if (fold && fold.textContent === '▸') fold.click();
@@ -2197,7 +2202,7 @@ function focusGroup(gi) {                                                    // 
   listScrollTo(head);
 }
 function drawDisc(d) {
-  const svg = $('disc'); svg.textContent = '';
+  const svg = $('disc'); svg.textContent = ''; svg.setAttribute('viewBox', '0 0 160 160');
   const NS = 'http://www.w3.org/2000/svg';
   const mk = (tag, attrs, text) => {
     const n = document.createElementNS(NS, tag);
@@ -2215,14 +2220,21 @@ function drawDisc(d) {
   const usedBlocks = (d.total - d.free) / d.blockSize;
   // A standard disc counts a track's length as SP time, but LP2 takes half the room of the same time in SP, LP4 a quarter (and mono SP half): the arcs show the room a track really takes.
   const room = t => !d.netmd ? t.blocks : t.blocks / (String(t.codec).startsWith('LP4') ? 4 : String(t.codec).startsWith('LP2') ? 2 : t.codec === 'SP mono' ? 2 : 1);
-  const parts = d.tracks.map((t, i) => ({
-    label: 'Track ' + t.number + ' · ' + (t.title === '(untitled)' ? 'untitled' : t.title) + ' · ' + len(t.seconds) + ' · ' + (t.codec || '?') + (t.kbps ? ' ' + t.kbps + ' kbps' : '') + ' · ' + sz(room(t) * d.blockSize),
-    blocks: room(t), color: SEG_COLORS[i % SEG_COLORS.length], num: t.number,
-  }));
+  const parts = [], spParts = [];
+  d.tracks.forEach((t, i) => {
+    const name = t.title === '(untitled)' ? 'untitled' : t.title;
+    const spB = !d.netmd && t.spatial && t.spatial.bytes > 0 ? t.spatial.bytes / d.blockSize : 0;          // the room its spatial file takes belongs to the track
+    parts.push({ label: 'Track ' + t.number + ' · ' + name + ' · ' + len(t.seconds) + ' · ' + (t.codec || '?') + (t.kbps ? ' ' + t.kbps + ' kbps' : '') + ' · ' + sz((room(t) + spB) * d.blockSize)
+        + (spB ? ' (audio ' + sz(room(t) * d.blockSize) + ' + spatial ' + sz(t.spatial.bytes) + ')' : ''),
+      blocks: room(t) + spB, color: SEG_COLORS[i % SEG_COLORS.length], num: t.number, ti: i });
+    if (!d.netmd && t.spatial && t.spatial.bytes > 0)                         // its spatial (HMSA) file: drawn on a ring of its own, starting where the track starts
+      spParts.push({ label: 'Track ' + t.number + ' · ' + name + ' · spatial (HMSA ' + (t.spatial.codec === 'opus' ? 'Opus' : 'Lossless') + (t.spatial.layout ? ' ' + t.spatial.layout : '') + ') · ' + sz(t.spatial.bytes),
+        blocks: t.spatial.bytes / d.blockSize, color: SEG_COLORS[i % SEG_COLORS.length], num: t.number, ti: i });
+  });
   // Groups (Hi-MD): a track takes its group's colour (alternate tracks a little paler), and a thin band outside the tracks marks each group.
   const gOrder = [...new Set(d.tracks.filter(t => t.groupIndex).map(t => t.groupIndex))];
   const gBands = [];
-  d.tracks.forEach((t, i) => { if (t.groupIndex) parts[i].label += ' · Group: ' + (t.groupTitle || 'untitled group'); });
+  parts.concat(spParts).forEach(p => { const t = d.tracks[p.ti]; if (t && t.groupIndex) p.label += ' · Group: ' + (t.groupTitle || 'untitled group'); });
   const legend = $('groupLegend'); legend.textContent = '';
   gOrder.forEach((gi, n) => {
     const ts = d.tracks.filter(t => t.groupIndex === gi);
@@ -2237,16 +2249,18 @@ function drawDisc(d) {
     item.append(dot, (ts[0].groupTitle || 'untitled group') + ' (' + ts.length + (ts.length === 1 ? ' track, ' : ' tracks, ') + len(secs) + ')'); legend.append(item);
   });
   legend.style.display = gOrder.length ? 'flex' : 'none';
-  const other = usedBlocks - parts.reduce((n, p) => n + p.blocks, 0);
+  const other = usedBlocks - parts.reduce((n, p) => n + p.blocks, 0);          // (the tracks' arcs already include their spatial files)
   if (other > 0.5) parts.push({ label: 'Other data (index, spare blocks) · ' + sz(other * d.blockSize), blocks: other, color: 'var(--muted)' });
   let offset = 0;
+  const startAt = {}, arcOf = {};                                                         // where each track's arc starts (the spatial ring is lined up with it)
   const runs = [], BR = 67, k = BR / R;                                     // the band lies on a bigger circle, so arc lengths scale by BR / R
-  parts.forEach((p, i) => {
-    const arcLen = C * p.blocks / totalBlocks, t = d.tracks[i];
-    if (t && t.groupIndex) {                                                  // one band per run of neighbouring tracks of the same group
+  parts.forEach(p => {
+    const arcLen = C * p.blocks / totalBlocks, t = p.ti != null ? d.tracks[p.ti] : null;
+    if (p.ti != null) { startAt[p.ti] = offset; arcOf[p.ti] = arcLen; }
+    if (t && t.groupIndex) {                                                  // one band per run of neighbouring tracks of the same group (a track's spatial arc belongs to its track)
       const prev = runs[runs.length - 1];
-      if (prev && prev.groupIndex === t.groupIndex && prev.last === i - 1) { prev.end = offset + arcLen; prev.last = i; prev.n++; }
-      else runs.push({ groupIndex: t.groupIndex, start: offset, end: offset + arcLen, last: i, n: 1, title: t.groupTitle || 'untitled group', gi: gOrder.indexOf(t.groupIndex) });
+      if (prev && prev.groupIndex === t.groupIndex && prev.last === p.ti - 1) { prev.end = offset + arcLen; prev.last = p.ti; prev.n++; }
+      else runs.push({ groupIndex: t.groupIndex, start: offset, end: offset + arcLen, last: p.ti, n: 1, title: t.groupTitle || 'untitled group', gi: gOrder.indexOf(t.groupIndex) });
     }
     if (arcLen < 0.4) { offset += arcLen; return; }
     const attrs = { class: 'seg', cx: 80, cy: 80, r: R, stroke: p.color,
@@ -2256,7 +2270,31 @@ function drawDisc(d) {
     if (p.num) { arc.addEventListener('mouseenter', () => hlRows([p.num], true, true)); arc.addEventListener('mouseleave', () => hlRows([p.num], false)); }
     arc.append(mk('title', {}, p.label)); svg.append(arc); offset += arcLen;
   });
-  for (const b of runs) {                                                     // thin outer band per group
+  if (spParts.length) {                                                       // spatial (HMSA) files: an outer ring without colour, one band above each track that has one, carrying the word HMSA
+    const RS = BR;                                                            // just outside the tracks, where the group band otherwise goes (so the picture has two rings, not three)
+    const CS = 2 * Math.PI * RS, TAU = 2 * Math.PI;
+    const pt = (r, th) => (80 + r * Math.sin(th)).toFixed(2) + ' ' + (80 - r * Math.cos(th)).toFixed(2);
+    for (const p of spParts) {
+      const a0 = TAU * (startAt[p.ti] || 0) / C, a1 = TAU * ((startAt[p.ti] || 0) + (arcOf[p.ti] || 0)) / C, span = a1 - a0;
+      if (span <= 0) continue;
+      const g = mk('g', { class: 'spband', 'data-num': p.num });
+      const arc = mk('circle', { class: 'seg sp', cx: 80, cy: 80, r: RS, 'data-num': p.num,
+        'stroke-dasharray': Math.max(CS * span / TAU - 1, 1) + ' ' + CS, 'stroke-dashoffset': -CS * a0 / TAU, transform: 'rotate(-90 80 80)' });
+      g.append(arc);
+      if (RS * span >= 15) {                                                  // long enough for the word: it follows the ring, and reads upright at the bottom
+        const mid = (a0 + a1) / 2, low = Math.cos(mid) < 0;
+        const rt = low ? RS + 1.6 : RS - 1.6, id = 'spPath' + p.num;
+        const d = low ? 'M ' + pt(rt, a1) + ' A ' + rt + ' ' + rt + ' 0 ' + (span > Math.PI ? 1 : 0) + ' 0 ' + pt(rt, a0) : 'M ' + pt(rt, a0) + ' A ' + rt + ' ' + rt + ' 0 ' + (span > Math.PI ? 1 : 0) + ' 1 ' + pt(rt, a1);
+        const path = mk('path', { id, d, fill: 'none', stroke: 'none' });
+        const tx = mk('text', { class: 'sptext' });
+        const tp = mk('textPath', { href: '#' + id, startOffset: '50%' }, 'HMSA');
+        tx.append(tp); g.append(path, tx);
+      }
+      g.addEventListener('mouseenter', () => hlRows([p.num], true, true)); g.addEventListener('mouseleave', () => hlRows([p.num], false));
+      g.append(mk('title', {}, p.label)); svg.append(g);
+    }
+  }
+  if (!spParts.length) for (const b of runs) {                                // thin outer band per group (not drawn when the spatial ring takes that place)
     const len2 = Math.max((b.end - b.start) * k - 1, 0.4);
     const band = mk('circle', { cx: 80, cy: 80, r: BR, fill: 'none', stroke: SEG_COLORS[b.gi % SEG_COLORS.length], 'stroke-width': 9, class: 'gband',
       'stroke-dasharray': len2 + ' ' + C * k, 'stroke-dashoffset': -b.start * k, transform: 'rotate(-90 80 80)' });
@@ -2966,6 +3004,8 @@ async function runSpatialSave(numbers, folder, fmt) {
 const helpText = () => ({
   add: ['Recording', [
     ['Add tracks from PC', 'Adds music files from this PC (or drag them onto the window). You choose the recording format: PCM, MP3, ATRAC3 LP2 / LP4 or ATRAC3+ (SP / LP2 / LP4 on a standard disc).'],
+    ['Split one long file first', 'If you have one long file that is really a whole album (a DVD-Audio or vinyl rip that could not be split), add it on its own: the Add window then shows “This is one long recording: split it into tracks first”. Tick it and paste or type the tracks, one per line, with each track’s length (or its start time). If the file carries chapter marks, they are filled in for you. The program cuts the file on this PC into one lossless file per track (a 5.1 or 7.1 file stays 5.1 or 7.1 and gets its own spatial version), moves each cut to the quietest moment within 2 seconds of the listed time, and then adds all the tracks to the disc in one go. The original file is not changed, and nothing is written to the disc until you press Add.'],
+    ['Spatial audio (surround files)', 'If a file you add has more than two channels (5.1, 7.1 or an Atmos-style bed such as 7.1.4), the Add window shows a Spatial audio box. Leave “Also keep the spatial version on the disc” ticked to store the surround version next to the stereo track on a Hi-MD disc: Compact (Opus) is small and quick, Lossless (WavPack) keeps every channel exactly but is large and slow to write. The recorder plays the stereo track; this program plays the spatial one in headphone surround or sends it as 5.1 to a Google TV with a soundbar. Not available on a standard disc. See the Spatial audio help for details.'],
     ['Rip CD', 'Copies an audio CD from this PC’s drive onto the disc, looking up the album and track titles.'],
     ['Rip Yoto Card', 'Copies the card in your Yoto player (or one of your own playlists) onto the disc. The first time, you sign in to Yoto in your browser on Yoto’s own page; this program never sees your password. Tick the tracks you want and they are added in order. Yoto keeps its audio as Opus, so the copy on the disc is of that, not of your original files.'],
     ['Send to Yoto Card', 'The other way round: copies the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, which you then link to a blank MYO card in the Yoto app. It never edits or deletes an existing playlist.'],
@@ -5285,6 +5325,84 @@ function closeSheet() {
   if (afterSheetClose) afterSheetClose();
 }
 
+// ---- Split one long file into tracks BEFORE it is added -----------------------------------------------------------------------------------
+// An album ripped as one long file (a DVD-Audio rip, a vinyl side...) is cut on this PC into one lossless file per track, then added as separate files, so the disc is written once.
+// The cut points come from a pasted list (each track's length, or its start time), or from chapters the file carries. Each cut is moved to the quietest moment within 2 seconds.
+const clockText = sec => { sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60; return h ? h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0') : m + ':' + String(x).padStart(2, '0'); };
+const clockSec = t => t.split(':').reduce((a, x) => a * 60 + Number(x), 0);
+function parseSplitList(text, mode, total) {                       // -> { tracks, note } or { error }
+  const tracks = [];
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    const line = raw.replace(/^[\s•·*\-]+/, '').replace(/^\d+\s*[.)\-:]\s+/, '').trim();
+    if (!line) continue;
+    const m = line.match(/^(.*?)\s*[–—\-(\[]?\s*((?:\d{1,2}:)?\d{1,3}:\d{2}(?:\.\d+)?)\s*[)\]]?\s*$/);
+    tracks.push({ title: (m ? m[1] : line).trim() || 'Track ' + (tracks.length + 1), time: m ? clockSec(m[2]) : null });
+  }
+  if (tracks.length < 2) return { error: 'Type or paste at least two tracks, one per line, each with its ' + (mode === 'starts' ? 'start time' : 'length') + ' (for example “1. First Song – 5:41”).' };
+  if (mode === 'starts') {
+    const bad = tracks.findIndex((t, i) => t.time === null || (i && t.time <= tracks[i - 1].time));
+    if (bad >= 0) return { error: bad && tracks[bad].time !== null ? 'The start time of line ' + (bad + 1) + ' is not after the one before it.' : 'Line ' + (bad + 1) + ' needs a start time (for example 5:41).' };
+    if (tracks[tracks.length - 1].time >= total - 1) return { error: 'The last start time is at or after the end of the file (' + clockText(total) + ').' };
+    return { tracks: tracks.map(t => ({ title: t.title, start: t.time })), note: tracks.length + ' tracks. The last one runs to the end of the file (' + clockText(total) + ').' };
+  }
+  const bad = tracks.findIndex((t, i) => i < tracks.length - 1 && !(t.time > 0));
+  if (bad >= 0) return { error: 'Line ' + (bad + 1) + ' needs a length (for example 5:41). Only the last line may leave it out.' };
+  const sum = tracks.slice(0, -1).reduce((a, t) => a + t.time, 0);
+  if (sum >= total - 1) return { error: 'The lengths add up to ' + clockText(sum) + ' before the last track, but the file is only ' + clockText(total) + ' long.' };
+  const last = tracks[tracks.length - 1].time;
+  const off = last ? Math.abs(total - sum - last) : 0;
+  return { tracks: tracks.map(t => ({ title: t.title, seconds: t.time })), note: tracks.length + ' tracks. The first ' + (tracks.length - 1) + ' add up to ' + clockText(sum) + '; the last one runs to the end of the file (' + clockText(total) + ').'
+    + (off > 3 ? ' Its length in your list (' + clockText(last) + ') differs from what is left (' + clockText(total - sum) + '); check the list.' : '') };
+}
+function splitFirstRow(path, info) {
+  const wide = 'width:100%;box-sizing:border-box';
+  const hasChapters = !!(info.chapters && info.chapters.length > 1);
+  const box = el('input', { type: 'checkbox', checked: hasChapters, style: 'width:auto', onchange: () => show() });
+  const area = el('textarea', { rows: 8, style: wide + ';font-family:inherit', placeholder: '1. First Song – 5:41\n2. Second Song – 4:12\n3. Third Song – 6:05\n…', oninput: () => check() });
+  const modeSel = el('select', { onchange: () => check() }, el('option', { value: 'lengths', textContent: 'Each line ends with the track’s length (5:41)' }), el('option', { value: 'starts', textContent: 'Each line ends with the track’s start time (0:00, 5:41, …)' }));
+  const snapBox = el('input', { type: 'checkbox', checked: true, style: 'width:auto' });
+  const status = el('div', { className: 'sub' });
+  const go = el('button', { className: 'primary', textContent: 'Split the file and continue' });
+  const body = el('div', { style: 'display:none;gap:8px' },
+    el('div', { className: 'sub', textContent: 'Paste or type the tracks, one per line, in order. The file is cut here on this PC into one lossless file per track (the original is not changed), then the tracks are added to the disc together.' }),
+    area, modeSel,
+    el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, snapBox, el('span', { textContent: 'Move each cut to the quietest moment within 2 seconds of the time (recommended: lengths from a listing are rounded to the second)' })),
+    status, el('div', { className: 'row' }, go));
+  if (hasChapters) {                                               // the file carries chapter (or CUE) marks: they are the starts
+    modeSel.value = 'starts';
+    area.value = info.chapters.map((c, i) => (i + 1) + '. ' + (c.title || 'Track ' + (i + 1)) + ' – ' + clockText(c.start)).join('\n');
+  }
+  let parsed = null;
+  const check = () => {
+    const r = parseSplitList(area.value, modeSel.value, info.seconds);
+    parsed = r.tracks ? r : null;
+    status.textContent = area.value.trim() ? (r.error || r.note) : '';
+    status.className = r.error && area.value.trim() ? 'sub warn' : 'sub';
+    go.disabled = !parsed;
+  };
+  const show = () => { body.style.display = box.checked ? 'grid' : 'none'; if (box.checked) check(); };
+  go.onclick = async () => {
+    if (!parsed) return;
+    const prog = liveProgress('Starting…', 0);
+    let cancelled = false;
+    openFloat(el('h2', { textContent: 'Splitting the file' }), prog.what, prog.bar,
+      el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: () => { cancelled = true; api().presplit_cancel(); } })));
+    window.onPresplitProgress = m => prog.set(m.phase === 'find' ? 'Finding the quiet moment for cut ' + (m.n + 1) + ' of ' + m.count + '…' : 'Cutting track ' + (m.n + 1) + ' of ' + m.count + ': ' + m.name, m.count ? (m.n + 0.5) / m.count : 0);
+    let r;
+    try { r = await api().presplit_run(path, parsed.tracks, modeSel.value, snapBox.checked); } catch (e) { r = { error: String(e) }; }
+    prog.stop(); window.onPresplitProgress = null;
+    if (r.cancelled || cancelled) { startAdd([path]); return; }
+    if (r.error) { errorSheet('The file could not be split', r.error, { kept: 'The original file was not changed and nothing was written to the disc.', onClose: () => startAdd([path]) }); floatSheet(true); return; }
+    startAdd(r.files.map(f => f.path));                            // the pieces are planned like any other files: each 5.1 / 7.1 piece gets its own spatial version
+  };
+  const hint = hasChapters ? 'This file has ' + info.chapters.length + ' chapter marks, which are filled in below as the track starts.'
+    : info.seconds > 20 * 60 ? 'This file is ' + clockText(info.seconds) + ' long: if it is a whole album in one piece, split it into its tracks first.' : 'If this file is a whole album in one piece, it can be split into its tracks first.';
+  const row = el('div', { className: 'notice', style: 'display:grid;gap:8px' },
+    el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, box, el('b', { textContent: 'This is one long recording: split it into tracks first' })),
+    el('div', { className: 'sub', textContent: hint }), body);
+  if (hasChapters) show(); else go.disabled = true;
+  return row;
+}
 async function startAdd(paths) {
   if (uploading) return;
   if (!paths || !paths.length) return;
@@ -5375,19 +5493,44 @@ async function startAdd(paths) {
   const artistBox = el('input', { type: 'checkbox', checked: artistFirst, onchange: () => { try { localStorage.setItem('mdArtistInTitle', artistBox.checked ? '1' : '0'); } catch (e) { /* no storage */ } } });
   const artistRow = p.netmd ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, artistBox,
     el('span', { textContent: 'Put the artist in front of each title (“Artist - Title”), because a standard disc cannot store an artist. Uses up more of the disc’s limited title space.' })) : '';
-  // Naming the disc after the album: offered when the files share one album (ticked when the disc has no name yet). A standard disc gets "Artist - Album".
+  // Disc details: the artist and album for every added track and the disc's name. They start from what the files' tags say (the disc is named after
+  // the album when the files share one) and can be typed or changed here; an empty box keeps what each file has.
   const albumOf = commonAlbum(good.map(f => f.album));
-  const wantedName = discNameFor(albumOf, artistOf(good.map(f => f.artist)));
-  const nameBox = el('input', { type: 'checkbox', checked: !curDisc || !curDisc.title });
-  const nameRow = wantedName ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, nameBox,
-    el('span', { textContent: (curDisc && curDisc.title ? 'Rename the disc to “' + wantedName + '” (it is called “' + curDisc.title + '” now)' : 'Name the disc “' + wantedName + '”') + ', the album of these files' })) : '';
-  // The album art too: searched for online after the tracks are written (needs the files to share an album); ticked when the disc has no picture yet.
+  const oneArtist = (() => { const a = [...new Set(good.map(f => (f.artist || '').trim()).filter(Boolean))]; return a.length === 1 ? a[0] : ''; })();
+  const inRow = (label, input) => el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center' }, el('span', { className: 'meta', textContent: label }), input);
+  const wide = 'width:100%;box-sizing:border-box';
+  const artistAll = el('input', { value: oneArtist, maxLength: 120, placeholder: 'Artist (empty: each file keeps its own)', style: wide });
+  const albumBox = el('input', { value: albumOf || '', maxLength: 120, placeholder: 'Album (empty: each file keeps its own)', style: wide });
+  const hasName = !!(curDisc && curDisc.title);
+  const nameText = el('input', { value: discNameFor(albumOf, oneArtist) || '', maxLength: 120, placeholder: hasName ? 'Disc name (now “' + curDisc.title + '”)' : 'Disc name', style: wide });
+  const nameBox = el('input', { type: 'checkbox', checked: !hasName && !!nameText.value, style: 'width:auto' });
+  let nameEdited = false;
+  nameText.addEventListener('input', () => { nameEdited = true; nameBox.checked = !!nameText.value.trim(); });
   const hasPic = !!(curDisc && (curDisc.cover || curDisc.pcCover));
   const artBox = el('input', { type: 'checkbox', checked: !hasPic });
-  const artRow = albumOf ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer', title: 'Looks the album up on MusicBrainz and Discogs (only an album that matches most of the tracks is used)' }, artBox,
-    el('span', { textContent: 'Look up the album art online (MusicBrainz, Discogs) and ' + (p.netmd ? 'keep it on this PC' : 'store it as the disc picture') + (hasPic ? ' (replaces the current picture)' : '') })) : '';
-  go.onclick = () => runUpload(picked(), chosen, kbps, { spatial: spOn() ? { info: spInfo, layouts: spLayout, codec: spCodec, quality: spQuality } : null, group: gc && gc.get(), artistInTitle: p.netmd && artistBox.checked, discTitle: wantedName && nameBox.checked ? wantedName : '', wantArt: albumOf && artBox.checked });
-  const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like, and untick any file you do not want to add. Nothing has been written yet.' }), list];
+  const artRow = el('label', { className: 'meta', style: 'display:flex;gap:8px;align-items:center;cursor:pointer', title: 'Looks the album up on MusicBrainz and Discogs (only an album that matches most of the tracks is used)' }, artBox,
+    el('span', { textContent: 'Look up the album art online (MusicBrainz, Discogs) and ' + (p.netmd ? 'keep it on this PC' : 'store it as the disc picture') + (hasPic ? ' (replaces the current picture)' : '') }));
+  const detailsChanged = () => {
+    const alb = albumBox.value.trim();
+    if (!nameEdited) {                                                              // the disc name follows the album (and, on a standard disc, the artist) until it is typed in by hand
+      const n = discNameFor(alb, artistAll.value.trim());
+      nameText.value = n; nameBox.checked = !!n && !hasName;
+    }
+    artRow.style.display = alb ? '' : 'none';
+  };
+  albumBox.addEventListener('input', detailsChanged);
+  artistAll.addEventListener('input', () => { const v = artistAll.value.trim(); if (v) rows.forEach(r => { r.artist.value = v; }); detailsChanged(); });
+  detailsChanged();
+  nameBox.checked = !hasName && !!nameText.value.trim();
+  const nameRow = el('div', { className: 'notice', style: 'display:grid;gap:8px' }, el('b', { textContent: 'Disc details' }),
+    el('div', { className: 'sub', textContent: 'Filled in from the files when they have tags. Type here to set them for every track you add; leave a box empty to keep what each file has. Nothing is stored on the disc until you press Add.' }),
+    inRow('Artist', artistAll), inRow('Album', albumBox),
+    el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;cursor:pointer' }, el('span', { style: 'display:flex;gap:6px;align-items:center' }, nameBox, el('span', { className: 'meta', textContent: hasName ? 'Rename the disc' : 'Name the disc' })), nameText),
+    artRow);
+  go.onclick = () => runUpload(picked(), chosen, kbps, { spatial: spOn() ? { info: spInfo, layouts: spLayout, codec: spCodec, quality: spQuality } : null, group: gc && gc.get(), artistInTitle: p.netmd && artistBox.checked, discTitle: nameBox.checked ? nameText.value.trim() : '', wantArt: !!albumBox.value.trim() && artBox.checked, albumAll: albumBox.value.trim() });
+  let psInfo = null;                                                                  // one file: it might be a whole album in one piece
+  if (good.length === 1) { try { const q = await api().presplit_probe(good[0].path); if (q && !q.error && q.seconds > 60) psInfo = q; } catch (e) { /* the option is simply not offered */ } }
+  const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like, and untick any file you do not want to add. Nothing has been written yet.' }), list, ...(psInfo ? [splitFirstRow(good[0].path, psInfo)] : [])];
   {
     const names = p.netmd
       ? { sp: ['SP', 'best sound, 80 minutes on a disc'], lp2: ['LP2', 'about 2 × as much music, good sound'], lp4: ['LP4', 'about 4 × as much music, lower quality'] }
@@ -5426,10 +5569,10 @@ async function startAdd(paths) {
       el('div', { className: 'sub', textContent: spFiles().length + (spFiles().length === 1 ? ' file has' : ' files have') + ' more than two channels (a 5.1 / 7.1 / Atmos-style bed). The recorder plays a stereo version of each; this program can play the full spatial version in headphone surround.' }),
       el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, keepBox, el('span', { textContent: 'Also keep the spatial version on the disc' })), spBody, helpLink('spatial')));
   }
-  parts.push(...(nameRow ? [nameRow] : []), ...(artRow ? [artRow] : []), ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  parts.push(nameRow, ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
-}async function runUpload(rows, format, kbps, { spatial, group, artistInTitle, discTitle, wantArt } = {}) {
+}async function runUpload(rows, format, kbps, { spatial, group, artistInTitle, discTitle, wantArt, albumAll } = {}) {
   uploading = true; stopPlayer();
   const prog = liveProgress('Starting…', 6, true);
   openFloat(el('h2', { textContent: 'Writing to the disc' }), prog.what, prog.bar, prog.stallBox,
@@ -5458,13 +5601,14 @@ async function startAdd(paths) {
     if (pr.error) { prog.stop(); uploading = false; window.onUploadProgress = null; errorSheet('Preparing the spatial audio failed', pr.error, { kept: 'Nothing was written to the disc.' }); floatSheet(true); return; }
     spToken = pr.token; spRows.forEach((x, i) => { spPaths[x.f.path] = pr.files[i].path; });
   }
-  const r = await api().upload(rows.map(x => ({ path: spPaths[x.f.path] || x.f.path, title: nameOf(x), artist: x.artist.value.trim(), album: x.f.album })), format || 'sp', kbps || 192);
+  const r = await api().upload(rows.map(x => ({ path: spPaths[x.f.path] || x.f.path, title: nameOf(x), artist: x.artist.value.trim(), album: albumAll || x.f.album })), format || 'sp', kbps || 192);
   prog.stop(); uploading = false; window.onUploadProgress = null;
   if (spToken && r.error) api().spatial_discard(spToken);
   if (r.error) {
     errorSheet('Adding tracks failed', r.error, { kept: 'Your original files were not changed. After the steps above, press rescan to see what state the disc is in.', onClose: () => scan() }); floatSheet(true);
     return;
   }
+  try { api().presplit_clear(); } catch (e) { /* nothing to clear */ }          // the tracks made by "split it first" are on the disc now
   let spNote = '';
   if (spToken) {                                                                  // the tracks are on the disc: now the hidden spatial files, linked to them
     uploading = true;
@@ -5481,7 +5625,7 @@ async function startAdd(paths) {
     catch (e) { spNote = ' The spatial audio could not be stored.'; }
     finally { uploading = false; window.onSpatialProgress = null; sprog.stop(); }
   }
-  const gn = await groupNew(before, commonAlbum(rows.map(x => x.f.album)), group);
+  const gn = await groupNew(before, albumAll || commonAlbum(rows.map(x => x.f.album)), group);
   let named = '', art = '', nameWarn = false;
   if (discTitle || wantArt) {
     uploading = true;

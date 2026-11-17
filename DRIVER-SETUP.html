@@ -332,22 +332,96 @@
     MiniDisc Manager is niet gelieerd aan en niet goedgekeurd door Sony of Sonos. Zadig is een apart programma met een eigen licentie. Deze pagina wordt met het programma meegeleverd (DRIVER-SETUP.html) en opent ook via het Startmenu en via het scherm “Geen recorder gevonden”.
   </footer>
 </div>
+
+<!-- ============================== ESPAÑOL ============================== -->
+<div class="L" data-l="es">
+  <h1>Instalación del controlador USB <span>para MiniDisc Manager</span></h1>
+  <p class="lead">Un paso único por grabadora. Lleva unos dos minutos y necesita una herramienta gratuita llamada Zadig.</p>
+
+  <div class="card note">
+    <b>¿Por qué hace falta?</b><br>
+    MiniDisc Manager se comunica con la grabadora directamente por USB. Para ello, Windows debe usar un controlador genérico
+    llamado <b>WinUSB</b> para tu grabadora. Windows normalmente elige otro controlador (o ninguno), así que el programa no puede
+    ver la grabadora hasta que lo cambies. No se ve afectado nada más de tu PC.
+  </div>
+
+  <div class="card warn">
+    <b>Qué cambia al hacerlo</b>
+    <ul>
+      <li>Una grabadora Hi-MD <b>dejará de aparecer como una unidad con letra</b> en el Explorador de archivos. Es lo esperado: el programa la lee directamente.</li>
+      <li>Los programas propios de Sony (SonicStage, el software de Hi-MD Walkman) ya no encontrarán esa grabadora hasta que deshagas el cambio (mira el final de esta página).</li>
+      <li>Lo haces con cada grabadora que uses, y una vez más para el segundo modo USB si usas tanto discos Hi-MD como estándar (mira el paso 8).</li>
+    </ul>
+  </div>
+
+  <h2>Antes de empezar</h2>
+  <ul>
+    <li>Cierra MiniDisc Manager, SonicStage y cualquier otro programa que use la grabadora.</li>
+    <li>Usa un cable USB conectado <b>directamente al PC</b> (si es posible, no a un concentrador).</li>
+    <li>Descarga <b>Zadig</b> de su sitio oficial: <a href="https://zadig.akeo.ie/">https://zadig.akeo.ie/</a>. Es un único programa; no necesita instalación.
+        Zadig es un programa gratuito aparte, del proyecto libwdi / Akeo, y no forma parte de MiniDisc Manager.</li>
+  </ul>
+
+  <h2>Paso a paso</h2>
+  <ol class="steps">
+    <li><b>Pon un disco en la grabadora y enciéndela.</b> Para una grabadora Hi-MD sirve cualquier disco. Una grabadora con un MiniDisc estándar dentro aparece en otro modo USB (mira el paso 8).</li>
+    <li><b>Conecta la grabadora al PC con su cable USB.</b> Espera a que Windows termine y a que la pantalla de la grabadora indique que está conectada.</li>
+    <li><b>Ejecuta Zadig como administrador.</b> Haz clic derecho en <code>zadig-2.9.exe</code> y elige <b>Ejecutar como administrador</b>. Responde <b>Sí</b> al aviso de Windows. Si Zadig pregunta si buscar actualizaciones, cualquier respuesta vale.</li>
+    <li><b>Muestra todos los dispositivos.</b> En el menú de Zadig elige <kbd>Options</kbd> &rarr; <kbd>List All Devices</kbd>.</li>
+    <li><b>Elige tu grabadora en la lista desplegable.</b> Suele aparecer como <code>Hi-MD</code>, <code>Net MD</code> o el nombre del modelo. Comprueba que las dos casillas bajo la lista muestran un ID de Sony que coincide con la tabla de abajo
+        (la primera casilla es <code>054C</code>, la segunda es el ID del modelo).
+        <div class="card warn" style="margin-top:10px"><b>Ten cuidado:</b> Zadig enumera todos los dispositivos USB. Cambia solo la grabadora. Sustituir el controlador de un teclado, un ratón u otro dispositivo puede hacer que deje de funcionar.</div></li>
+    <li><b>Elige WinUSB.</b> En la casilla a la derecha de la flecha verde, usa las flechas arriba/abajo hasta que diga <code>WinUSB</code> (no libusb-win32, libusbK ni las variantes de WinUSB (v6...)).</li>
+    <li><b>Haz clic en <kbd>Replace Driver</kbd></b> (o <kbd>Install Driver</kbd>). Espera el mensaje <i>«The driver was installed successfully»</i>. Puede tardar hasta un minuto. Luego cierra Zadig.</li>
+    <li><b>¿También MiniDiscs estándar?</b> Una grabadora Hi-MD usa un ID USB <i>distinto</i> cuando tiene un disco estándar (no Hi-MD). Si quieres usar discos estándar, pon un disco estándar en la grabadora <b>antes</b> de conectarla, conéctala y repite los pasos 3 a 7 para esa segunda entrada.</li>
+    <li><b>Inicia MiniDisc Manager.</b> La grabadora aparece en la lista desplegable de arriba a la derecha, con un punto verde. Si no aparece, pulsa el botón de buscar de nuevo (la flecha circular).</li>
+  </ol>
+
+  <h2>¿Cuál es la entrada de mi grabadora?</h2>
+  <p>Zadig muestra el ID USB en dos casillas. MiniDisc Manager reconoce cualquier grabadora Hi-MD de Sony en modo Hi-MD y estos modelos de disco estándar (NetMD). Solo los dos marcados con <span class="tag t">probado</span> los ha probado el autor.</p>
+  <div class="models"></div>
+  <p style="color:var(--muted)">Otros modelos Hi-MD de Sony y muchas grabadoras NetMD más antiguas (MZ-N, MZ-NE y otras, además de algunas unidades de Aiwa, Sharp, Kenwood y Panasonic) también se reconocen, pero no se han probado. Si la tuya no está en la lista, elige la entrada que muestra <code>054C</code> y se llama como tu grabadora.</p>
+
+  <h2>Si algo no funciona</h2>
+  <details><summary>La grabadora no está en la lista de Zadig</summary>
+    Asegúrate de que <b>Options &rarr; List All Devices</b> está marcado. Desconecta y vuelve a conectar la grabadora, espera diez segundos y pulsa <b>Options &rarr; List All Devices</b> dos veces para actualizar. Prueba otro puerto USB u otro cable (algunos cables son solo de carga).</details>
+  <details><summary>La grabadora está en la lista de Zadig, pero el programa dice «No se encontró ninguna grabadora»</summary>
+    Comprueba que el controlador que Zadig muestra para la grabadora (casilla izquierda) es ahora <b>WinUSB</b>. Cierra SonicStage y cualquier otro programa que use la grabadora. Pulsa el botón de buscar de nuevo en el programa. Una grabadora con un disco estándar necesita su propia entrada (paso 8).</details>
+  <details><summary>«Acceso denegado» o «no se pudo hablar con la grabadora»</summary>
+    Solo un programa puede usar la grabadora a la vez. Cierra todos los demás programas que la usen (incluida una segunda copia de MiniDisc Manager), desconecta y vuelve a conectar la grabadora y busca de nuevo.</details>
+  <details><summary>La grabadora dice «PC» o no muestra ningún disco, o Windows dice que el dispositivo USB no se reconoce</summary>
+    Desconecta la grabadora, saca el disco, vuelve a ponerlo y conecta la grabadora de nuevo. Espera a que su pantalla se estabilice antes de iniciar el programa.</details>
+  <details><summary>Quiero deshacerlo y recuperar mi letra de unidad</summary>
+    Abre el <b>Administrador de dispositivos</b> (clic derecho en el botón Inicio). En <b>Controladoras de bus serie universal</b> busca tu grabadora (puede llamarse <code>Hi-MD</code> o <code>Net MD</code>), haz clic derecho, elige <b>Desinstalar dispositivo</b>, marca <b>Intentar quitar el controlador de este dispositivo</b> y confirma. Desconecta y vuelve a conectar la grabadora: Windows instala de nuevo su controlador normal.</details>
+  <details><summary>¿Es seguro? ¿Dañará mi grabadora o mis discos?</summary>
+    Cambiar el controlador solo cambia cómo habla Windows con la grabadora; no cambia la grabadora ni lo que hay en el disco. Aun así, MiniDisc Manager puede <b>escribir en los discos y borrarlos</b>. Copia al PC las grabaciones que no puedas reemplazar (Guardar en el PC...) antes de editar un disco, y no desconectes la grabadora mientras el programa diga que está trabajando.</details>
+
+  <div class="card ok" style="margin-top:28px">
+    <b>Comprueba que funcionó:</b> inicia MiniDisc Manager. Aparecen un punto verde y el nombre de tu grabadora arriba a la derecha, y se enumeran las pistas del disco.
+  </div>
+
+  <footer>
+    MiniDisc Manager no está afiliado a Sony ni a Sonos, ni aprobado por ellos. Zadig es un programa aparte con su propia licencia. Esta página se entrega con el programa (DRIVER-SETUP.html) y también se abre desde el menú Inicio y desde la pantalla «No se encontró ninguna grabadora».
+  </footer>
+</div>
 </main>
 
 <script>
 (function () {
-  var LANGS = [['en', 'English'], ['fr', 'Français'], ['de', 'Deutsch'], ['nl', 'Nederlands']];
+  var LANGS = [['en', 'English'], ['fr', 'Français'], ['de', 'Deutsch'], ['nl', 'Nederlands'], ['es', 'Español']];
   var FLAGS = {
     en: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30"><clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#s)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>',
     fr: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055A4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#EF4135"/></svg>',
     de: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 3"><rect width="5" height="1" fill="#000"/><rect y="1" width="5" height="1" fill="#DD0000"/><rect y="2" width="5" height="1" fill="#FFCE00"/></svg>',
+    es: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="3" height="2" fill="#AA151B"/><rect y="0.5" width="3" height="1" fill="#F1BF00"/></svg>',
     nl: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 6"><rect width="9" height="2" fill="#AE1C28"/><rect y="2" width="9" height="2" fill="#fff"/><rect y="4" width="9" height="2" fill="#21468B"/></svg>'
   };
   var TABLE = {
     en: { model: 'Model', hi: 'Hi-MD mode (Hi-MD disc inside)', net: 'NetMD mode (standard disc inside)', tested: 'tested' },
     fr: { model: 'Modèle', hi: 'Mode Hi-MD (disque Hi-MD à l’intérieur)', net: 'Mode NetMD (disque standard à l’intérieur)', tested: 'testé' },
     de: { model: 'Modell', hi: 'Hi-MD-Modus (Hi-MD-Disc eingelegt)', net: 'NetMD-Modus (Standard-Disc eingelegt)', tested: 'getestet' },
-    nl: { model: 'Model', hi: 'Hi-MD-modus (Hi-MD-disc erin)', net: 'NetMD-modus (standaarddisc erin)', tested: 'getest' }
+    nl: { model: 'Model', hi: 'Hi-MD-modus (Hi-MD-disc erin)', net: 'NetMD-modus (standaarddisc erin)', tested: 'getest' },
+    es: { model: 'Modelo', hi: 'Modo Hi-MD (disco Hi-MD dentro)', net: 'Modo NetMD (disco estándar dentro)', tested: 'probado' }
   };
   var MODELS = [['Sony MZ-NH700', '0185', '0184', 1], ['Sony MZ-RH1', '0287', '0286', 1], ['Sony MZ-NH1', '017F', '017E'], ['Sony MZ-NH3D', '0181', '0180'], ['Sony MZ-NH900', '0183', '0182'],
     ['Sony MZ-NH600 / NH600D', '0187', '0186 / 0187'], ['Sony MZ-DH10P', '01EA', '01E9'], ['Sony MZ-RH10', '021A', '0219'], ['Sony MZ-RH910 / RH710', '021C', '021B'], ['Sony DS-HMD1', '023D', '023C']];
@@ -360,7 +434,7 @@
     });
     return h + '</table>';
   }
-  var TITLES = { en: 'MiniDisc Manager - USB driver setup', fr: 'MiniDisc Manager - installation du pilote USB', de: 'MiniDisc Manager - USB-Treiber einrichten', nl: 'MiniDisc Manager - usb-stuurprogramma instellen' };
+  var TITLES = { en: 'MiniDisc Manager - USB driver setup', fr: 'MiniDisc Manager - installation du pilote USB', de: 'MiniDisc Manager - USB-Treiber einrichten', nl: 'MiniDisc Manager - usb-stuurprogramma instellen', es: 'MiniDisc Manager - instalación del controlador USB' };
   var bar = document.getElementById('langbar');
   function show(lang) {
     if (!TABLE[lang]) lang = 'en';

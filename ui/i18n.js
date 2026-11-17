@@ -13,7 +13,7 @@
  */
 (function () {
   'use strict';
-  const LANGS = [['en', 'English'], ['fr', 'Français'], ['de', 'Deutsch'], ['nl', 'Nederlands']];     // column order in lang.js (en first)
+  const LANGS = [['en', 'English'], ['fr', 'Français'], ['de', 'Deutsch'], ['nl', 'Nederlands'], ['es', 'Español']];     // column order in lang.js (en first)
   const exact = {};                      // lang -> Map(english -> translation)
   const pats = {};                       // lang -> [{ re, keys, out }]
   let cur = 'en';
@@ -25,7 +25,7 @@
 
   LANGS.forEach(l => { exact[l[0]] = new Map(); pats[l[0]] = []; });
 
-  function add(rows) {                    // rows: [[en, fr, de, nl], ...]
+  function add(rows, only) {              // rows: [[en, fr, de, nl], ...]; with `only` (a language code) rows are [[en, translation], ...] for that one language
     const more = [];
     rows.forEach(r => {                   // the help pop-ups write a bullet as "• text" in their data but show it without the bullet: match both
       if (typeof r[0] === 'string' && r[0].indexOf('• ') === 0) more.push(r.map(x => String(x || '').replace(/^•\s+/, '')));
@@ -34,7 +34,7 @@
     rows.forEach(r => {
       r = r.map(x => String(x || '').trim());                       // the page's own spaces around a text are kept when it is translated
       for (let i = 1; i < LANGS.length; i++) {
-        const lang = LANGS[i][0], out = r[i];
+        const lang = LANGS[i][0], out = only ? (lang === only ? r[1] : '') : r[i];
         if (!out || !r[0]) continue;
         if (r[0].indexOf('{') >= 0) {
           // {n} is a number, any other name is any text. Placeholders written straight after each other ("{x1}{x2}", as the page builds
@@ -194,6 +194,7 @@
     en: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30"><clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#s)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>',
     fr: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055A4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#EF4135"/></svg>',
     de: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 3"><rect width="5" height="1" fill="#000"/><rect y="1" width="5" height="1" fill="#DD0000"/><rect y="2" width="5" height="1" fill="#FFCE00"/></svg>',
+    es: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="3" height="2" fill="#AA151B"/><rect y="0.5" width="3" height="1" fill="#F1BF00"/></svg>',
     nl: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 6"><rect width="9" height="2" fill="#AE1C28"/><rect y="2" width="9" height="2" fill="#fff"/><rect y="4" width="9" height="2" fill="#21468B"/></svg>'
   };
   function flagImg(code) {

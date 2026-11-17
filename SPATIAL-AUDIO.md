@@ -1,6 +1,6 @@
 # Spatial audio (HMSA) in MiniDisc Manager
 
-MiniDisc Manager 0.31.2 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
+MiniDisc Manager 0.31.3 can keep the **surround version of a track** on a Hi-MD disc next to its normal stereo track. This guide explains what that means, how to use it, what it can and cannot do, and what has been tested.
 
 - [In one minute](#in-one-minute)
 - [How it works](#how-it-works)
@@ -98,6 +98,8 @@ The disc checks that everything else on it is unchanged before and after each fi
 | An 83 MB lossless file | about 9 minutes to write, 3 minutes to read back |
 
 So **Compact (Opus)** is the practical choice. Lossless is for tracks where you want every channel exactly as it was, and you will not mind waiting.
+
+**An album that is one long file.** If your surround file is really a whole album (a DVD-Audio or vinyl rip that could not be split), split it **before** adding it, rather than writing one long track and splitting it afterwards on the disc (which writes the audio twice). Add the file on its own and tick **This is one long recording: split it into tracks first**. Paste or type the tracks, one per line, with each track's length (or start time; chapter marks in the file are filled in for you), and press **Split the file and continue**. The file is cut on the PC into one lossless file per track, each cut is moved to the quietest moment within 2 seconds of the listed time, and the pieces then appear in the normal Add window, each 5.1 or 7.1 piece with its own spatial version. The original file is not changed.
 
 ## Choosing the quality
 

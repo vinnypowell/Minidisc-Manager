@@ -1,7 +1,7 @@
 MiniDisc Manager - draagbare versie (Nederlands)
 ================================================
 Copyright (c) 2026 Vinny Powell. Licentie: zie LICENSE.txt.
-(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Deutsch: LIES-MICH.txt)
+(English: "READ ME FIRST.txt" · Français: LISEZ-MOI.txt · Deutsch: LIES-MICH.txt · Español: LEEME.txt)
 
 Dit is de versie zonder installatieprogramma. Pak hem uit waar u wilt (een map op het Bureaublad of in Documenten is prima) en start
 "MiniDisc Manager.exe". Om hem te verwijderen sluit u het programma en verwijdert u de map.
@@ -42,13 +42,13 @@ WAAR UW GEGEVENS HEENGAAN
   staan daar ook (in "copies"), net als een pc-kopie van een disc terwijl hij wordt gekloond (in "clone").
 
 TAAL
-  Het programma bestaat in het Engels, Frans, Duits en Nederlands: gebruik de knop Taal (met een vlag) bovenaan het venster. De vertalingen
+  Het programma bestaat in het Engels, Frans, Duits, Nederlands en Spaans: gebruik de knop Taal (met een vlag) bovenaan het venster. De vertalingen
   zijn concepten; verbeteringen zijn welkom. Dit bestand en DRIVER-SETUP.html zijn de enige vertaalde documenten; README.txt (de volledige
   beschrijving) blijft Engels.
 
 BESTANDEN
   README.txt              wat het programma doet, uitgebreid (Engels)
-  DRIVER-SETUP.html       usb-stuurprogrammagids (Engels, Frans, Duits, Nederlands)
+  DRIVER-SETUP.html       usb-stuurprogrammagids (Engels, Frans, Duits, Nederlands, Spaans)
   LICENSE.txt, THIRD-PARTY-NOTICES.txt, LICENSES\    licenties en de gebruikte open-sourcecomponenten
 
 MiniDisc Manager is niet gelieerd aan en niet goedgekeurd door Sony of Sonos. MusicBrainz en de Cover Art Archive zijn aparte diensten.
