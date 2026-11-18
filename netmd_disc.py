@@ -203,6 +203,10 @@ class NetMdMixin:
                 ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'COVER.JPG'), None)
                 if ent and 0 < ent['size'] <= 1500000:
                     cover = bytes(fs.read_file('/COVER.JPG'))
+                label_jpg = None                               # the sticker label (LABEL.JPG) travels with the disc too (not `label`: the track loop below uses that name)
+                ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'LABEL.JPG'), None)
+                if ent and 0 < ent['size'] <= 1500000:
+                    label_jpg = bytes(fs.read_file('/LABEL.JPG'))
                 self._release_devices()
             if [(t['number'], t['codec'], t['seconds']) for t in tracks] != [(t['number'], t['codec'], t['seconds']) for t in self._tracks]:
                 return {'error': 'The disc has changed since it was loaded. Reload it and try again.'}
@@ -257,8 +261,11 @@ class NetMdMixin:
             if cover:
                 with open(os.path.join(stage, 'cover.jpg'), 'wb') as f:
                     f.write(cover)
+            if label_jpg:
+                with open(os.path.join(stage, 'label.jpg'), 'wb') as f:
+                    f.write(label_jpg)
             manifest = {'complete': True, 'version': 1, 'when': datetime.datetime.now().isoformat(timespec='seconds'), 'discTitle': disc_title,
-                        'sourceId': disc_id, 'groups': [{'first': g['first'], 'last': g['last'], 'title': g['title']} for g in groups],
+                        'label': 'label.jpg' if label_jpg else None, 'sourceId': disc_id, 'groups': [{'first': g['first'], 'last': g['last'], 'title': g['title']} for g in groups],
                         'skipped': everything - len(tracks),
                         'cover': 'cover.jpg' if cover else None, 'tracks': items, 'bytes': sum(os.path.getsize(os.path.join(stage, x['file'])) for x in items) + sp_bytes,
                         'spatialBytes': sp_bytes, 'seconds': sum(x['seconds'] for x in items), 'needBytes': sum(x['blocks'] for x in items) * 16384 + sp_bytes}
@@ -270,6 +277,10 @@ class NetMdMixin:
         except (usb.core.USBError, himd_dev.HiMDError, himd_fs.FatError, RuntimeError, OSError) as exc:
             shutil.rmtree(CLONE_DIR, ignore_errors=True)
             return {'error': 'Copying the disc to this PC failed: %s Nothing was changed on the disc.' % exc}
+        except Exception as exc:                                # anything unexpected: say so (the page would otherwise wait for ever) and clean up
+            shutil.rmtree(CLONE_DIR, ignore_errors=True)
+            self.log('clone_read unexpected error: %r' % (exc,))
+            return {'error': 'Copying the disc to this PC failed unexpectedly: %s Nothing was changed on the disc.' % exc}
         finally:
             self._release_devices()
 
@@ -516,8 +527,10 @@ class NetMdMixin:
                 sp_stored = att.get('stored', 0)
                 if 'error' in att:
                     return {'error': 'The tracks are on the disc, but the spatial files are not complete: %s%s' % (att['error'], keep), 'partial': True}
+            extras_note = self._pkg_finish(index, m)                             # disc label, group pictures, lyrics, track list (a package's extras); never fails the clone
             shutil.rmtree(CLONE_DIR, ignore_errors=True)                         # everything matched: the PC copy has done its job
-            return {'ok': True, 'tracks': count, 'verified': True, 'bytes': m['bytes'], 'cover': bool(m.get('cover')), 'spatial': sp_stored, 'deleted': not os.path.exists(CLONE_DIR)}
+            return {'ok': True, 'tracks': count, 'verified': True, 'bytes': m['bytes'], 'cover': bool(m.get('cover')), 'label': bool(m.get('label')), 'spatial': sp_stored,
+                    'extrasNote': extras_note, 'deleted': not os.path.exists(CLONE_DIR)}
         except (usb.core.USBError, himd_dev.HiMDError, himd_fs.FatError, RuntimeError, OSError) as exc:
             return {'error': 'Cloning stopped: %s%s' % (exc, keep), 'partial': True}
         finally:

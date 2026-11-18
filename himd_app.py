@@ -29,6 +29,7 @@ import backup_data
 import catalogue
 import cd_audio
 import clone_disc
+import disc_package
 import convert_disc
 import app_settings
 import lp_to_sp
@@ -61,7 +62,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.32.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.33.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -130,7 +131,7 @@ except ImportError:
     _BUILTIN_ACOUSTID_KEY = ''
 
 
-class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
+class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, disc_package.PackageMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
           sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, video_links.VideoLinksMixin):
     def __init__(self):
         self._window = None
@@ -197,7 +198,7 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
     def _exploit_possible(self, index):
         """A recorder that cannot send audio back by itself but may take the experimental download (the helper checks its firmware)."""
         pid = self._devices[int(index)].idProduct
-        return pid in EXPLOIT_PIDS and pid not in FETCH_PIDS
+        return pid in EXPLOIT_PIDS and pid not in FETCH_PIDS and bool(self._app_setting('allowPatch'))
 
     def _device_name(self, index):
         d = self._devices[index]
@@ -369,7 +370,7 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
         self._netmd_sig = '%s|%s|%s' % (d['used'], d['trackCount'], d['discTitle'])      # tells one state of the disc from another
         self._catalogue_note_netmd(d['discTitle'] or '', tracks, out.get('model', ''))
         out['canFetch'] = usb_dev.idProduct in FETCH_PIDS
-        out['canExploit'] = usb_dev.idProduct in EXPLOIT_PIDS and usb_dev.idProduct not in FETCH_PIDS
+        out['canExploit'] = usb_dev.idProduct in EXPLOIT_PIDS and usb_dev.idProduct not in FETCH_PIDS and bool(self._app_setting('allowPatch'))
         out['canHimd'] = self._himd_capable(usb_dev)
         out['discState'] = 'ok'
         out['disc'] = {'title': d['discTitle'] or '', 'total': d['total'], 'free': d['left'], 'tracks': tracks,
@@ -521,10 +522,10 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
             return {'error': 'Could not open the driver guide: %s' % exc}
         return {'ok': True}
 
-    GUIDES = ('SPATIAL-AUDIO.txt', 'README.txt')
+    GUIDES = ('SPATIAL-AUDIO.txt', 'README.txt', 'MiniDisc-Manager-User-Manual.pdf')
 
     def open_guide(self, name='SPATIAL-AUDIO.txt'):
-        """Opens one of the guides that come with the program (the spatial audio guide, the full user guide) in the default text viewer."""
+        """Opens one of the guides that come with the program (the spatial audio guide, the full read me, the PDF user manual) in the default viewer."""
         if name not in self.GUIDES:
             return {'error': 'Unknown guide.'}
         path = os.path.join(HERE, name)

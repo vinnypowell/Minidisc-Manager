@@ -51,6 +51,7 @@ Source: "{#AppSrc}\DRIVER-SETUP.html"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AppSrc}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AppSrc}\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AppSrc}\README.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#AppSrc}\MiniDisc-Manager-User-Manual.pdf"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AppSrc}\SPATIAL-AUDIO.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AppSrc}\LICENSES\*"; DestDir: "{app}\LICENSES"; Flags: recursesubdirs createallsubdirs ignoreversion
 
@@ -58,6 +59,7 @@ Source: "{#AppSrc}\LICENSES\*"; DestDir: "{app}\LICENSES"; Flags: recursesubdirs
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{group}\USB driver setup guide"; Filename: "{app}\DRIVER-SETUP.html"
 Name: "{group}\Read me"; Filename: "{app}\README.txt"
+Name: "{group}\User manual"; Filename: "{app}\MiniDisc-Manager-User-Manual.pdf"
 Name: "{group}\Spatial audio guide"; Filename: "{app}\SPATIAL-AUDIO.txt"
 Name: "{group}\Licences and notices"; Filename: "{app}\THIRD-PARTY-NOTICES.txt"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"

@@ -67,7 +67,7 @@ class CloneMixin:
         if not m:
             return {'pending': None}
         return {'pending': {'title': m['discTitle'], 'tracks': len(m['tracks']), 'bytes': m['bytes'], 'when': m['when'], 'seconds': m['seconds'],
-                            'type': m.get('type', 'himd')}}
+                            'type': m.get('type', 'himd'), 'fromPackage': bool(m.get('fromPackage')), 'packageName': m.get('fromPackage') or ''}}
 
     def clone_discard(self):
         """Deletes the PC copy."""

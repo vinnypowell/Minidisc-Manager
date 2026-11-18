@@ -40,7 +40,7 @@ Write-Host '1/3  PyInstaller: building the program folder...'
     --distpath "$work\dist" --workpath "$work\build" --specpath "$work" `
     --add-data "$app\runtime;runtime" --add-data "$app\helper;helper" --add-data "$app\ui;ui" `
     --add-data "$app\DRIVER-SETUP.html;." --add-data "$app\LICENSE.txt;." --add-data "$app\THIRD-PARTY-NOTICES.txt;." `
-    --add-data "$app\README.txt;." --add-data "$app\SPATIAL-AUDIO.txt;." --add-data "$app\LICENSES;LICENSES" `
+    --add-data "$app\README.txt;." --add-data "$app\MiniDisc-Manager-User-Manual.pdf;." --add-data "$app\SPATIAL-AUDIO.txt;." --add-data "$app\LICENSES;LICENSES" `
     --collect-all webview --hidden-import clr_loader --exclude-module tkinter `
     "$app\himd_app.py"
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)" }
@@ -53,7 +53,7 @@ Write-Host '3/3  Portable zip...'
 $stage = Join-Path $work "zip\MiniDisc Manager $Version"
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item "$work\dist\MiniDisc Manager\*" $stage -Recurse -Force
-foreach ($f in 'DRIVER-SETUP.html', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt', 'README.txt', 'SPATIAL-AUDIO.txt') { Copy-Item (Join-Path $app $f) $stage -Force }
+foreach ($f in 'DRIVER-SETUP.html', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt', 'README.txt', 'MiniDisc-Manager-User-Manual.pdf', 'SPATIAL-AUDIO.txt') { Copy-Item (Join-Path $app $f) $stage -Force }
 Copy-Item (Join-Path $app 'LICENSES') (Join-Path $stage 'LICENSES') -Recurse -Force
 Copy-Item "$here\portable-readme.txt" (Join-Path $stage 'READ ME FIRST.txt') -Force
 Copy-Item "$here\Unblock.bat" (Join-Path $stage 'Unblock.bat') -Force
