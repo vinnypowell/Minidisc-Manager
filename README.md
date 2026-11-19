@@ -2,12 +2,13 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.33.4 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.33.5 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **0.33.5:** Clearer "How it works" help for Disc Package, Clone, Remove, Disc labelling, Groups and the Recording entries (Rip CD, Yoto, Internet Radio), as short step-by-step lists in all five languages.
 - **0.33.4:** Find YouTube videos now searches every track when none is ticked, and its window closes by itself when the search is finished.
 - **0.33.3:** the Sony NetMD decks MDS-JB980, MDS-JE780 and MDS-NT1 now show their own details and picture. They share one USB ID, so when the program cannot tell which is connected it asks, and remembers the answer.
 - **0.33.2:** many more of the pop-ups, progress lines and messages are translated (French, German, Dutch, Spanish); folded cards, open tabs and the zoom are remembered with the card layout; adding SP tracks to a standard disc shows the expected time and notes that LP2 / LP4 send faster; the Surround channels display reads its spatial file only when it is chosen; the volume slider for a Google TV is smoother.
