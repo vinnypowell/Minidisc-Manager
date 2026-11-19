@@ -1528,7 +1528,11 @@ async function runAutoIdentify(chosen, m) {
 // ---- A YouTube video for a track (Disc Extras, Video) ------------------------------------------
 // The best matches are searched on YouTube (only the artist and title are sent), one is chosen (or a link pasted) and the link is kept with the track
 // on this PC; on a Hi-MD disc it can also be written into the track list stored on the disc (TRACKS.CSV, a "Video" column).
-$('vidFind').addEventListener('click', () => { if (selected.size > 1) openVideoAll([...selected].sort((a, b) => a - b)); else openVideo(); });
+$('vidFind').addEventListener('click', () => {
+  if (selected.size === 1) openVideo();                                  // one ticked track: choose from its ranked matches
+  else if (selected.size > 1) openVideoAll([...selected].sort((a, b) => a - b));
+  else openVideoAll([...trackMap.keys()].sort((a, b) => a - b));           // nothing ticked: every track is wanted
+});
 // Remove YouTube links: from the ticked tracks, or (nothing ticked) from every track that has one. The link is forgotten on this PC and, on a Hi-MD disc
 // that keeps a track list, taken out of TRACKS.CSV too.
 $('vidRemove').addEventListener('click', async () => {
@@ -1656,6 +1660,7 @@ async function openVideoAll(nums) {
       uploading = false;
     }
     prog.textContent = msg; run.style.display = 'none';
+    if (!r.unsure.length) { closeSheet(); toast(msg, false, 7000); }          // all done and nothing left to choose: the window closes itself
     load(true);
   };
 }
