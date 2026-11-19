@@ -505,6 +505,23 @@ class CastMixin:
         self._cast_ip, self._cast_port = lan_ip, self._cast_server.server_address[1]
         threading.Thread(target=self._cast_server.serve_forever, daemon=True).start()
 
+    def _sp_pull_for_display(self, track, mine):
+        """A room plays the stereo version, so nothing has read the track's spatial file yet, and the Surround channels display needs it. Waits until the
+        track's own read from the disc is over, then copies the spatial file (it gives way to anything else that needs the recorder)."""
+        try:
+            deadline = time.time() + 1500
+            while time.time() < deadline and mine == self._cast_seq:
+                th = self._thread
+                if th is None or not th.is_alive():
+                    _, err = self._spatial_pull(track, raw=True)
+                    if err != 'busy':
+                        if err and err != 'stopped':
+                            self.log('channel display: spatial file not read (%s)' % err)
+                        return
+                time.sleep(2)
+        except Exception as exc:
+            self.log('channel display: spatial file not read (%s)' % exc)
+
     def cast(self, action, device_index, track_index, seconds, ip):
         """Controls the Sonos room whose coordinator is at `ip`. Answers like remote(): {'result': {state, track, seconds}}."""
         if self._is_cast_device(ip):
@@ -528,6 +545,8 @@ class CastMixin:
                 track = next((t for t in self._tracks if t['number'] == int(track_index) + 1), None)
                 sp.play_url('http://%s:%d/%s' % (lan, self._cast_port, path), (track or {}).get('title'), st['mime'] if st else 'audio/wav')
                 self._cast_last = {'ip': ip, 'prefix': 'http://%s:%d/' % (lan, self._cast_port)}
+                if track and track.get('spatial') and not getattr(self, '_loaded_netmd', False):
+                    threading.Thread(target=self._sp_pull_for_display, args=(dict(track), mine), daemon=True).start()      # the Surround channels display reads this file
                 t2 = time.time()
                 for _ in range(10):                            # the speaker says "stopped" for a moment before it starts to fetch
                     if sp.status()['state'] != 'ready':
@@ -545,7 +564,10 @@ class CastMixin:
             elif action != 'status':
                 return {'error': 'Unknown action: %s' % action}
             st = sp.status()
-            return {'result': {'state': st['state'], 'track': int(track_index), 'seconds': st['seconds'], 'duration': st['duration']}}
+            out = {'result': {'state': st['state'], 'track': int(track_index), 'seconds': st['seconds'], 'duration': st['duration']}}
+            if action == 'play':
+                out['viz_url'] = r['url']                      # the window runs a silent copy of this track so its visualizer keeps moving
+            return out
         except sonos.SonosError as exc:
             return {'error': str(exc)}
 

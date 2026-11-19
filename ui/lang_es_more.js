@@ -54,4 +54,6 @@ I18N.add([
   ["Surround (multichannel) files, 5.1 / 7.1 and larger, can also be added, and keep their spatial version on a Hi-MD disc.", "Los archivos surround (multicanal), 5.1 / 7.1 y mayores, también se pueden añadir y conservan su versión espacial en un disco Hi-MD."],
   ["Level of each channel in dB (0 dB = full scale)", "Nivel de cada canal en dB (0 dB = escala completa)"],
   ["dB (0 dB = full scale)", "dB (0 dB = escala completa)"],
+  ["Remember the card layout", "Recordar la disposición de las tarjetas"],
+  ["When you move, resize or hide the cards, the program keeps the arrangement and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).", "Cuando mueve, cambia de tamaño u oculta tarjetas, el programa guarda la disposición y se abre igual la próxima vez. Desactivado: siempre empieza con la disposición estándar (Reset layout, en el menú Tarjetas, sigue devolviéndolo todo a su sitio)."],
 ], 'es');

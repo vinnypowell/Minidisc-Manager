@@ -31,6 +31,8 @@ The window
     track by its number to a new place (ticked tracks move together).
   * Lyrics (its own card, by default under Recording): the lyrics of the track that is playing, the current line lit in time with the music. It opens short (just a note) and grows while lyrics show.
   * Card sizes: drag a card's right edge to change its width (the other cards in its row give up or take the space), its bottom edge for its height (a minimum: a card never gets smaller than its contents) or its corner for both; double-click an edge to go back to automatic. In the default layout the bottoms of the columns line up. "Reset layout" restores everything to stock: places, sizes, hidden and folded cards and the first tab of each tabbed card.
+  * Remembered layout (0.33.1): the places, sizes and hidden cards you set are kept and used the next time the program opens. The Settings button has a switch
+    ("Remember the card layout", on by default); off, the program always starts in the standard layout. Folded cards, open tabs and the zoom are not kept.
   * Card layout (header, between Theme and the recorder name): the Cards menu ticks the ten main cards (Visualiser, Track time, Disc capacity, Recording, Lyrics, Disc
     Management, Disc Conversion, Disc Extras, Recorder, Tracks) on or off; Show all and Reset layout are in it too. Each card can be dragged by the dotted
     handle at the end of its title (the title itself still folds the card): drop on the left or right edge of another card for a new column
@@ -592,7 +594,7 @@ Visualizer (top of the Disc Information panel, while a track plays on this PC)
 - Choose the display: Spectrum bars, Mirror bars, Oscilloscope (stereo), Circular spectrum, Waterfall, and three stereo VU meters (needles, LED columns,
   bars), or, for a track that has a spatial version (HMSA), Surround channels (see below), or Off. Colour (Accent, Rainbow, Fire, Ice, Green - red, White), Sensitivity and Peak marks can be changed while it plays; the choices are kept.
 - The sound is only read, never changed (apart from the equalizer, below: the display shows the sound after it). It is not shown for a standard disc
-  played on the recorder itself or on a Sonos speaker, because the program does not receive that sound.
+  played on the recorder itself, because the program does not receive that sound (a Sonos room or Google TV is shown from a silent copy of the track).
 
 Surround channels display (for a track with a spatial version, playing on this PC or on a Google TV in 5.1 mode)
 - Three styles in the Visualiser list: Surround channels (a circle per speaker laid out like the room, heights as diamonds, the bass box at the bottom), the same with vertical bars,
@@ -691,6 +693,9 @@ Playing to a Sonos speaker
 - How it works: the speaker fetches each track from a small web server the app runs on this PC's home-network address, behind a
   random secret in the address, and only while you are playing to a room. The speaker and this PC must be on the same network.
   The first time, Windows may ask whether to let the app on your network: choose Allow for private networks.
+- The visualiser moves while a room plays (0.33.1): the window runs a silent copy of the track for the display. The Surround channels display also works for a
+  room (it shows the spatial version's channel levels, timed to the room's position; the room itself plays stereo). It needs the track's spatial file, which is
+  copied from the disc once the track has been read, so it appears about a minute and a half after you press play.
 - Sending music to a room replaces whatever that room was playing (for example a line-in); start that again from the Sonos app.
 - Closing the window stops the room, but only if it is still playing a track this app sent it; if you have since started
   something else on that room from the Sonos app, it is left alone.

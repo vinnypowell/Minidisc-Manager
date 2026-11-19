@@ -1194,7 +1194,7 @@ async function load(noSync) {
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
 // App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
-let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true };
+let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true };
 async function appSettingsLoad() {
   try {
     let s = await api().get_app_settings();
@@ -1205,7 +1205,7 @@ async function appSettingsLoad() {
 }
 async function appSettingSet(key, value) {
   const r = await api().set_app_setting(key, value);
-  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); if (key === 'spatialBinaural') svRefresh(); if (key === 'allowPatch' && netmd) { toast('Rescanning the recorder to apply this.'); scan(); } return true; }
+  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'rememberLayout') layoutRememberChanged(); if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); if (key === 'spatialBinaural') svRefresh(); if (key === 'allowPatch' && netmd) { toast('Rescanning the recorder to apply this.'); scan(); } return true; }
   toast((r && r.error) || 'The setting could not be saved'); return false;
 }
 async function tidySpatial() {
@@ -1226,6 +1226,7 @@ function openSettings() {
     ['askLpToSp', 'Suggest converting LP tracks to SP', 'When a standard disc with LP2 / LP4 tracks is inserted, a note under the Recorder card says that players without LP support play them as silence and offers to rewrite them as SP. Switched off: no note; Convert LP2/4 Disc to SP stays in the Disc Conversion card.'],
     ['autoAlign', 'Fine-tune lyric timing automatically when lyrics are found', 'After lyrics are found, a speech recogniser listens to the start of each track and sets the lyric timing to match (a minute or more per track, and it needs the free speech helper). Off: lyrics are only found; use “Fine-tune timing…” on a track when you want it.'],
     ['fillArtist', 'Fill in a missing artist from the lyrics match', 'When lyrics are found and confidently matched for a track that has no artist, the artist the lyrics record names is filled in. A Hi-MD disc stores it on the disc (one change, which Undo can take back); a standard disc keeps it on this PC.'],
+    ['rememberLayout', 'Remember the card layout', 'When you move, resize or hide the cards, the program keeps the arrangement and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).'],
     ['spatialBinaural', 'Play the spatial version of a track with headphone surround', 'A track that was added with a spatial (multichannel) version plays that version in this window, mixed down for headphones. The recorder and the Sonos rooms always play the normal stereo track. Switched off: the stereo track plays here too.'],
     ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows a still picture of the track (cover, title, artist), not the lyric video. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
     ['allowPatch', 'Allow the experimental firmware patch (MZ-NH700 and similar recorders)', 'Lets a Hi-MD recorder that holds a standard disc send its audio back to this PC, so tracks can play here, be saved, identified, split, combined or cloned. The patch is a small temporary change in the recorder’s memory (nothing is written to the disc or the recorder’s permanent memory) and unplugging the recorder clears it. Switched off: the patch is never used, and tracks without a saved copy can only be played on the recorder by remote control.'],
@@ -6877,8 +6878,17 @@ const withConvert = l => { try { if (l && Array.isArray(l.rows) && !l.rows.flat(
 // A layout saved before Disc Information was split gets the Visualiser and Track time cards added above the disc card (Disc capacity), everything else stays where it was.
 const withSplit = l => { try { if (l && Array.isArray(l.rows) && !l.rows.flat(2).includes('viz')) { const cell = l.rows.flat().find(c => Array.isArray(c) && c.includes('disc')); if (cell) cell.splice(cell.indexOf('disc'), 0, 'viz', 'deck'); else if (l.rows[0]) l.rows[0].unshift(['viz', 'deck']); } } catch (e) { /* not a layout */ } return l; };
 const layoutOk = l => { try { return l.rows.every(r => Array.isArray(r) && r.every(c => Array.isArray(c) && c.length)) && l.rows.flat(2).slice().sort().join() === Object.keys(CARD_NAMES).sort().join() && Array.isArray(l.hidden) && l.hidden.every(h => h in CARD_NAMES); } catch (e) { return false; } };
-let layout = (() => { try { const l = withSplit(withConvert(withLyrics(JSON.parse(viewGet(LAYOUT_KEY))))); if (layoutOk(l)) return l; } catch (e) { /* none saved */ } return defaultLayout(); })();
-const saveLayout = () => viewSet(LAYOUT_KEY, JSON.stringify(layout));
+// Settings > "Remember the card layout": the places, sizes and hidden cards are also kept between runs (localStorage 'mdm.layoutKept'); the switch is mirrored in
+// 'mdm.rememberLayout' so the page can read it before the settings file has loaded. Switched off: the app starts in the stock layout, as it always did.
+const LAYOUT_KEPT_KEY = 'mdm.layoutKept', LAYOUT_ON_KEY = 'mdm.rememberLayout';
+const layoutRemember = () => { try { return localStorage.getItem(LAYOUT_ON_KEY) !== '0'; } catch (e) { return true; } };
+const layoutKeptGet = () => { try { return layoutRemember() ? localStorage.getItem(LAYOUT_KEPT_KEY) : null; } catch (e) { return null; } };
+let layout = (() => { for (const raw of [viewGet(LAYOUT_KEY), layoutKeptGet()]) { try { const l = withSplit(withConvert(withLyrics(JSON.parse(raw)))); if (layoutOk(l)) return l; } catch (e) { /* none saved */ } } return defaultLayout(); })();
+const saveLayout = () => { const j = JSON.stringify(layout); viewSet(LAYOUT_KEY, j); try { if (layoutRemember()) localStorage.setItem(LAYOUT_KEPT_KEY, j); else localStorage.removeItem(LAYOUT_KEPT_KEY); } catch (e) { /* not kept */ } };
+function layoutRememberChanged() {                                         // the Settings switch was flipped
+  try { localStorage.setItem(LAYOUT_ON_KEY, appSettings.rememberLayout === false ? '0' : '1'); } catch (e) { /* not kept */ }
+  saveLayout();                                                                 // on: keep the layout as it is now; off: forget what was kept
+}
 const cardEl = id => document.querySelector('section.card[data-card="' + id + '"]');
 function renderBoard() {
   const board = $('board'), hold = $('cardHold'), GAP = 18;
@@ -7644,7 +7654,7 @@ function surroundTime() { return playingRemote ? remoteNow() : (audio.currentTim
 function surroundTrack() {                                         // the playing track if its channels can be shown: playing here, or on a Google TV in 5.1 mode (the TV plays the same spatial version)
   const t = nowNum && trackMap.get(nowNum);
   if (!t || !t.spatial || netmd) return null;
-  if (playingRemote && !(castTarget && castTarget.kind === 'cast' && appSettings.spatialTvSurround === true)) return null;
+  if (playingRemote && !castTarget) return null;                   // a recorder's own remote: no position to follow (a room or TV is timed from its reported position)
   return t;
 }
 async function surroundLoad(num) {
@@ -7653,7 +7663,7 @@ async function surroundLoad(num) {
     let r;
     try { r = await api().spatial_levels(num); } catch (e) { r = { error: String(e) }; }
     if (sl.num !== num) return;                                       // another track has started meanwhile
-    if (r && r.pending && sl.tries++ < 90) { await new Promise(ok => setTimeout(ok, 1000)); if (sl.num !== num) return; continue; }
+    if (r && r.pending && sl.tries++ < (playingRemote ? 900 : 90)) { await new Promise(ok => setTimeout(ok, 1000)); if (sl.num !== num) return; continue; }
     if (!r || r.error || r.none || !r.data) { sl.state = 'none'; return; }
     const bin = atob(r.data), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
@@ -7667,7 +7677,7 @@ async function surroundLoad(num) {
 function drawSurround(g, W, H, dpr, bars) {
   const t = surroundTrack();
   const say = text => { g.fillStyle = 'rgba(200,208,222,.8)'; g.font = Math.round(13 * dpr) + 'px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(I18N.t(text), W / 2, H / 2); };
-  if (!t) { say(playingRemote ? 'The channel display needs a spatial track playing on this PC or on a Google TV in 5.1 mode' : 'Play a track with a spatial version (HMSA) to see its channels'); return; }
+  if (!t) { say('Play a track with a spatial version (HMSA) to see its channels'); return; }
   if (sl.num !== t.number) surroundLoad(t.number);
   if (sl.state === 'loading') { say('Reading the channels…'); return; }
   if (sl.state !== 'ready') { say('The channel levels could not be read for this track'); return; }

@@ -17,6 +17,7 @@ DEFAULTS = {
     'spatialBinaural': True,             # a track with a spatial version on the disc plays that version here, rendered for headphones; off: the stereo track plays
     'spatialTvSurround': False,          # a spatial track played on a Google TV goes there as Dolby Digital Plus 5.1 SOUND (a soundbar then plays real surround, but that TV shows no picture); off: the stereo lyric video
     'allowPatch': True,                  # a Hi-MD recorder in standard-disc mode (MZ-NH700...) may be given the temporary firmware patch that lets it send a track back (playback, save, identify, clone...); off: never, it is played by remote control
+    'rememberLayout': True,              # the card places, sizes and hidden cards are kept between runs; off: the app always opens in the stock layout
     'askMissing': True,                  # a disc with details missing (artist, album, picture, lyrics) shows the "missing some details" prompt
 }
 
