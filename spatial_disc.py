@@ -340,6 +340,38 @@ class SpatialMixin:
     _sp_lv_cache = None
     _sp_lv_lock = None
 
+    _sp_disp = None
+
+    def _sp_display_pull(self, track):
+        """The Surround channels display needs a track's spatial file, but a room or TV plays the stereo version, so nothing has read the spatial file. It is
+        read only when the display asks for it (not for every spatial track that is cast): it waits until the track's own read from the disc is over, then
+        copies the file (it gives way to anything else that needs the recorder). The copy lives only until the program closes."""
+        path = self._sp_pull_path(track)
+        if self._sp_disp == path:
+            return                                                       # already on its way
+        self._sp_disp = path
+        mine = getattr(self, '_cast_seq', 0)
+        tr = dict(track)
+
+        def work():
+            try:
+                deadline = time.time() + 1500
+                while time.time() < deadline and mine == getattr(self, '_cast_seq', 0) and getattr(self, '_cast_last', None):
+                    th = self._thread
+                    if th is None or not th.is_alive():
+                        _, err = self._spatial_pull(tr, raw=True)
+                        if err != 'busy':
+                            if err and err != 'stopped':
+                                self.log('channel display: spatial file not read (%s)' % err)
+                            return
+                    time.sleep(2)
+            except Exception as exc:
+                self.log('channel display: spatial file not read (%s)' % exc)
+            finally:
+                if self._sp_disp == path:
+                    self._sp_disp = None
+        threading.Thread(target=work, daemon=True).start()
+
     def spatial_levels(self, number):
         """For the "Surround channels" display: how loud each channel of a track's spatial version is, 20 times a second. Reads nothing from the disc: it works on the
         copy that playing the track has already pulled (until then it answers {'pending': True} and the page asks again). Returns {names, hz, frames, data (base64)},
@@ -350,6 +382,8 @@ class SpatialMixin:
             return {'none': True}
         path = self._sp_pull_path(track)
         if not (os.path.exists(path) and os.path.getsize(path) == track['spatial']['bytes']):
+            if getattr(self, '_cast_last', None):                         # playing to a room or TV: nothing has read the spatial file, so read it now that the display asks for it
+                self._sp_display_pull(track)
             return {'pending': True}
         if self._sp_lv_lock is None:
             self._sp_lv_lock = threading.Lock()

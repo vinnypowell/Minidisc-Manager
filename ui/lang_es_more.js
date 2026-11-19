@@ -55,5 +55,5 @@ I18N.add([
   ["Level of each channel in dB (0 dB = full scale)", "Nivel de cada canal en dB (0 dB = escala completa)"],
   ["dB (0 dB = full scale)", "dB (0 dB = escala completa)"],
   ["Remember the card layout", "Recordar la disposición de las tarjetas"],
-  ["When you move, resize or hide the cards, the program keeps the arrangement and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).", "Cuando mueve, cambia de tamaño u oculta tarjetas, el programa guarda la disposición y se abre igual la próxima vez. Desactivado: siempre empieza con la disposición estándar (Reset layout, en el menú Tarjetas, sigue devolviéndolo todo a su sitio)."],
+  ["When you move, resize or hide the cards, or fold them, change tabs or zoom, the program keeps that and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).", "Cuando mueves, cambias de tamaño, ocultas o pliegas tarjetas, cambias de pestaña o amplías, el programa lo guarda y se abre igual la próxima vez. Desactivado: siempre empieza con la disposición estándar (Restablecer la disposición, en el menú Tarjetas, sigue devolviéndolo todo a su sitio)."],
 ], 'es');

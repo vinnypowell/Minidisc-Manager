@@ -93,10 +93,37 @@
     return null;
   }
 
+  // A message the page builds from several sentences (optional parts, an error added at the end) is not one entry. When the whole text has no entry it is
+  // cut into sentences and each one is looked up on its own; a sentence with no entry stays English. Not cut after "e.g." or "i.e.".
+  const SENT = /(?<=[.!?…])(?<!e\.g\.)(?<!i\.e\.)\s+(?=[A-Z“"‘(\d])/;
+  function bySentence(text, lang) {
+    if (text.indexOf('\n') >= 0) {                                  // lines first (a note made of several lines)
+      let anyLine = false;
+      const outLines = text.split('\n').map(l => {
+        const q = l.trim(); if (!q) return l;
+        const t = lookup(q, lang, 1) !== null ? lookup(q, lang, 1) : bySentence(q, lang);
+        if (t === null) return l; anyLine = true; return t;
+      });
+      return anyLine ? outLines.join('\n') : null;
+    }
+    const parts = text.split(SENT);
+    if (parts.length < 2) return null;
+    let any = false;
+    const out = parts.map(p => { const t = lookup(p, lang, 1); if (t === null) return p; any = true; return t; });
+    return any ? out.join(' ') : null;
+  }
+
   function convert(s, lang, depth) {      // keeps the spaces around the text
     const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
     if (!m[2]) return s;
-    const t = lookup(m[2], lang, depth);
+    let t = null;
+    if (!depth && lang !== 'en' && m[2].indexOf('\n') >= 0 && exact[lang].get(m[2]) === undefined) {       // a note of several lines: when every line has its own entry use those
+      const lines = m[2].split('\n'); let all = true;
+      const out = lines.map(l => { const q = l.trim(); if (!q) return l; const r = lookup(q, lang, 1); if (r === null) { all = false; return l; } return r; });
+      if (all) t = out.join('\n');
+    }
+    if (t === null) t = lookup(m[2], lang, depth);
+    if (t === null && !depth && lang !== 'en') t = bySentence(m[2], lang);
     return t === null ? s : m[1] + t + m[3];
   }
 

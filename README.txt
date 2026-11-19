@@ -31,8 +31,8 @@ The window
     track by its number to a new place (ticked tracks move together).
   * Lyrics (its own card, by default under Recording): the lyrics of the track that is playing, the current line lit in time with the music. It opens short (just a note) and grows while lyrics show.
   * Card sizes: drag a card's right edge to change its width (the other cards in its row give up or take the space), its bottom edge for its height (a minimum: a card never gets smaller than its contents) or its corner for both; double-click an edge to go back to automatic. In the default layout the bottoms of the columns line up. "Reset layout" restores everything to stock: places, sizes, hidden and folded cards and the first tab of each tabbed card.
-  * Remembered layout (0.33.1): the places, sizes and hidden cards you set are kept and used the next time the program opens. The Settings button has a switch
-    ("Remember the card layout", on by default); off, the program always starts in the standard layout. Folded cards, open tabs and the zoom are not kept.
+  * Remembered layout (0.33.1; folds, tabs and zoom from 0.33.2): the places, sizes and hidden cards you set, and (0.33.2) folded cards, open tabs and the zoom, are kept and used the next time the program opens. The Settings button has a switch
+    ("Remember the card layout", on by default); off, the program always starts in the standard layout. The switch covers all of them.
   * Card layout (header, between Theme and the recorder name): the Cards menu ticks the ten main cards (Visualiser, Track time, Disc capacity, Recording, Lyrics, Disc
     Management, Disc Conversion, Disc Extras, Recorder, Tracks) on or off; Show all and Reset layout are in it too. Each card can be dragged by the dotted
     handle at the end of its title (the title itself still folds the card): drop on the left or right edge of another card for a new column
@@ -693,6 +693,7 @@ Playing to a Sonos speaker
 - How it works: the speaker fetches each track from a small web server the app runs on this PC's home-network address, behind a
   random secret in the address, and only while you are playing to a room. The speaker and this PC must be on the same network.
   The first time, Windows may ask whether to let the app on your network: choose Allow for private networks.
+- 0.33.2: the spatial file for the Surround channels display is now read only when that display is chosen (not for every spatial track sent to a room), and nothing of it is kept after the program closes. In the Add window, an SP upload to a standard disc shows how long it will take (SP is sent at about twice the playing speed, plus about 11 seconds per track for the recorder to write the disc) and notes that LP2 / LP4 send faster. app.log records per-track NetMD transfer times. The volume slider for a Google TV sends at most about eight steps a second (a TV passes each step on to its soundbar) and stays where you put it.
 - The visualiser moves while a room plays (0.33.1): the window runs a silent copy of the track for the display. The Surround channels display also works for a
   room (it shows the spatial version's channel levels, timed to the room's position; the room itself plays stereo). It needs the track's spatial file, which is
   copied from the disc once the track has been read, so it appears about a minute and a half after you press play.

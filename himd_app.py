@@ -62,7 +62,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.33.1'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.33.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -444,6 +444,9 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
                 other.append(line.strip())
                 continue
             if 'event' in msg:
+                if msg.get('event') == 'timing':          # per-track NetMD transfer times, for finding where adding tracks spends its time
+                    self.log('NetMD timing: "%s" (%ss of audio, %s KB): PC work before %.1fs, recorder ready %.1fs, sending %.1fs, finishing (table of contents) %.1fs, total %.1fs' % (
+                        msg.get('name'), msg.get('seconds'), msg.get('kb'), msg.get('gapMs', 0) / 1000.0, msg.get('prepareMs', 0) / 1000.0, msg.get('sendMs', 0) / 1000.0, msg.get('finishMs', 0) / 1000.0, msg.get('totalMs', 0) / 1000.0))
                 if on_event:
                     on_event(msg)
             elif 'result' in msg:

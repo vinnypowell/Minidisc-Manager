@@ -204,6 +204,23 @@ const MAX_LP_SECONDS = 90 * 60;      // atracdenc runs in WebAssembly memory; an
 
 // The library waits for the recorder to be idle before it sends audio, and waits forever if it is playing or paused
 // (for example after the remote control was used). So stop it first, and give up with a clear message if it stays busy.
+// Times one track sent to the recorder (netmd.download) and reports it as a 'timing' event, which the app writes to app.log: how long the PC spent
+// since the last track finished (encoding, saving a copy), how long the recorder took to get ready, how long the audio took to send, and how long it
+// then spent finishing the track (writing the disc's table of contents).
+let lastDownloadEnd = 0;
+async function timedDownload(iface, track, name, seconds, onProgress) {
+    const t0 = Date.now();
+    let first = 0, last = 0, total = 0;
+    const r = await netmd.download(iface, track, p => { const now = Date.now(); if (!first) first = now; last = now; total = p.totalBytes; onProgress(p); });
+    const t1 = Date.now();
+    try {
+        await say({ event: 'timing', name, seconds: Math.round(seconds || 0), kb: Math.round((total || 0) / 1024), gapMs: lastDownloadEnd ? t0 - lastDownloadEnd : 0,
+                    prepareMs: (first || t1) - t0, sendMs: last && first ? last - first : 0, finishMs: t1 - (last || t0), totalMs: t1 - t0 });
+    } catch (e) { /* the log line is optional */ }
+    lastDownloadEnd = t1;
+    return r;
+}
+
 async function makeIdle(iface) {
     let st = await netmd.getDeviceStatus(iface);
     if (['playing', 'paused', 'fastForward', 'rewind'].includes(st.state)) {
@@ -302,7 +319,7 @@ const commands = {
                 try {
                     const iterator = mod('netmd-js/dist/node-encrypt-worker').makeGetAsyncPacketIteratorOnWorkerThread(worker);
                     const track = new netmd.MDTrack(info.title, wire, raw.buffer, 0x400, '', iterator);
-                    await netmd.download(iface, track, p => say({ event: 'progress', file: n, name: path.basename(info.path), done: p.writtenBytes, total: p.totalBytes }));
+                    await timedDownload(iface, track, path.basename(info.path), info.seconds, p => say({ event: 'progress', file: n, name: path.basename(info.path), done: p.writtenBytes, total: p.totalBytes }));
                 } finally {
                     await worker.terminate();
                 }
@@ -360,7 +377,7 @@ const commands = {
                 try {
                     const iterator = mod('netmd-js/dist/node-encrypt-worker').makeGetAsyncPacketIteratorOnWorkerThread(worker);
                     const track = new netmd.MDTrack(cleanTitle(name), wire, raw.buffer, 0x400, '', iterator);
-                    await netmd.download(iface, track, p => say({ event: 'progress', file: n, name, done: p.writtenBytes, total: p.totalBytes }));
+                    await timedDownload(iface, track, name, t.seconds, p => say({ event: 'progress', file: n, name, done: p.writtenBytes, total: p.totalBytes }));
                 } finally {
                     await worker.terminate();
                 }

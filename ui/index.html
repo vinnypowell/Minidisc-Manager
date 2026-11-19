@@ -503,6 +503,8 @@
 <script src="lang_es.js"></script>
 <script src="lang_es_more.js"></script>
 <script src="lang_pkg.js"></script>
+<script src="lang_p11.js"></script>
+<script src="lang_es_p11.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -1226,7 +1228,7 @@ function openSettings() {
     ['askLpToSp', 'Suggest converting LP tracks to SP', 'When a standard disc with LP2 / LP4 tracks is inserted, a note under the Recorder card says that players without LP support play them as silence and offers to rewrite them as SP. Switched off: no note; Convert LP2/4 Disc to SP stays in the Disc Conversion card.'],
     ['autoAlign', 'Fine-tune lyric timing automatically when lyrics are found', 'After lyrics are found, a speech recogniser listens to the start of each track and sets the lyric timing to match (a minute or more per track, and it needs the free speech helper). Off: lyrics are only found; use “Fine-tune timing…” on a track when you want it.'],
     ['fillArtist', 'Fill in a missing artist from the lyrics match', 'When lyrics are found and confidently matched for a track that has no artist, the artist the lyrics record names is filled in. A Hi-MD disc stores it on the disc (one change, which Undo can take back); a standard disc keeps it on this PC.'],
-    ['rememberLayout', 'Remember the card layout', 'When you move, resize or hide the cards, the program keeps the arrangement and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).'],
+    ['rememberLayout', 'Remember the card layout', 'When you move, resize or hide the cards, or fold them, change tabs or zoom, the program keeps that and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).'],
     ['spatialBinaural', 'Play the spatial version of a track with headphone surround', 'A track that was added with a spatial (multichannel) version plays that version in this window, mixed down for headphones. The recorder and the Sonos rooms always play the normal stereo track. Switched off: the stereo track plays here too.'],
     ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows a still picture of the track (cover, title, artist), not the lyric video. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
     ['allowPatch', 'Allow the experimental firmware patch (MZ-NH700 and similar recorders)', 'Lets a Hi-MD recorder that holds a standard disc send its audio back to this PC, so tracks can play here, be saved, identified, split, combined or cloned. The patch is a small temporary change in the recorder’s memory (nothing is written to the disc or the recorder’s permanent memory) and unplugging the recorder clears it. Switched off: the patch is never used, and tracks without a saved copy can only be played on the recorder by remote control.'],
@@ -2011,19 +2013,36 @@ $('seek').addEventListener('change', () => {
   if (isFinite(audio.duration)) audio.currentTime = audio.duration * $('seek').value / 1000;
 });
 // Casting: the volume is sent while the slider moves, one request at a time; whatever the slider shows last is always the last one sent.
-let volBusy = false, volPending = null;
-function volSend() {
+let volBusy = false, volPending = null, volLast = 0, volTimer = 0;
+function volSend(force) {
   if (volBusy || volPending === null || !castTarget) return;
-  const v = volPending; volPending = null; volBusy = true;
+  // A TV passes every volume step on to its soundbar, so a step for every pixel of the slider makes it fall behind and catch up in jerks: at most about 8 a second to a TV (the last one always goes).
+  const gap = castTarget.kind === 'cast' && !force ? 120 - (Date.now() - volLast) : 0;
+  if (gap > 0) { if (!volTimer) volTimer = setTimeout(() => { volTimer = 0; volSend(); }, gap); return; }
+  const v = volPending; volPending = null; volBusy = true; volLast = Date.now();
   Promise.resolve(api().cast_volume(castTarget.ip, v)).catch(() => {}).finally(() => { volBusy = false; volSend(); });
 }
-let volSync = null;
+let volSync = null, volGen = 0;
 $('vol').addEventListener('change', () => {                                    // let go: show what the TV / speaker really took (it rounds to its own steps)
   if (!(playingRemote && castTarget)) return;
-  clearTimeout(volSync);
-  volSync = setTimeout(async () => { if (volBusy || volPending !== null || !castTarget) return; const v = await api().cast_volume(castTarget.ip); if (v && v.volume !== undefined && !volBusy) $('vol').value = v.volume; }, 1500);
+  clearTimeout(volSync); clearTimeout(volTimer); volTimer = 0; volSend(true);                       // the last position goes at once
+  if (castTarget.kind === 'cast') return;                                                            // a TV: its reported level does not follow what is sent (it passes sound to a soundbar), so the slider stays where you put it
+  const gen = volGen;
+  volSync = setTimeout(async () => {
+    // The slider is only moved to the TV's own figure when the TV has settled somewhere else; a small difference is the TV's rounding, and a reply that arrives
+    // after the slider was touched again is ignored (it used to snap the slider back in the middle of the next drag). A TV that is still catching up is asked once more.
+    for (let tries = 0; tries < 2; tries++) {
+      if (volBusy || volPending !== null || !castTarget || gen !== volGen) return;
+      const v = await api().cast_volume(castTarget.ip);
+      if (gen !== volGen || volBusy || volPending !== null || !v || v.volume === undefined) return;
+      if (Math.abs(v.volume - Number($('vol').value)) <= 2) return;
+      if (tries === 0) { await new Promise(ok => setTimeout(ok, 1500)); continue; }
+      $('vol').value = v.volume;
+    }
+  }, 1500);
 });
 $('vol').addEventListener('input', () => {
+  volGen++;
   if (playingRemote && castTarget) { volPending = Number($('vol').value); clearTimeout(volSync); volSend(); return; }
   audio.volume = $('vol').value / 100;
   try { localStorage.setItem('mdm.volume', $('vol').value); } catch (e) { /* not kept */ }      // this PC's volume is remembered for next time
@@ -5625,6 +5644,7 @@ async function startAdd(paths) {
   const fitBtn = el('button', { textContent: 'Untick files from the end until the rest fit', title: 'Leaves out the last files in the list, one by one, until the ticked ones fit in this format', onclick: () => {
     const on = picked(); for (let i = on.length - 1; i >= 0 && !fits(chosen); i--) on[i].cb.checked = false; refresh(); } });
   const info = el('div', { className: 'notice' });
+  const speedHint = el('div', { className: 'sub' });          // standard disc, SP: how long it will take, and that LP2 / LP4 send faster
   const warn = el('div', { className: 'notice warn' });
   const noteEl = el('div', { className: 'notice warn' });
   const go = el('button', { className: 'primary' });
@@ -5642,6 +5662,10 @@ async function startAdd(paths) {
         : !picked().length ? 'Tick at least one file to add.'
         : !fits(chosen) ? 'They will not fit in ' + chosen.toUpperCase() + '. Untick some files or choose a smaller format.' : '';
       noteEl.textContent = p.note + ' Do not unplug the recorder while it works.';
+      const sendEst = needNet() / 2 + 11 * picked().length;                                        // SP goes in at twice the playing speed, plus about 11 s per track for the recorder to write the disc's contents list
+      speedHint.textContent = chosen === 'sp' && needNet() >= 120
+        ? 'SP is sent at about twice the playing speed, so adding these takes about ' + len(Math.round(sendEst)) + '. LP2 and LP4 are encoded on this PC and send several times faster, at lower sound quality.' : '';
+      speedHint.style.display = speedHint.textContent ? '' : 'none';
     } else {
       const need = needMd(chosen);
       info.textContent = 'The disc has ' + fmtSize(p.freeBytes) + ' free (' + p.trackCountNow + ' tracks now). The ' + picked().length + ' ticked ' + (picked().length === 1 ? 'file needs' : 'files need') + ' about ' + fmtSize(need) + '.';
@@ -5742,7 +5766,7 @@ async function startAdd(paths) {
       el('div', { className: 'sub', textContent: spFiles().length + (spFiles().length === 1 ? ' file has' : ' files have') + ' more than two channels (a 5.1 / 7.1 / Atmos-style bed). The recorder plays a stereo version of each; this program can play the full spatial version in headphone surround.' }),
       el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, keepBox, el('span', { textContent: 'Also keep the spatial version on the disc' })), spBody, helpLink('spatial')));
   }
-  parts.push(nameRow, ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  parts.push(nameRow, ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, speedHint, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
 }async function runUpload(rows, format, kbps, { spatial, group, artistInTitle, discTitle, wantArt, albumAll } = {}) {
@@ -6816,8 +6840,12 @@ $('grpDel').addEventListener('click', () => {                              // se
 
 // ---- The view (card places and sizes, hidden and folded cards, open tabs, window scale, column widths, split-editor size) is NOT kept between runs: the app always starts in the stock layout. ----------
 // It is kept only for this run (sessionStorage, so a page reload inside the app does not lose it); anything an older version saved is removed.
-const viewGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
-const viewSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* not kept */ } };
+// Folded cards, open tabs and the zoom are also kept between runs while Settings > "Remember the card layout" is on (localStorage 'mdm.v.<key>'; the switch is mirrored in 'mdm.rememberLayout').
+const viewKept = k => /^mdm\.(zoom$|tab\.|collapsed\.)/.test(k);
+const viewRemember = () => { try { return localStorage.getItem('mdm.rememberLayout') !== '0'; } catch (e) { return true; } };
+const viewGet = k => { let v = null; try { v = sessionStorage.getItem(k); } catch (e) { /* none */ } if (v === null && viewKept(k) && viewRemember()) { try { v = localStorage.getItem('mdm.v.' + k); } catch (e) { /* none */ } } return v; };
+const viewSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* not kept */ } if (viewKept(k)) { try { if (viewRemember()) localStorage.setItem('mdm.v.' + k, v); } catch (e) { /* not kept */ } } };
+function viewForget() { try { Object.keys(localStorage).filter(k => k.startsWith('mdm.v.')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* none */ } }
 try {
   const old = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && (k === 'mdm.layout' || k === 'mdm.zoom' || k === 'mdm.trackCols' || k === 'mdm.splitSheet' || k.startsWith('mdm.tab.') || k.startsWith('mdm.collapsed.'))) old.push(k); }
   old.forEach(k => localStorage.removeItem(k));
@@ -6888,6 +6916,7 @@ const saveLayout = () => { const j = JSON.stringify(layout); viewSet(LAYOUT_KEY,
 function layoutRememberChanged() {                                         // the Settings switch was flipped
   try { localStorage.setItem(LAYOUT_ON_KEY, appSettings.rememberLayout === false ? '0' : '1'); } catch (e) { /* not kept */ }
   saveLayout();                                                                 // on: keep the layout as it is now; off: forget what was kept
+  if (appSettings.rememberLayout === false) viewForget();                        // off: the folds, tabs and zoom kept earlier go too
 }
 const cardEl = id => document.querySelector('section.card[data-card="' + id + '"]');
 function renderBoard() {
