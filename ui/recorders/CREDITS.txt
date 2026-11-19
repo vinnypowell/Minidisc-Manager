@@ -25,3 +25,5 @@ NH700.jpg  A product image of the Sony MZ-NH700 supplied by the program's owner 
     identification thumbnail; the copyright in the picture remains with its owner (Sony or the retailer) and it can be removed on request.
 
 The pictures were scaled down to 520 pixels wide; they are otherwise unchanged. Creative Commons licences: https://creativecommons.org/licenses/
+
+MDS-JB980.jpg, MDS-JE780.jpg and MDS-NT1.jpg  Product images (retailer and Sony pictures); copyright remains with their owners.

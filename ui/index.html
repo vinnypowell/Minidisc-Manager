@@ -771,6 +771,7 @@
       <section class="card rec-card" data-card="rec">
         <h2 class="card-title">Recorder</h2>
         <div class="rec-head"><div class="rec-head-text"><h1 id="model">-</h1><div class="sub" id="reports">-</div><div class="sub" id="fwInfo" style="white-space: pre-line"></div></div><img id="recPhoto" class="rec-photo hidden" alt=""></div>
+        <div id="modelPick" class="notice hidden" style="margin-top:8px"></div>
         <div id="recInfo" class="rec-info"><div id="recDetails" class="hidden"><div class="eyebrow">ATRAC</div><div class="sub" id="recAtrac"></div><ul class="rec-features" id="recFeatures"></ul><div class="photo-credit" id="recCredit"></div></div></div>
         <div class="clock-row">
           <div><div class="eyebrow">Clock</div><div id="clockText" style="font-weight:600">-</div></div>
@@ -1081,6 +1082,14 @@ async function load(noSync) {
   $('model').textContent = 'Sony ' + r.model;
   $('reports').textContent = r.reports;
   $('fwInfo').textContent = [r.firmware ? 'Firmware version: ' + r.firmware : '', r.year ? 'Recorder introduced: ' + r.year : ''].filter(Boolean).join('\n');
+  { const mp = $('modelPick'), opts = r.chooseModels || [];                               // several decks share one USB ID: ask which one this is, and remember it
+    mp.textContent = ''; mp.classList.toggle('hidden', !(opts.length || r.modelChosen));
+    if (opts.length) {
+      mp.append(el('div', { textContent: 'This recorder shares its USB ID with other decks, so the program cannot tell which model it is. Which one is it?' }),
+        el('div', { className: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, ...opts.map(m => el('button', { textContent: m, onclick: async () => { const x = await api().set_recorder_model(m); if (x && x.error) toast(x.error, true); else load(); } }))));
+    } else if (r.modelChosen) {
+      mp.append(el('span', { className: 'sub', textContent: 'Model chosen by you. ' }), el('a', { href: '#', textContent: 'Not this model? Change', onclick: async e => { e.preventDefault(); await api().set_recorder_model(''); load(); } }));
+    } }
   { const i = r.info, ph = $('recPhoto');
     ph.onerror = () => { ph.classList.add('hidden'); $('recCredit').textContent = ''; };
     ph.classList.toggle('hidden', !(i && i.photo)); if (i && i.photo) ph.src = i.photo; ph.alt = i ? 'Sony ' + i.name : '';

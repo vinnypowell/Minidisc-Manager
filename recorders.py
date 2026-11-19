@@ -88,13 +88,30 @@ MODELS = {
         'NetMD recorder (2004)', 'Line / optical and mic inputs', 'USB downloads at up to 64x speed', 'NiMH battery',
         'Backlit stick remote with Kanji display', 'Digital amp, 6-band equaliser, VPT surround'],
         'N920', ('Kuha455405', 'CC BY-SA 3.0')),
+    # NetMD decks (home hi-fi). The JB980, JE780 and NT1 share one USB ID (054c:0081), so MDS-DECKS is what the program can say when it cannot tell which one is connected.
+    'MDS-JB980': ('MDS-JB980', 'ATRAC Type-S (the Type-R recording codec plus an ATRAC3 DSP for MDLP playback); ' + NETMD_ATRAC, [
+        'Upper-middle-range NetMD deck (2002)', 'Line, optical and coaxial inputs and outputs, and a headphone output',
+        'USB connection for NetMD downloads; PS/2 keyboard input for titles', 'Toroidal transformer and gold-plated connectors',
+        '1-bit DAC and a 24-bit 1-bit sigma-delta ADC; no Control-A1 jack'], 'MDS-JB980', ('Product image (the retailer picture of the MDS-JB980); copyright remains with its owner',)),
+    'MDS-JE780': ('MDS-JE780', 'ATRAC Type-S; ' + NETMD_ATRAC, [
+        'Home NetMD deck (2002)', 'Line, optical and coaxial inputs and outputs, and a headphone output',
+        'USB connection for NetMD downloads; PS/2 keyboard input for titles', '1-bit hybrid-pulse DAC and a 24-bit sigma-delta ADC'], 'MDS-JE780', ('Product image (the picture of the MDS-JE780); copyright remains with its owner',)),
+    'MDS-NT1': ('MDS-NT1', 'ATRAC Type-R; ' + NETMD_ATRAC, [
+        'Compact PC-connectable NetMD deck (2001)', 'Line and headphone outputs; no line input', 'USB connection (it came with OpenMG Jukebox)',
+        'MDLP and group functions', '24-bit delta-sigma DAC'], 'MDS-NT1', ('Product image (the Sony picture of the MDS-NT1); copyright remains with its owner',)),
+    'MDS-DECKS': ('MDS-JB980 / MDS-JE780 / MDS-NT1', NETMD_ATRAC, [
+        'Three Sony NetMD decks from 2001 and 2002 share one USB ID, so the program cannot tell from USB alone which of them this is',
+        'All three connect by USB for NetMD downloads and support MDLP (LP2 / LP4)',
+        'JB980 and JE780: line, optical and coaxial connections and a PS/2 keyboard input; NT1: a compact deck with no line input'], None, None),
 }
 
 
 def lookup(model):
     """The entry for a model name such as 'Sony MZ-NH700' or 'Sony MZ-RH710/MZ-RH910' (the first one named), or None."""
     best = None
-    for key in MODELS:
+    if re.search(r'MDS-JB980\s*/\s*MDS-NT1|MDS-NT1\s*/\s*MDS-JE780|MDS-JE780\s*/\s*MDS-NT1', model or ''):          # the combined name of the three decks
+        best = (0, 'MDS-DECKS')
+    for key in ([] if best else MODELS):
         m = re.search(r'(?<![A-Za-z0-9])' + re.escape(key) + r'(?![A-Za-z0-9])', model or '')
         if m and (best is None or m.start() < best[0]):
             best = (m.start(), key)

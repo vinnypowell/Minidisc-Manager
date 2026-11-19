@@ -62,7 +62,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.33.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.33.3'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -203,7 +203,15 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
     def _device_name(self, index):
         d = self._devices[index]
         if self._is_netmd(index):
-            return '%s (standard disc)' % himd_dev.NETMD_IDS.get((d.idVendor, d.idProduct), 'NetMD recorder')
+            name = himd_dev.NETMD_IDS.get((d.idVendor, d.idProduct), 'NetMD recorder')
+            if '/' in name:                                   # models that share one USB ID (MDS-JB980 / MDS-JE780 / MDS-NT1): the USB product string may say which
+                try:
+                    hit = re.search(r'MDS-(?:JB980|JE780|NT1)', str(d.product or ''), re.I)
+                    if hit:
+                        name = 'Sony ' + hit.group(0).upper()
+                except Exception:
+                    pass
+            return '%s (standard disc)' % name
         return MODELS.get(d.idProduct, 'Hi-MD device')
 
     def load(self, index):
@@ -337,8 +345,15 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
             return {'error': res['error']}
         d = res['result']
         name = himd_dev.NETMD_IDS.get((usb_dev.idVendor, usb_dev.idProduct), 'NetMD recorder')
-        self._recorder_name = (d.get('device') or name).replace('Sony ', '')               # shown on a Google TV's lyric video
-        out = {'model': (d.get('device') or name).replace('Sony ', ''), 'reports': 'Standard MiniDisc (NetMD)', 'revision': '-', 'firmware': d.get('firmware') or '', 'year': recorder_year(d.get('device') or name), 'info': self._recorder_info(d.get('device') or name),
+        self.log('NetMD recorder: %s (USB %04x:%04x, product string %r, firmware %r)' % (d.get('device') or name, usb_dev.idVendor, usb_dev.idProduct, d.get('usbProduct'), d.get('firmware')))     # for reports of a recorder that is not recognised
+        shown = d.get('device') or name                                                     # models that share one USB ID (MDS-JB980 / MDS-JE780 / MDS-NT1) are listed together: the user's saved choice picks one
+        opts = [m.strip() for m in shown.replace('Sony ', '').split('/')] if '/' in shown and 'MDS-' in shown else []
+        self._rec_key, self._rec_opts = '%04x:%04x' % (usb_dev.idVendor, usb_dev.idProduct), opts
+        chosen = False
+        if opts and self._recorder_choices().get(self._rec_key) in opts:
+            shown, chosen = 'Sony ' + self._recorder_choices()[self._rec_key], True
+        self._recorder_name = shown.replace('Sony ', '')               # shown on a Google TV's lyric video
+        out = {'model': shown.replace('Sony ', ''), 'chooseModels': [] if chosen else opts, 'modelChosen': chosen, 'reports': 'Standard MiniDisc (NetMD)', 'revision': '-', 'firmware': d.get('firmware') or '', 'year': recorder_year(shown), 'info': self._recorder_info(shown),
                'clock': {'state': 'unreadable', 'text': 'Not available for standard discs'}, 'mode': 'netmd', 'disc': None}
         if not d['status'].get('discPresent'):
             out['discState'] = 'none'
@@ -383,6 +398,36 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
         except Exception:
             pass
         return out
+
+    _rec_key, _rec_opts = '', []
+
+    def _recorder_choices(self):
+        """The model the user chose for a recorder whose USB ID several models share: {'054c:0081': 'MDS-JB980'} in recorder-choice.json."""
+        try:
+            with open(os.path.join(USER_DIR, 'recorder-choice.json'), encoding='utf-8') as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def set_recorder_model(self, model):
+        """Remembers which of the models that share the connected recorder's USB ID it is ('' forgets the choice)."""
+        if model and model not in self._rec_opts:
+            return {'error': 'That is not one of the possible models.'}
+        data = self._recorder_choices()
+        if model:
+            data[self._rec_key] = model
+        else:
+            data.pop(self._rec_key, None)
+        try:
+            os.makedirs(USER_DIR, exist_ok=True)
+            path = os.path.join(USER_DIR, 'recorder-choice.json')
+            with open(path + '.tmp', 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=1)
+            os.replace(path + '.tmp', path)
+        except OSError as exc:
+            return {'error': 'The choice could not be saved: %s' % exc}
+        return {'ok': True}
 
     def set_clock(self, index):
         if self._is_netmd(index):

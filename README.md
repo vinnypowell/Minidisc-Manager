@@ -2,12 +2,13 @@
 
 A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.33.2 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.33.3 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **0.33.3:** the Sony NetMD decks MDS-JB980, MDS-JE780 and MDS-NT1 now show their own details and picture. They share one USB ID, so when the program cannot tell which is connected it asks, and remembers the answer.
 - **0.33.2:** many more of the pop-ups, progress lines and messages are translated (French, German, Dutch, Spanish); folded cards, open tabs and the zoom are remembered with the card layout; adding SP tracks to a standard disc shows the expected time and notes that LP2 / LP4 send faster; the Surround channels display reads its spatial file only when it is chosen; the volume slider for a Google TV is smoother.
 - **0.33.1:** the visualiser and the Surround channels display now work while playing to a Sonos room, and the card layout (places, sizes, hidden cards) is remembered between runs, with a switch in Settings.
 - **Disc packages (0.33.0):** save a whole disc as one `.mdpack` file and let someone else write a copy of it with their own copy of the program: the audio exactly as stored, the names, groups, disc name, picture, sticker label, group pictures, lyrics and YouTube links. **Disc Extras > Disc Package > Export disc package...** asks where to save it first; **Import package...** checks every file and then writes it to a blank disc of the same kind, with a byte-for-byte check on a Hi-MD disc. The write now shows overall progress, a step list and a time estimate. There is also a **Help** menu (user manual and read me) and a Settings switch for the optional firmware patch on MZ-NH700-type recorders. Everything new is translated into French, German, Dutch and Spanish.

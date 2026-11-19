@@ -78,9 +78,15 @@ async function fetchViaExploit(iface, index) {
 async function listDisc(iface) {
     let name = null;
     try { name = await iface.netMd.getDeviceName(); } catch (e) { /* name is only informative */ }
+    let usbProduct = null;                                     // the USB product string, which can tell apart models that share one USB ID (MDS-JB980 / MDS-JE780 / MDS-NT1)
+    try {
+        usbProduct = (iface.netMd.device && iface.netMd.device.productName) || null;
+        const deck = usbProduct && /MDS-(?:JB980|JE780|NT1)/i.exec(usbProduct);
+        if (deck && name && name.indexOf('/') >= 0) name = 'Sony ' + deck[0].toUpperCase();
+    } catch (e) { /* name only */ }
     const status = await netmd.getDeviceStatus(iface);
     if (status && status.discPresent === false) {                // an empty recorder rejects the "list contents" command: report "no disc" instead
-        return { device: name, firmware: null, status, discTitle: '', writeProtected: false, writable: true, used: 0, left: 0, total: 0, trackCount: 0, groups: [], rawTitle: null, rawTitleW: null };
+        return { device: name, usbProduct, firmware: null, status, discTitle: '', writeProtected: false, writable: true, used: 0, left: 0, total: 0, trackCount: 0, groups: [], rawTitle: null, rawTitleW: null };
     }
     const content = await netmd.listContent(iface);
     const groups = content.groups.map(g => ({
@@ -95,7 +101,7 @@ async function listDisc(iface) {
         let timer; const limit = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timeout')), 4000); });
         firmware = await Promise.race([netmd.getDescriptiveDeviceCode(factory), limit]); clearTimeout(timer);
     } catch (e) { /* only informative */ }
-    return { device: name, firmware, status, discTitle: content.title, writeProtected: content.writeProtected, writable: content.writable,
+    return { device: name, usbProduct, firmware, status, discTitle: content.title, writeProtected: content.writeProtected, writable: content.writable,
              used: content.used, left: content.left, total: content.total, trackCount: content.trackCount, groups, rawTitle, rawTitleW };
 }
 
