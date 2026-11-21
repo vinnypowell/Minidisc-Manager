@@ -48,7 +48,7 @@ function rawEncodeAtrac3(runtimeDir, wavPath, kind) {
 // Windows: atracdenc.exe + sndfile.dll. macOS (Apple silicon): a single program with libsndfile linked in, built from the same source and patch
 // (mac/build_atracdenc.sh), signed ad hoc after stripping. Either way it only runs if it is exactly the file that was checked.
 const AT3P_WIN = process.platform === 'win32';
-const AT3P_EXE_SHA256 = AT3P_WIN ? '52E7CC649A210390AC06CBFD238402559606C4324CC13F34CCC0621D7B71FBCC' : 'E008FB5B9DAE0BFD17B862099A6EE39535B28B6016155AC37C808F2792BA4BDA';
+const AT3P_EXE_SHA256 = AT3P_WIN ? '52E7CC649A210390AC06CBFD238402559606C4324CC13F34CCC0621D7B71FBCC' : (process.arch === 'x64' ? '21CD5EF7CAE69798B63907B627A507164A3B04E693780E872F1E9FDCDCEB06A9' : 'E008FB5B9DAE0BFD17B862099A6EE39535B28B6016155AC37C808F2792BA4BDA');   // macOS: Intel (x64) and Apple silicon builds
 const AT3P_DLL_SHA256 = AT3P_WIN ? '4E3BD2DE8E1485110EAEBEF8E1239471F73D608773831C323BF528E05645655E' : null;
 const AT3P = { at3p: { frame: 2048, kbps: 352 }, hisp: { frame: 1488, kbps: 256 }, hilp: { frame: 376, kbps: 64 } };
 const AT3P_SAMPLES_PER_FRAME = 2048;

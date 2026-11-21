@@ -57,11 +57,13 @@ Read the full guide, including exactly what was and was not tested: **[SPATIAL-A
 
 ## Download
 
-See the Releases page for the Windows installer, the portable zip, the user manual and the Mac disk image (`MiniDisc-Manager-0.34.0-beta-mac-arm64.dmg`).
+See the Releases page for the Windows installer, the portable zip, the user manual and the Mac disk image (`MiniDisc-Manager-0.34.0-beta-mac-arm64.dmg`) and the highly experimental Intel Mac disk image (`MiniDisc-Manager-0.34.0-experimental-mac-x86_64.dmg`).
 
 ## macOS (beta)
 
 A Mac with Apple silicon (M1 or newer) and macOS 13 or newer. Download the `.dmg` from the Releases page, drag the app to Applications and read **READ ME FIRST** in the disk image. The app is not signed by Apple, so the first time you open it you use System Settings > Privacy & Security > Open Anyway; it then offers to install a small background service (macOS only lets a service talk to a recorder), which asks for your Mac password once. It has been tried on one recorder (a Sony MZ-NH700) and one Mac. Yoto, Save to disc, Bluetooth printing and speakers are not in the Mac version, and Burn Audio CD is experimental: see [`macos/mac/RELEASE-NOTES.txt`](macos/mac/RELEASE-NOTES.txt). The source is in [`macos/`](macos/).
+
+**Intel Macs (highly experimental):** there is also a separate disk image for Macs with an Intel chip, `MiniDisc-Manager-0.34.0-experimental-mac-x86_64.dmg`. It is the same version, but it was only built and checked by running its programs under Rosetta on an Apple silicon Mac: it has never been run on a real Intel Mac or with a recorder, and no further development of it is planned. Use it at your own risk, and never on a disc you cannot replace. The Apple silicon version above is the supported one.
 
 ## Languages and installation help
 

@@ -25,6 +25,10 @@ plug in the recorder and wait about a minute. `Uninstall MiniDisc Manager.comman
 
 One Mac mini (M1, macOS 26) with one recorder, a Sony MZ-NH700, and a handful of Hi-MD and standard discs. Copy anything you cannot replace to your Mac before editing a disc.
 
+## Intel Macs (highly experimental)
+
+The Releases page also carries `MiniDisc-Manager-0.34.0-experimental-mac-x86_64.dmg`, the same program built for Intel Macs. It was built on an Apple silicon Mac and only its programs were run there, under Rosetta (ffmpeg, the ATRAC3+ encoder, Node and the USB module, checked); it has never been run on a real Intel Mac or with a recorder, so the recorder hand-over and the mount guard are untried on Intel. Its speech recogniser (for "Listen" lyrics) is built without the GPU and without the fast CPU instructions, so it is slower, and ffmpeg is built without the Intel assembly optimisations. No further development of it is planned. `mac/x64/build_x64_tools.sh` rewrites the build recipes in `mac/` to build the Intel tools under Rosetta.
+
 ## Building from source
 
 The recipes for the tools that come with the app are in `mac/`: `build_ffmpeg_full.sh` (ffmpeg with MP3, https and text filters), `build_atracdenc.sh` (the ATRAC3+ encoder, with its small
