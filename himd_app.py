@@ -62,7 +62,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.33.5'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.34.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -212,7 +212,7 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
                 except Exception:
                     pass
             return '%s (standard disc)' % name
-        return MODELS.get(d.idProduct, 'Hi-MD device')
+        return '%s (Hi-MD disc)' % MODELS.get(d.idProduct, 'Hi-MD device')
 
     def load(self, index):
         with self._lock:

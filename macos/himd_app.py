@@ -1,0 +1,1029 @@
+"""Hi-MD Manager (modern window). Same device code as himd_manager.py, new interface.
+
+The page in ui/index.html talks to the Api class below. Reads only, apart from the
+clock, which is set only when the page asks after the user confirms.
+"""
+import atexit
+import base64
+import datetime
+import functools
+import json
+import os
+import pathlib
+import re
+import secrets
+import shutil
+import shlex
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+import usb.core
+import usb.util
+import webbrowser
+import webview
+
+import cdrip
+import backup_data
+import catalogue
+import cd_audio
+import clone_disc
+import disc_package
+import convert_disc
+import app_settings
+import lp_to_sp
+import groupart
+import copies
+import cover_search
+import disc_edit
+import disc_lookup
+import disc_tools
+import edit_tracks
+import netmd_disc
+import netmd_edit
+import save_pc
+import site_record
+import yoto_disc
+import identify_tracks
+import label_print
+import lyrics
+import lyrics_asr
+import pc_audio
+import play_tracks
+import himd_dev
+import himd_disc
+import himd_fs
+import sonos_cast
+import presplit
+import spatial_disc
+import video_links
+from mdm_common import UNITS_PER_SECOND
+from mdm_paths import (APPDATA, BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, open_path, PLAY_DIR, REC_DIR, USER_DIR, WEBVIEW_DIR)
+
+APP_VERSION = '0.34.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
+FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
+EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
+                              # patch, opt-in; the helper checks the exact firmware (Hn / Hr 1.x) before using it
+
+MODELS = {
+    0x017F: 'MZ-NH1', 0x0181: 'MZ-NH3D', 0x0183: 'MZ-NH900', 0x0185: 'MZ-NH700', 0x0187: 'MZ-NH600',
+    0x01EA: 'MZ-DH10P', 0x021A: 'MZ-RH10', 0x021C: 'MZ-RH910', 0x022D: 'CMT-AH10', 0x023D: 'DS-HMD1',
+    0x0287: 'MZ-RH1',
+}
+# The year each recorder was introduced, from the launch dates on minidisc.org (a model that is not listed shows no year).
+RECORDER_YEARS = {
+    # Hi-MD: the NH models 2004, the DH10P / RH models 2005, the RH1 / M200 2006
+    'NH1': 2004, 'NH3D': 2004, 'NH900': 2004, 'NH800': 2004, 'NHF800': 2004, 'NH700': 2004, 'NH600': 2004, 'NH600D': 2004,
+    'DH10P': 2005, 'RH10': 2005, 'RH710': 2005, 'RH910': 2005, 'RH1': 2006, 'M200': 2006,
+    # NetMD portables
+    'N1': 2001, 'N505': 2002, 'N707': 2002, 'S1': 2002, 'N10': 2002, 'N910': 2003, 'N710': 2003, 'NF810': 2003, 'N510': 2003,
+    'NE410': 2003, 'NE810': 2003, 'NF520D': 2004, 'N920': 2004,
+    # NetMD decks, hi-fi systems and other makers
+    'CMT-C7NT': 2001, 'CMT-M333NT': 2003, 'CMT-M373NT': 2003, 'MDS-NT1': 2001, 'MDS-JE780': 2002, 'MDS-JB980': 2002, 'MDS-S500': 2003,
+    'LAM-1': 2001, 'IM-DR400': 2003, 'IM-DR80': 2003, 'AM-NX1': 2003, 'AM-NX9': 2003,
+}
+
+
+def recorder_year(model):
+    """The year (or 'a - b' when a combined name covers models from different years) a recorder was introduced; None if unknown."""
+    years = {y for code, y in RECORDER_YEARS.items() if re.search(r'(?<![A-Za-z0-9])' + re.escape(code) + r'(?![A-Za-z0-9])', model or '')}
+    if not years:
+        return None
+    lo, hi = min(years), max(years)
+    return str(lo) if lo == hi else '%dâ€“%d' % (lo, hi)
+
+
+
+class _Gate:
+    """The USB lock. Entering it first asks any playback read to stop, so playing never blocks other work."""
+    def __init__(self, before, after=None):
+        self.raw = threading.Lock()
+        self._before = before
+        self._after = after                           # called when the other operation is over: it may have moved the drive
+
+    def __enter__(self):
+        self._before()
+        self.raw.acquire()
+        return self
+
+    def __exit__(self, *exc):
+        self.raw.release()
+        if self._after:
+            self._after()
+
+
+def _fmt_clock(result):
+    if result is None:
+        return {'state': 'unreadable', 'text': 'Could not be read'}
+    when = result[0]
+    if when is None:
+        return {'state': 'unset', 'text': 'Not set'}
+    return {'state': 'set', 'text': when.strftime('%d %b %Y, %H:%M:%S')}
+
+
+# The AcoustID key built into the program (acoustid_full.py).
+try:
+    from acoustid_full import KEY as _BUILTIN_ACOUSTID_KEY
+except ImportError:
+    _BUILTIN_ACOUSTID_KEY = ''
+
+
+class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, disc_package.PackageMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
+          sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, video_links.VideoLinksMixin):
+    def __init__(self):
+        self._window = None
+        self._devices = []
+        self._tracks = []
+        self._thread = None            # playback read in progress, if any
+        self._active = None
+        self._proc = None
+        self._streams = {}             # file name -> state, for the local media server
+        self._cache = {}               # track key -> finished state
+        self._server = None
+        self._port = 0
+        self._token = secrets.token_urlsafe(8)
+        self._disc_key = None
+        self._netmd_from = 0           # self._devices[i] for i >= this is a NetMD recorder (a standard disc is inside)
+        self._loaded_netmd = False     # the recorder the page has loaded holds a standard disc
+        self._netmd_sig = None
+        self._preview_dir = None    # the short 'what was read' previews of the last Identify run
+        self._play_mutex = threading.Lock()   # one 'start a track' at a time; a newer request replaces an older one
+        self._play_seq = 0
+        self._lock = _Gate(self._cancel_extract, self._drive_touched)  # one USB operation at a time (and playing then no longer knows where the drive is parked)
+        self._cast_init()              # Sonos casting state (sonos_cast.py)
+        self._cd_init()                # audio CD state (cd_audio.py)
+        self._yoto_init()              # Yoto sign-in and state (yoto_disc.py)
+        self._edit_init()              # split / combine editor state (edit_tracks.py)
+        self._clone_init()             # disc clone state (clone_disc.py)
+        self._save_init()              # save-to-PC state (save_pc.py)
+        self._site_init()              # the streaming-site recorder windows (site_record.py)
+        self._ly_init()                # lyrics of tracks (lyrics.py)
+        self._dl_init()                # online lookup of a standard disc's artist, album and art (disc_lookup.py)
+        self._catalogue_init()         # which disc is showing, and whether this app changed a standard disc (catalogue.py)
+
+    def _release_devices(self):
+        """Close this process's handles on the recorders: Windows allows only one open handle per device."""
+        for d in self._devices:
+            try:
+                usb.util.dispose_resources(d)
+            except (usb.core.USBError, ValueError):
+                pass
+
+    def scan(self):
+        with self._lock:
+            try:
+                self._release_devices()
+                himd_devs = himd_dev.find_devices()
+                self._devices = himd_devs + himd_dev.find_netmd_devices()
+                self._netmd_from = len(himd_devs)
+            except Exception as exc:
+                self._devices = []
+                self._netmd_from = 0
+                return {'error': 'USB scan failed: %s' % exc, 'devices': []}
+            return {'devices': [
+                {'index': i, 'name': self._device_name(i), 'mode': 'netmd' if self._is_netmd(i) else 'himd',
+                 'usb': '%04X:%04X' % (d.idVendor, d.idProduct)}
+                for i, d in enumerate(self._devices)]}
+
+    def _is_netmd(self, index):
+        return int(index) >= self._netmd_from
+
+    def _can_fetch(self, index):
+        """Only some NetMD recorders (the MZ-RH1) can send a track back to the PC."""
+        return self._devices[int(index)].idProduct in FETCH_PIDS
+
+    def _exploit_possible(self, index):
+        """A recorder that cannot send audio back by itself but may take the experimental download (the helper checks its firmware)."""
+        pid = self._devices[int(index)].idProduct
+        return pid in EXPLOIT_PIDS and pid not in FETCH_PIDS and bool(self._app_setting('allowPatch'))
+
+    def _device_name(self, index):
+        d = self._devices[index]
+        if self._is_netmd(index):
+            name = himd_dev.NETMD_IDS.get((d.idVendor, d.idProduct), 'NetMD recorder')
+            if '/' in name:                                   # models that share one USB ID (MDS-JB980 / MDS-JE780 / MDS-NT1): the USB product string may say which
+                try:
+                    hit = re.search(r'MDS-(?:JB980|JE780|NT1)', str(d.product or ''), re.I)
+                    if hit:
+                        name = 'Sony ' + hit.group(0).upper()
+                except Exception:
+                    pass
+            return '%s (standard disc)' % name
+        return '%s (Hi-MD disc)' % MODELS.get(d.idProduct, 'Hi-MD device')
+
+    def load(self, index):
+        with self._lock:
+            try:
+                usb_dev = self._devices[int(index)]
+            except (IndexError, ValueError):
+                return {'error': 'That recorder is no longer connected. Press rescan.'}
+            self._loaded_netmd = self._is_netmd(index)
+            if self._loaded_netmd:
+                return self._load_netmd(usb_dev)
+            try:
+                dev = himd_dev.Device(usb_dev)
+                inq = dev.inquiry()
+                try:
+                    clock = _fmt_clock(dev.get_time())
+                except himd_dev.HiMDError:
+                    clock = _fmt_clock(None)
+                self._recorder_name = MODELS.get(usb_dev.idProduct, 'Hi-MD device')      # shown on a Google TV's lyric video
+                out = {
+                    'model': MODELS.get(usb_dev.idProduct, 'Hi-MD device'),
+                    'reports': '%s %s' % (inq['vendor'], inq['product']),
+                    'revision': inq['revision'], 'firmware': (inq['revision'] or '').strip(), 'year': recorder_year(MODELS.get(usb_dev.idProduct, '')), 'info': self._recorder_info(MODELS.get(usb_dev.idProduct, '')),
+                    'clock': clock,
+                    'disc': None,
+                }
+                cap = dev.capacity()
+                if not cap:
+                    out['discState'] = 'none'
+                    return out
+                try:
+                    fs = himd_fs.Fat16(dev)
+                    disc = himd_disc.Disc(fs)
+                except (himd_fs.FatError, himd_dev.HiMDError) as exc:
+                    out['discState'] = 'unreadable'
+                    out['discMessage'] = str(exc)
+                    return out
+                groups = disc.groups()
+                tracks = disc.tracks()
+                for t in tracks:
+                    g = next((g for g in groups if g['first'] <= t['number'] <= g['last']), None)
+                    t['group'] = (g['title'] or 'Group %d' % g['index']) if g else ''
+                    t['groupIndex'] = g['index'] if g else 0
+                    t['groupTitle'] = g['title'] if g else ''
+                    t['deletable'] = t['codec'] in ('MP3', 'PCM', 'A3+', 'AT3')
+                    t['secure'] = t['codec'] != 'MP3'            # deleting needs the signing session; the audio is the disc's only copy
+                self._tracks = tracks
+                lyrics_stale = self._ly_on_load(fs, tracks)           # lyrics kept on this PC and in LYRICS.TXT on the disc: marks each track
+                try:
+                    self._disc_key = self._disc_id(fs, disc)
+                except Exception:
+                    self._disc_key = None
+                total = fs.cluster_count * fs.cluster_bytes
+                free = fs.free_clusters() * fs.cluster_bytes
+                self._disc_free = free                               # for edit_staged_status
+                cover = None                                       # a picture stored on the disc as COVER.JPG in the root folder
+                try:
+                    ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'COVER.JPG'), None)
+                    if ent and 0 < ent['size'] <= 1500000:
+                        cover = 'data:image/jpeg;base64,' + base64.b64encode(fs.read_file('/COVER.JPG')).decode()
+                except Exception:
+                    cover = None
+                self._cover_url = cover                            # the lyric video for a Google TV draws this picture
+                label = None                                       # the sticker label stored on the disc as LABEL.JPG in the root folder
+                try:
+                    ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'LABEL.JPG'), None)
+                    if ent and 0 < ent['size'] <= 1500000:
+                        label = 'data:image/jpeg;base64,' + base64.b64encode(fs.read_file('/LABEL.JPG')).decode()
+                except Exception:
+                    label = None
+                self._ga_disc = {}                                     # the group pictures stored on the disc as GROUPART.JSN in the root folder
+                try:
+                    ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'GROUPART.JSN'), None)
+                    if ent and 0 < ent['size'] <= 4000000:
+                        self._ga_disc = self._ga_parse(fs.read_file('/GROUPART.JSN'))
+                except Exception:
+                    self._ga_disc = {}
+                tracklist, has_list, raw, listed = 'unknown', False, None, False      # TRACKS.CSV in the root folder: is it there, and does it match the tracks?
+                try:
+                    ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'TRACKS.CSV'), None)
+                    has_list = ent is not None
+                    raw = bytes(fs.read_file('/TRACKS.CSV')) if ent else None
+                    listed = True
+                except Exception:
+                    pass
+                self._video_on_load(tracks, raw)                         # YouTube links: the PC's list plus those in the disc's track list; marks each track
+                if listed:
+                    tracklist = ('current' if raw == self._tracklist_bytes(tracks) else 'stale') if raw is not None else ('none' if tracks else 'current')
+                extras = {}                                            # sizes of the small files kept in the root folder: lyrics, picture, track list
+                try:
+                    for e in fs.listdir('/'):
+                        k = {'LYRICS.TXT': 'lyrics', 'COVER.JPG': 'cover', 'LABEL.JPG': 'label', 'TRACKS.CSV': 'list', 'GROUPART.JSN': 'groupart'}.get(e['short'].upper())
+                        if k and not e['dir']:
+                            extras[k] = e['size']
+                except Exception:
+                    pass
+                try:                                                   # video links live inside TRACKS.CSV: show their bytes as "Video", the rest as "Track list"
+                    if raw and 'list' in extras:
+                        import csv as _csv, io as _io
+                        vb = sum(len((r.get('Video') or '').strip().encode('utf-8')) + 1 for r in _csv.DictReader(_io.StringIO(bytes(raw).decode('utf-8-sig'))) if (r.get('Video') or '').strip())
+                        if vb:
+                            extras['video'] = vb
+                            extras['list'] = max(0, extras['list'] - vb)
+                except Exception:
+                    pass
+                try:                                                   # spatial (multichannel) versions kept in the root folder: marks the tracks that have one
+                    sp_bytes, sp_orphans = self._spatial_on_load(fs, tracks)
+                    if sp_bytes:
+                        extras['spatial'] = sp_bytes
+                except Exception as exc:
+                    sp_orphans = 0
+                    self.log('spatial on load failed: %s' % exc)
+                out['discState'] = 'ok'
+                self._catalogue_note(self._disc_key, disc.disc_title(), tracks, out.get('model', ''))
+                out['disc'] = {'title': disc.disc_title(), 'total': total, 'free': free,
+                               'tracks': tracks, 'seconds': sum(t['seconds'] for t in tracks),
+                               'blockSize': 16384, 'cover': cover, 'label': label, 'tracklist': tracklist, 'hasTracklist': has_list, 'groupArt': {'pc': self._ga_state()['pc'], 'disc': self._ga_disc}, 'lyricsStale': lyrics_stale,
+                               'audioBytes': getattr(disc, 'audio_bytes', None), 'extras': extras, 'spatialOrphans': sp_orphans,
+                               'key': ('himd-' + self._disc_key) if self._disc_key else None}       # stable disc id: the page keeps equalizer settings per disc
+                return out
+            except usb.core.USBError as exc:
+                return {'error': 'Could not talk to the recorder (%s). Close any other program that uses '
+                                 'it, then reload.' % exc}
+            except himd_dev.HiMDError as exc:
+                return {'error': str(exc)}
+
+    def _load_netmd(self, usb_dev):
+        """A standard MiniDisc: read through netmd_helper.js. Shaped like a Hi-MD load so the page can reuse it."""
+        res = self._run_helper('list', {}, helper=NETMD_HELPER)
+        if 'error' in res:
+            return {'error': res['error']}
+        d = res['result']
+        name = himd_dev.NETMD_IDS.get((usb_dev.idVendor, usb_dev.idProduct), 'NetMD recorder')
+        self.log('NetMD recorder: %s (USB %04x:%04x, product string %r, firmware %r)' % (d.get('device') or name, usb_dev.idVendor, usb_dev.idProduct, d.get('usbProduct'), d.get('firmware')))     # for reports of a recorder that is not recognised
+        shown = d.get('device') or name                                                     # models that share one USB ID (MDS-JB980 / MDS-JE780 / MDS-NT1) are listed together: the user's saved choice picks one
+        opts = [m.strip() for m in shown.replace('Sony ', '').split('/')] if '/' in shown and 'MDS-' in shown else []
+        self._rec_key, self._rec_opts = '%04x:%04x' % (usb_dev.idVendor, usb_dev.idProduct), opts
+        chosen = False
+        if opts and self._recorder_choices().get(self._rec_key) in opts:
+            shown, chosen = 'Sony ' + self._recorder_choices()[self._rec_key], True
+        self._recorder_name = shown.replace('Sony ', '')               # shown on a Google TV's lyric video
+        out = {'model': shown.replace('Sony ', ''), 'chooseModels': [] if chosen else opts, 'modelChosen': chosen, 'reports': 'Standard MiniDisc (NetMD)', 'revision': '-', 'firmware': d.get('firmware') or '', 'year': recorder_year(shown), 'info': self._recorder_info(shown),
+               'clock': {'state': 'unreadable', 'text': 'Not available for standard discs'}, 'mode': 'netmd', 'disc': None}
+        if not d['status'].get('discPresent'):
+            out['discState'] = 'none'
+            return out
+        tracks = []
+        for g in d['groups']:
+            for t in g['tracks']:
+                tracks.append({'number': t['index'] + 1, 'title': t['title'] or '(untitled)', 'artist': '', 'album': '',
+                               'codec': t['codec'] + (' mono' if t['mono'] else ''), 'kbps': {'SP': 292, 'LP2': 132, 'LP4': 66}.get(t['codec'], 0),
+                               'seconds': t['seconds'], 'blocks': t['seconds'] * UNITS_PER_SECOND, 'key': '',
+                               'group': g['title'] or '', 'groupIndex': 0, 'groupTitle': g['title'] or '',
+                               'deletable': not d['writeProtected'], 'secure': False})
+        copies = self._copy_index()                                                     # read once, not once per track
+        for t in tracks:
+            t['hasCopy'] = self._find_copy(t['title'], t['seconds'], copies, t['codec']) is not None       # playable here from the saved copy
+        tracks.sort(key=lambda t: t['number'])
+        self._netmd_details_apply(tracks)                                               # the artist and album this PC remembers (a standard disc cannot store them)
+        self._tracks = tracks
+        self._ly_on_load_netmd(tracks)
+        self._video_on_load(tracks)
+        self._disc_key = None
+        self._netmd_disc_title = d['discTitle'] or ''                                   # a standard disc has no artist / album fields: the TV shows this instead
+        writable = d.get('writable')                                                     # the disc's "recordable" flag; a pre-recorded (pre-mastered) commercial disc lacks it
+        self._netmd_commercial = writable is False
+        try:
+            self.log('standard disc writable=%s writeProtected=%s commercial=%s' % (writable, d.get('writeProtected'), self._netmd_commercial))
+        except Exception:
+            pass
+        self._netmd_sig = '%s|%s|%s' % (d['used'], d['trackCount'], d['discTitle'])      # tells one state of the disc from another
+        self._catalogue_note_netmd(d['discTitle'] or '', tracks, out.get('model', ''))
+        out['canFetch'] = usb_dev.idProduct in FETCH_PIDS
+        out['canExploit'] = usb_dev.idProduct in EXPLOIT_PIDS and usb_dev.idProduct not in FETCH_PIDS and bool(self._app_setting('allowPatch'))
+        out['canHimd'] = self._himd_capable(usb_dev)
+        out['discState'] = 'ok'
+        out['disc'] = {'title': d['discTitle'] or '', 'total': d['total'], 'free': d['left'], 'tracks': tracks,
+                       'seconds': sum(t['seconds'] for t in tracks), 'blockSize': 1, 'netmd': True,
+                       'writeProtected': d['writeProtected'], 'perSecond': UNITS_PER_SECOND, 'commercial': self._netmd_commercial,
+                       'key': self._netmd_disc_key(tracks),                  # the page keeps equalizer settings per disc
+                       'pcCover': self._dl_cover_url(self._netmd_disc_key(tracks))}       # album art found online, kept on this PC (not on the disc)
+        try:
+            self._dl_background()                                                # artist, album and art found in the background, once per disc
+        except Exception:
+            pass
+        return out
+
+    _rec_key, _rec_opts = '', []
+
+    def _recorder_choices(self):
+        """The model the user chose for a recorder whose USB ID several models share: {'054c:0081': 'MDS-JB980'} in recorder-choice.json."""
+        try:
+            with open(os.path.join(USER_DIR, 'recorder-choice.json'), encoding='utf-8') as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def set_recorder_model(self, model):
+        """Remembers which of the models that share the connected recorder's USB ID it is ('' forgets the choice)."""
+        if model and model not in self._rec_opts:
+            return {'error': 'That is not one of the possible models.'}
+        data = self._recorder_choices()
+        if model:
+            data[self._rec_key] = model
+        else:
+            data.pop(self._rec_key, None)
+        try:
+            os.makedirs(USER_DIR, exist_ok=True)
+            path = os.path.join(USER_DIR, 'recorder-choice.json')
+            with open(path + '.tmp', 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=1)
+            os.replace(path + '.tmp', path)
+        except OSError as exc:
+            return {'error': 'The choice could not be saved: %s' % exc}
+        return {'ok': True}
+
+    def set_clock(self, index):
+        if self._is_netmd(index):
+            return {'error': 'Standard discs have no clock setting here.'}
+        with self._lock:
+            try:
+                dev = himd_dev.Device(self._devices[int(index)])
+                dev.set_time(datetime.datetime.now().replace(microsecond=0))
+                return {'clock': _fmt_clock(dev.get_time())}
+            except (usb.core.USBError, himd_dev.HiMDError, IndexError, ValueError) as exc:
+                return {'error': 'Setting the clock failed: %s' % exc}
+
+    def name_release(self, rid):
+        """The tracks of one MusicBrainz release (every side / disc in one list), for naming tracks recorded from a record."""
+        try:
+            return {'release': cdrip.release_flat(rid)}
+        except cdrip.CdError as exc:
+            return self._cd_fail(exc)
+
+    ACOUSTID_BUILTIN_KEY = _BUILTIN_ACOUSTID_KEY   # the key itself is used by identify_tracks.IdentifyMixin
+
+    # -- adding tracks (done by himd-js through helper/himd_helper.js) --
+    def _run_helper(self, cmd, args, on_event=None, helper=None, idle_timeout=None):
+        """idle_timeout: seconds without any output after which the helper is judged stuck and ended (for writes, which normally answer in well under that)."""
+        if not os.path.exists(NODE_EXE):
+            return {'error': 'The bundled runtime is missing (%s). Re-copy the runtime folder.' % NODE_EXE}
+        for d in self._devices:                       # make sure this process is not holding the recorder
+            try:
+                usb.util.dispose_resources(d)
+            except usb.core.USBError:
+                pass
+        env = dict(os.environ)
+        if helper == NETMD_HELPER and cmd in catalogue.NETMD_WRITES:
+            self._netmd_wrote = True                  # the catalogue then treats the next load of this standard disc as the same disc, changed
+        proc = subprocess.Popen([NODE_EXE, helper or HELPER, cmd, json.dumps(args)], stdout=subprocess.PIPE,
+                                stdin=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, text=True,
+                                encoding='utf-8', errors='replace',
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        self._proc = proc
+        result, error, other = None, None, []
+        last, stuck = [time.time()], []
+        if idle_timeout:
+            def watchdog():
+                while proc.poll() is None:
+                    time.sleep(2)
+                    if proc.poll() is None and time.time() - last[0] > idle_timeout:
+                        stuck.append(True)
+                        try:
+                            proc.kill()
+                        except OSError:
+                            pass
+                        return
+            threading.Thread(target=watchdog, daemon=True).start()
+        for line in proc.stdout:
+            last[0] = time.time()
+            try:
+                msg = json.loads(line)
+            except ValueError:
+                other.append(line.strip())
+                continue
+            if 'event' in msg:
+                if msg.get('event') == 'timing':          # per-track NetMD transfer times, for finding where adding tracks spends its time
+                    self.log('NetMD timing: "%s" (%ss of audio, %s KB): PC work before %.1fs, recorder ready %.1fs, sending %.1fs, finishing (table of contents) %.1fs, total %.1fs' % (
+                        msg.get('name'), msg.get('seconds'), msg.get('kb'), msg.get('gapMs', 0) / 1000.0, msg.get('prepareMs', 0) / 1000.0, msg.get('sendMs', 0) / 1000.0, msg.get('finishMs', 0) / 1000.0, msg.get('totalMs', 0) / 1000.0))
+                if on_event:
+                    on_event(msg)
+            elif 'result' in msg:
+                result = msg['result']
+            elif 'error' in msg:
+                error = msg['error']
+        proc.wait()
+        if stuck and result is None:
+            return {'error': 'The recorder stopped answering after %d seconds, so the operation was ended. The disc may be left half changed: '
+                             'unplug and replug the USB cable (and reseat the disc), then check the track list before doing anything else.' % idle_timeout}
+        if error:
+            return {'error': error}
+        if result is None:
+            return {'error': 'The helper stopped without a result. %s' % ' '.join(other[-3:])}
+        return {'result': result}
+
+    def set_zoom(self, factor):
+        """Scales the whole window like a browser page (Shift and + / -). 1.0 is normal size."""
+        try:
+            factor = max(0.5, min(3.0, float(factor)))
+            wv = self._window.native.webview               # the WebView2 control; its zoom must be set on the window's own thread
+            from System import Func, Type
+            def apply():
+                wv.ZoomFactor = factor
+            if wv.InvokeRequired:
+                wv.Invoke(Func[Type](apply))
+            else:
+                apply()
+            return {'zoom': factor}
+        except Exception as exc:
+            return {'error': 'Could not change the size: %s' % exc}
+
+    def writes_status(self):
+        """macOS only: are changes to the disc allowed right now? The background service refuses every change to the disc until the user allows them for a
+        while (and switches them off again by itself). {supported, on, seconds} - not supported (and so not shown) on Windows.
+        DECISION (user, 2026-11-20): the background service now simply allows changes, so the "Disc changes" button is not shown on the Mac either."""
+        if True or sys.platform != 'darwin':
+            return {'supported': False}
+        try:
+            r = himd_dev._LINK.call('status')
+            return {'supported': True, 'on': bool(r.get('writes')), 'always': bool(r.get('writesAlways')), 'seconds': int(r.get('writesSecondsLeft') or 0)}
+        except Exception as exc:
+            return {'supported': True, 'error': str(exc)}
+
+    def recorder_wait(self):
+        """macOS only: how many seconds the background service still waits before it takes the recorder over from macOS (0 when it is not waiting)."""
+        if sys.platform != 'darwin':
+            return {'seconds': 0}
+        try:
+            return {'seconds': int(himd_dev.service_status().get('settleSeconds') or 0)}
+        except Exception:
+            return {'seconds': 0}
+
+    def writes_set(self, enabled, minutes=20, always=False):
+        """macOS only: allow changes to the disc for `minutes`, or keep them on until switched off (`always`, for testing), or switch them off now."""
+        if sys.platform != 'darwin':
+            return {'supported': False}
+        try:
+            minutes = max(1, min(int(minutes), 120))
+            r = himd_dev._LINK.call('writes', {'enabled': bool(enabled), 'minutes': minutes, 'always': bool(enabled and always)})
+            self.log('disc changes %s' % (('kept on until switched off' if always else 'allowed for %d minutes' % minutes) if enabled else 'switched off'))
+            return {'supported': True, 'on': bool(r.get('writes')), 'always': bool(r.get('always')), 'seconds': int(r.get('secondsLeft') or 0)}
+        except Exception as exc:
+            return {'supported': True, 'error': str(exc)}
+
+    def log(self, text):
+        """Page-side diagnostics (audio events, script errors) -> app.log (next to the app, or under AppData when installed)."""
+        try:
+            os.makedirs(USER_DIR, exist_ok=True)
+            path = os.path.join(USER_DIR, 'app.log')
+            if os.path.exists(path) and os.path.getsize(path) > 2 * 1024 * 1024:     # keep the log small: one older copy
+                os.replace(path, path + '.old')
+            with open(path, 'a', encoding='utf-8') as f:
+                f.write('%s %s\n' % (datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3], str(text)[:500]))
+        except OSError:
+            pass
+        return {'ok': True}
+
+    def app_info(self):
+        """The version, and whether this is the packaged program (installed or unzipped) rather than the source folder."""
+        return {'version': APP_VERSION, 'packaged': FROZEN, 'mac': sys.platform == 'darwin', 'beta': sys.platform == 'darwin'}
+
+    def first_run_notice(self):
+        """An installed copy shows a safety notice once (what the program can do to a disc, and to back up first)."""
+        return {'show': FROZEN and not os.path.exists(FIRST_RUN_FILE)}
+
+    def ack_first_run(self):
+        try:
+            os.makedirs(USER_DIR, exist_ok=True)
+            with open(FIRST_RUN_FILE, 'w', encoding='utf-8') as f:
+                f.write('The first-run notice was accepted on %s.\n' % datetime.datetime.now().isoformat(timespec='seconds'))
+        except OSError:
+            pass
+        return {'ok': True}
+
+    def open_driver_guide(self, lang=''):
+        """Opens DRIVER-SETUP.html (how to put the WinUSB driver on a recorder) in the default browser, in the program's language (the page holds
+        English, French, German, Dutch and Spanish and reads the language from the part after the #)."""
+        if sys.platform == 'darwin':                                  # on a Mac there is no driver to set up: the Mac setup guide is opened instead
+            for guide in (os.path.join(HERE, 'DMG-READ-ME.txt'), os.path.join(HERE, 'mac', 'DMG-READ-ME.txt')):
+                if os.path.isfile(guide):
+                    open_path(guide)
+                    return {'ok': True}
+            return {'error': 'The Mac setup guide (DMG-READ-ME.txt) is missing from the app.'}
+        path = os.path.join(HERE, 'DRIVER-SETUP.html')
+        if not os.path.isfile(path):
+            return {'error': 'The driver guide (DRIVER-SETUP.html) is missing from the app folder.'}
+        try:
+            lang = lang if lang in ('en', 'fr', 'de', 'nl', 'es') else ''
+            if lang:
+                webbrowser.open(pathlib.Path(path).as_uri() + '#' + lang)
+            else:
+                open_path(path)
+        except OSError as exc:
+            return {'error': 'Could not open the driver guide: %s' % exc}
+        return {'ok': True}
+
+    GUIDES = ('SPATIAL-AUDIO.txt', 'README.txt', 'MiniDisc-Manager-User-Manual.pdf')
+
+    def open_guide(self, name='SPATIAL-AUDIO.txt'):
+        """Opens one of the guides that come with the program (the spatial audio guide, the full read me, the PDF user manual) in the default viewer."""
+        if name not in self.GUIDES:
+            return {'error': 'Unknown guide.'}
+        path = os.path.join(HERE, name)
+        if not os.path.isfile(path):
+            return {'error': 'The guide (%s) is missing from the program folder.' % name}
+        try:
+            open_path(path)
+        except OSError as exc:
+            return {'error': 'Could not open the guide: %s' % exc}
+        return {'ok': True}
+
+    def pick_files(self):
+        kind = getattr(getattr(webview, 'FileDialog', None), 'OPEN', None) or webview.OPEN_DIALOG
+        types = ('Audio files (*.mp3;*.wav;*.flac;*.m4a;*.ogg;*.aac;*.wma;*.aif;*.aiff;*.dts;*.dtshd;*.ac3;*.eac3;*.thd;*.mlp;*.mka;*.mkv;*.m2ts)',)
+        paths = self._window.create_file_dialog(kind, allow_multiple=True, file_types=types)
+        return {'paths': list(paths or [])}
+
+    def plan_upload(self, paths):
+        """Dry run: reads the disc, writes nothing."""
+        with self._lock:
+            if self._loaded_netmd:
+                return self._run_helper('plan', {'files': list(paths)}, helper=NETMD_HELPER)
+            return self._run_helper('plan', {'files': list(paths)})
+
+    def upload(self, files, fmt='sp', mp3_kbps=192):
+        """WRITES TO THE DISC. `files` is a list of {path, title, artist, album}. On a standard disc `fmt` is sp, lp2 or lp4; on a
+        Hi-MD disc it is auto, pcm, mp3, lp2, lp4, hisp (ATRAC3+ Hi-SP 256 kbps), hilp (Hi-LP 64 kbps) or at3p (ATRAC3+ 352 kbps); mp3_kbps: 128, 192, 256 or 320 when
+        audio has to be encoded to MP3."""
+        def progress(msg):
+            if self._window:
+                self._window.evaluate_js('window.onUploadProgress && window.onUploadProgress(%s)' % json.dumps(msg))
+        with self._lock:
+            self._drop_cache()
+            if not self._loaded_netmd:                 # Hi-MD: automatic (MP3 as MP3, the rest as PCM), or one chosen format for every file
+                try:
+                    kbps = int(mp3_kbps)
+                except (TypeError, ValueError):
+                    kbps = 192
+                return self._run_helper('upload', {'files': list(files), 'format': fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp') else 'auto',
+                                                   'mp3Kbps': kbps if kbps in (128, 192, 256, 320) else 192}, progress)
+            fmt = fmt if fmt in ('sp', 'lp2', 'lp4') else 'sp'
+            res = self._run_helper('upload', {'files': list(files), 'copyDir': COPIES_DIR, 'format': fmt}, progress, helper=NETMD_HELPER)
+            try:
+                self._save_copies((res.get('result') or {}).get('copies'), fmt)
+            except OSError:
+                pass                                       # the tracks are on the disc; only playing them here is affected
+            return res
+
+
+
+def _sweep_temp(min_age=300):
+    """Deletes the working folders of earlier runs from the Temp folder (the split editor's copy of a track, a split or clone in progress,
+    the disc picture): they are only needed while a window is open. Folders younger than `min_age` seconds are left alone."""
+    base = tempfile.gettempdir()
+    try:
+        names = os.listdir(base)
+    except OSError:
+        return
+    now = time.time()
+    for name in names:
+        if name.startswith(('mdm-split-', 'mdm-edit-', 'mdm-clone-', 'mdm-cover-', 'mdm-preview-', 'mdm-listen-', 'mdm-presplit-')):
+            path = os.path.join(base, name)
+            try:
+                if os.path.isdir(path) and now - os.path.getmtime(path) > min_age:
+                    shutil.rmtree(path, ignore_errors=True)
+            except OSError:
+                pass
+
+
+WINDOW_FILE = os.path.join(APPDATA, 'window.json')     # the window's size, place and maximised state
+WINDOW_DEFAULT, WINDOW_MIN = (1280, 820), (820, 560)
+
+
+class WindowMemory:
+    """Remembers where the window was and how big, and whether it was maximised, and puts it back at the next start. Kept in the same logical
+    units the window library uses for creating and resizing, so the size does not drift on a scaled display. Anything unreadable or nonsensical
+    (a monitor that is gone, a damaged file) is ignored and the window opens at its default size."""
+
+    def __init__(self):
+        self.width, self.height = WINDOW_DEFAULT
+        self.x = self.y = None
+        self.maximized = False
+        self._timer = None
+        self._lock = threading.Lock()
+        self._start_size()                                              # always opens at a size that shows the full width of the cards; last time's size is not used
+
+    def _start_size(self):
+        """The same start size every time: wide enough for the whole row of cards, tall enough to show most things, centred, not maximised."""
+        try:
+            sw, sh = webview.screens[0].width, webview.screens[0].height
+            try:
+                import ctypes
+                scale = max(1.0, ctypes.windll.user32.GetDpiForSystem() / 96.0)     # the screen is reported in real pixels, the window is sized in scaled (logical) units
+            except Exception:
+                scale = 1.0
+            sw, sh = int(sw / scale), int(sh / scale)
+        except Exception:
+            return                                                      # no screen information: the default size
+        mac = sys.platform == 'darwin'                                      # on a Mac a smaller window leaves room for the Dock, the menu bar and a remote-desktop view
+        w = min(sw - 40, min(1600 if mac else 2600, max(1100 if mac else 1400, int(sw * (.6 if mac else .8)))))     # 80 % of the screen's width (1400 to 2600), so the whole row of cards shows
+        h = min(sh - (160 if mac else 80), min(1000 if mac else 1500, max(700 if mac else 820, int(sh * (.7 if mac else .88)))))     # 88 % of its height: most of the page, but not full screen
+        self.width, self.height = max(WINDOW_MIN[0], w), max(WINDOW_MIN[1], h)
+        self.x, self.y = max(0, (sw - self.width) // 2), max(0, (sh - self.height) // 2 - 20)
+        self.maximized = False
+
+    def _load(self):
+        try:
+            with open(WINDOW_FILE, 'r', encoding='utf-8') as f:
+                d = json.load(f)
+            w, h = int(d['width']), int(d['height'])
+            if WINDOW_MIN[0] <= w <= 10000 and WINDOW_MIN[1] <= h <= 6000:
+                self.width, self.height = w, h
+            x, y = d.get('x'), d.get('y')
+            if isinstance(x, int) and isinstance(y, int) and self._on_a_screen(x, y):
+                self.x, self.y = x, y
+            self.maximized = bool(d.get('maximized'))
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+
+    @staticmethod
+    def _on_a_screen(x, y):
+        """True if the window's title-bar area would be on some screen (so a removed monitor cannot leave it out of reach)."""
+        try:
+            screens = [(s.x, s.y, s.width, s.height) for s in webview.screens]
+        except Exception:
+            return -200 <= x <= 7000 and -50 <= y <= 4000
+        px, py = x + 120, y + 20
+        return any(sx - 200 <= px < sx + sw + 200 and sy - 50 <= py < sy + sh for sx, sy, sw, sh in screens)
+
+    def save(self):
+        with self._lock:
+            data = {'width': self.width, 'height': self.height, 'x': self.x, 'y': self.y, 'maximized': self.maximized}
+            try:
+                os.makedirs(os.path.dirname(WINDOW_FILE), exist_ok=True)
+                tmp = WINDOW_FILE + '.tmp'
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    json.dump(data, f)
+                os.replace(tmp, WINDOW_FILE)
+            except OSError:
+                pass
+
+    def _later(self):                                                   # a drag fires many events: write once, a moment after the last
+        if self._timer:
+            self._timer.cancel()
+        self._timer = threading.Timer(1.0, self.save)
+        self._timer.daemon = True
+        self._timer.start()
+
+    # window events (the library calls these with the new values)
+    def on_resized(self, width, height):
+        if not self.maximized and width >= WINDOW_MIN[0] and height >= WINDOW_MIN[1]:      # a maximised window's size is not the one to remember
+            self.width, self.height = int(width), int(height)
+            self._later()
+
+    def on_moved(self, x, y):
+        if not self.maximized:
+            self.x, self.y = int(x), int(y)
+            self._later()
+
+    def on_maximized(self):
+        self.maximized = True
+        self._later()
+
+    def on_restored(self):
+        self.maximized = False
+        self._later()
+
+
+def _osa_quote(text):
+    """A string as AppleScript writes it (inside double quotes: backslash and quote escaped)."""
+    return '"' + text.replace(chr(92), chr(92) + chr(92)).replace('"', chr(92) + '"') + '"'
+
+
+def _mac_dialog(text, buttons, default, icon='note', title='MiniDisc Manager'):
+    """A native macOS dialog. Returns the label of the button pressed, or None if it could not be shown or was closed."""
+    script = 'display dialog %s with title %s buttons {%s} default button %s with icon %s' % (
+        _osa_quote(text), _osa_quote(title), ', '.join(_osa_quote(b) for b in buttons), _osa_quote(default), icon)
+    try:
+        r = subprocess.run(['/usr/bin/osascript', '-e', script], capture_output=True, text=True, timeout=3600)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    for b in buttons:
+        if 'button returned:' + b in r.stdout:
+            return b
+    return None
+
+
+def _mac_service_setup():
+    """macOS, packaged app only: the first time (and after an update) the background service that talks to the recorder is installed. macOS allows that only
+    with an administrator's password, which it asks for in its own dialog. The app then starts again so that it finds the service."""
+    if sys.platform != 'darwin' or not FROZEN or os.environ.get('MDM_SERVICE_SETUP_DONE'):
+        return
+    nl = chr(10)
+    installer = os.path.join(HERE, 'mac_install.sh')
+    stamp_file = os.path.join(HERE, 'service-version.txt')
+    installed_stamp = '/Library/Application Support/MiniDiscManager/service-version.txt'
+    if not os.path.isfile(installer) or not os.path.isfile(stamp_file):
+        return
+    try:
+        want = open(stamp_file, encoding='utf-8').read().strip()
+        have = open(installed_stamp, encoding='utf-8').read().strip() if os.path.isfile(installed_stamp) else ''
+    except OSError:
+        return
+    if want == have and os.path.exists('/var/run/minidisc-manager.sock'):
+        return
+    first = not have
+    text = ('MiniDisc Manager needs to ' + ('install' if first else 'update') + ' a small background service so that it can talk to your MiniDisc recorder over USB. '
+            'macOS only allows this with an administrator password.' + nl + nl +
+            'What happens next:' + nl +
+            '1. macOS asks for your Mac password (this one time' + ('' if first else ' per update') + ').' + nl +
+            '2. The service is ' + ('installed' if first else 'updated') + ' (a few seconds).' + nl +
+            '3. MiniDisc Manager starts again by itself.' + nl + nl +
+            'The service only ever talks to MiniDisc recorders and the files you give it. You can remove it at any time: the Read Me in the MiniDisc Manager disk image says how.')
+    if _mac_dialog(text, ['Not now', 'Set up'], 'Set up', 'note', 'MiniDisc Manager: one-time setup') != 'Set up':
+        return
+    cmd = '/bin/sh ' + shlex.quote(installer)
+    try:
+        r = subprocess.run(['/usr/bin/osascript', '-e', 'do shell script %s with administrator privileges' % _osa_quote(cmd)], capture_output=True, text=True, timeout=900)
+        out, ok = (r.stdout or '') + (r.stderr or ''), r.returncode == 0
+    except (OSError, subprocess.SubprocessError) as exc:
+        out, ok = str(exc), False
+    if ok:                                                                  # the installer finished: make sure the service really answers before saying so
+        for _ in range(30):
+            if os.path.exists('/var/run/minidisc-manager.sock'):
+                break
+            time.sleep(1)
+        else:
+            ok, out = False, 'The service was installed but it did not start. See /var/log/minidisc-manager.log.'
+    if ok:
+        os.environ['MDM_SERVICE_SETUP_DONE'] = '1'
+        os.execv(sys.executable, [sys.executable] + sys.argv[1:])           # start again: the program's paths to the service are looked up when it starts
+        return
+    if 'User canceled' in out or '-128' in out:
+        _mac_dialog('The setup was cancelled, so MiniDisc Manager cannot reach your recorder yet. It will ask again the next time it starts.', ['OK'], 'OK', 'caution')
+    else:
+        _mac_dialog('The background service could not be installed.' + nl + nl + out.strip()[-500:] + nl + nl +
+                    'You can also install it by hand: open Terminal and run' + nl + 'sudo sh ' + shlex.quote(installer), ['OK'], 'OK', 'stop')
+
+
+def main():
+    _mac_service_setup()
+    api = Api()
+    shutil.rmtree(PLAY_DIR, ignore_errors=True)
+    shutil.rmtree(BC_DIR, ignore_errors=True)
+    os.makedirs(WEBVIEW_DIR, exist_ok=True)
+    # The window keeps a browser profile (for the Bandcamp login), and its page cache can serve the previous version's index.html after an
+    # upgrade (found 2026-10-26: v0.13.3 showed the 0.13.2 split editor). Drop only the page caches when the version changes; cookies stay.
+    # The page file's own size and date are part of the stamp too, so a page changed without a new version number (running from the source
+    # folder while it is being worked on) is never shown from an old cached copy either.
+    marker = os.path.join(WEBVIEW_DIR, 'cache_version.txt')
+    try:
+        page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
+        stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_es.js', 'lang_es_more.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
+            ex = os.stat(os.path.join(HERE, 'ui', extra))
+            stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
+    except OSError:
+        stamp = APP_VERSION
+    try:
+        with open(marker, 'r', encoding='utf-8') as f:
+            seen = f.read().strip()
+    except OSError:
+        seen = ''
+    if seen != stamp:
+        for name in ('Cache', 'Code Cache', 'GPUCache'):
+            shutil.rmtree(os.path.join(WEBVIEW_DIR, 'EBWebView', 'Default', name), ignore_errors=True)
+        if sys.platform == 'darwin':                                    # Apple's web view keeps its page cache elsewhere (under this program's bundle identifier)
+            try:
+                from Foundation import NSBundle
+                bundle_id = NSBundle.mainBundle().bundleIdentifier()
+                if bundle_id:
+                    shutil.rmtree(os.path.expanduser('~/Library/Caches/%s/WebKit/NetworkCache' % bundle_id), ignore_errors=True)
+            except Exception:
+                pass
+        try:
+            with open(marker, 'w', encoding='utf-8') as f:
+                f.write(stamp)
+        except OSError:
+            pass
+    _sweep_temp()                                                       # working copies an earlier run left behind (a crash, or the program closed from outside)
+
+    def cleanup():                                                      # every step on its own, so one failing step cannot skip the rest
+        for step in (api._cancel_extract, api.stop_cast, api._edit_prep_clear, api._preview_clear, lambda: shutil.rmtree(PLAY_DIR, ignore_errors=True),
+                     lambda: [r.stop() for r in list(api._recs.values())], lambda: shutil.rmtree(BC_DIR, ignore_errors=True),
+                     lambda: shutil.rmtree(REC_DIR, ignore_errors=True), api.presplit_clear):          # recordings live only until the program is closed
+            try:
+                step()
+            except Exception:
+                pass
+    atexit.register(cleanup)
+    if sys.platform != 'win32':
+        # macOS: the program can be ended from outside (a restart, logout, shutdown, "kill"). That skips atexit, and a room or TV that is casting would
+        # keep playing. The signal handler of the window library's own loop cannot be relied on, so a small thread waits for the signal on a pipe
+        # (Python writes the signal number to it from its low-level handler) and does the clean-up itself before the program ends.
+        try:
+            import signal
+            import socket
+            import threading
+            sig_r, sig_w = socket.socketpair()
+            sig_w.setblocking(False)
+            signal.set_wakeup_fd(sig_w.fileno())
+            for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+                signal.signal(sig, lambda *a: None)             # the handler itself does nothing; the thread below acts
+
+            def _ended_from_outside():
+                try:
+                    sig_r.recv(1)
+                    api.log('the program was ended from outside: stopping the cast and cleaning up')
+                    cleanup()
+                finally:
+                    os._exit(0)
+            threading.Thread(target=_ended_from_outside, name='signal-watch', daemon=True).start()
+        except Exception as exc:
+            print('could not watch for the program being ended: %s' % exc)
+    ui = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ui', 'index.html')
+    mem = WindowMemory()                                                # the size and place from last time
+    api._window = webview.create_window('MiniDisc Manager', ui, js_api=api, width=mem.width, height=mem.height, x=mem.x, y=mem.y, maximized=mem.maximized,
+                                       min_size=WINDOW_MIN, background_color='#0f1115', text_select=True)       # text_select: error messages and track names can be copied
+    api._window.events.resized += mem.on_resized
+    api._window.events.moved += mem.on_moved
+    api._window.events.maximized += mem.on_maximized
+    api._window.events.restored += mem.on_restored
+    def on_loaded():
+        # Dropped files: only the Python side sees their full paths.
+        from webview.dom import DOMEventHandler
+
+        def on_drop(event):
+            paths = [f.get('pywebviewFullPath') for f in event['dataTransfer']['files'] if f.get('pywebviewFullPath')]
+            if paths:
+                api._window.evaluate_js('window.onFilesDropped && window.onFilesDropped(%s)' % json.dumps(paths))
+
+        api._window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
+
+    api._window.events.loaded += on_loaded
+    def on_closing(*args):
+        # Closing the window must not leave a room playing on its own. This handler must return None: the window library reads
+        # a returned False as "cancel the close", so stop_cast()'s own True/False answer must not be passed on.
+        try:
+            mem.save()                                                  # the size and place for next time
+        except Exception:
+            pass
+        try:
+            api.stop_cast()
+        except Exception:
+            pass
+        try:
+            for w in list(api._wins.values()):
+                if w:
+                    w.destroy()
+        except Exception:
+            pass
+
+    api._window.events.closing += on_closing
+    try:
+        webview.start(private_mode=False, storage_path=WEBVIEW_DIR)
+    except Exception as e:
+        _start_failed(e)
+
+
+def _unblock_own_folder():
+    """A zip downloaded from the internet leaves a 'blocked' mark (Zone.Identifier) on every file, and .NET then refuses to load
+    Python.Runtime.dll, so the window cannot start. Remove that mark from every file of this program's own folder."""
+    root = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
+    n = 0
+    for d, _dirs, files in os.walk(root):
+        for f in files:
+            try:
+                os.remove(os.path.join(d, f) + ':Zone.Identifier')
+                n += 1
+            except OSError:
+                pass
+    return n
+
+
+def _start_failed(err):
+    """The window would not start. If the cause is the blocked-download mark, fix it and start again once; otherwise explain in plain words."""
+    try:
+        with open(os.path.join(APPDATA, 'start-error.txt'), 'w', encoding='utf-8') as fh:
+            fh.write(repr(err))
+    except Exception:
+        pass
+    if getattr(sys, 'frozen', False) and not os.environ.get('MDM_UNBLOCK_RETRY'):
+        try:
+            if _unblock_own_folder():
+                env = dict(os.environ, MDM_UNBLOCK_RETRY='1')
+                subprocess.Popen([sys.executable] + sys.argv[1:], env=env, cwd=os.path.dirname(sys.executable))
+                return
+        except Exception:
+            pass
+    text = ('MiniDisc Manager could not open its window.\n\n'
+            'This usually happens when the program was unzipped from a download that Windows has "blocked".\n\n'
+            'To fix it:\n'
+            '1. Close this message.\n'
+            '2. Open the program folder and double-click "Unblock.bat" (or right-click the .zip, choose Properties, tick Unblock, '
+            'then unzip it again).\n'
+            '3. Start MiniDisc Manager again.\n\n'
+            'If it still does not open, install it with the Setup program instead.\n\n'
+            'Details: ' + str(err)[:300])
+    try:
+        if sys.platform == 'darwin':
+            msg = 'MiniDisc Manager could not open its window.\n\nDetails: ' + str(err)[:300]
+            subprocess.run(['osascript', '-e', 'display dialog %s with title "MiniDisc Manager" buttons {"OK"} default button "OK" with icon stop' % json.dumps(msg)], timeout=120)
+        else:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, text, 'MiniDisc Manager', 0x10)
+    except Exception:
+        pass
+
+
+if __name__ == '__main__':
+    main()
+

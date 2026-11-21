@@ -1,13 +1,14 @@
 # MiniDisc Manager
 
-A Windows program for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
+A program for Windows, and as a beta for Macs with Apple silicon, for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.33.5 · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.34.0 (Windows) · 0.34.0 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **0.34.0:** the disc is now named "Album: Artist" when you name it as you add tracks or rip a CD; Rip a CD has Tick all and Untick all buttons; a Hi-MD recorder's name ends with "(Hi-MD disc)"; smaller layout and Clone fixes. **New: a macOS version (beta, Apple silicon)** with the same version number: Hi-MD and standard discs, CD ripping, playing discs (also 5.1 to a Google TV), Convert, recording from Bandcamp and SoundCloud and internet radio, and lyrics, including the "Listen" recogniser. See the macOS section below.
 - **0.33.5:** Clearer "How it works" help for Disc Package, Clone, Remove, Disc labelling, Groups and the Recording entries (Rip CD, Yoto, Internet Radio), as short step-by-step lists in all five languages.
 - **0.33.4:** Find YouTube videos now searches every track when none is ticked, and its window closes by itself when the search is finished.
 - **0.33.3:** the Sony NetMD decks MDS-JB980, MDS-JE780 and MDS-NT1 now show their own details and picture. They share one USB ID, so when the program cannot tell which is connected it asks, and remembers the answer.
@@ -34,6 +35,7 @@ The source of the program.
 | `ui/` | the window (one HTML page) and the recorder pictures |
 | `helper/` | the Node helper scripts that read and write the disc, an audio helper and a CD-burn script |
 | `ps/` | small PowerShell scripts (Bluetooth, sound outputs) |
+| `macos/` | the Mac version (beta): the same program adapted for macOS, with its background service and install scripts (see its own README) |
 | `installer/` | the build script and Inno Setup file that make the installer and portable zip |
 | `LICENSES/`, `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` | licences |
 | `README.txt` | the full user guide |
@@ -55,7 +57,11 @@ Read the full guide, including exactly what was and was not tested: **[SPATIAL-A
 
 ## Download
 
-See the Releases page for the Windows installer, the portable zip and the user manual.
+See the Releases page for the Windows installer, the portable zip, the user manual and the Mac disk image (`MiniDisc-Manager-0.34.0-beta-mac-arm64.dmg`).
+
+## macOS (beta)
+
+A Mac with Apple silicon (M1 or newer) and macOS 13 or newer. Download the `.dmg` from the Releases page, drag the app to Applications and read **READ ME FIRST** in the disk image. The app is not signed by Apple, so the first time you open it you use System Settings > Privacy & Security > Open Anyway; it then offers to install a small background service (macOS only lets a service talk to a recorder), which asks for your Mac password once. It has been tried on one recorder (a Sony MZ-NH700) and one Mac. Yoto, Save to disc, Bluetooth printing and speakers are not in the Mac version, and Burn Audio CD is experimental: see [`macos/mac/RELEASE-NOTES.txt`](macos/mac/RELEASE-NOTES.txt). The source is in [`macos/`](macos/).
 
 ## Languages and installation help
 

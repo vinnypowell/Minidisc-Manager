@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+webview/
+backups/
+runtime/
+recorder_photos/
+disc-covers/
+yoto-backups/
+*.log
+*.log.old
+# secrets and personal data: never in a repository
+yoto-token.json
+acoustid-key.txt
+app-settings.json
+catalogue.json
+lyrics.json
+groupart.json
+disc-lookup.json
+videos.json
+netmd-details.json
+radio-favourites.json
+sprocket.json
+hiprint.json
+hiprint_film.json
+video_window.json
+# large programs built from source on the Mac (rebuilt by the scripts in mac/)
+mac/prebuilt/

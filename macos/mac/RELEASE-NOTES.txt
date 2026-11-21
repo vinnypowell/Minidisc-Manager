@@ -1,0 +1,57 @@
+MiniDisc Manager for Mac - version 0.34.0 (first Mac release, BETA)
+====================================================================
+
+This is the first version of MiniDisc Manager for the Mac. It is a beta: the main things work and have been tested, but it has so far been tried on ONE
+recorder (Sony MZ-NH700), ONE Mac (Mac mini M1, macOS 26) and a handful of discs. Please do not use it on a disc you cannot replace, and copy
+anything precious off first.
+
+Requirements: a Mac with an Apple silicon chip, macOS 13 or newer, a Hi-MD or MiniDisc recorder with a USB cable. The install steps are in "READ ME FIRST".
+The app is NOT signed by Apple (see the install steps for the one-time "Open Anyway").
+
+WHAT WORKS (tested on the Mac)
+------------------------------
+Hi-MD discs
+* Reading the disc, playing tracks (including lyrics, the visualiser and 5.1 spatial tracks), adding tracks from files in PCM, ATRAC3 and ATRAC3+.
+* Titles, artists, disc name, groups, album pictures, lyrics and the track list file; moving, renaming, splitting, combining, deleting, fade & level.
+* Formatting, Disc Packages (.mdpack export and import), and reading and writing 5.1 / spatial audio.
+* Lyrics: searching, saving, and "Listen" (the app listens to a track and writes timed lyrics itself, on your Mac, using its GPU; the 190 MB speech model
+  is downloaded once, only when you ask).
+* Adding tracks by recording from Bandcamp and SoundCloud windows inside the app, and from internet radio song by song (see the limits below).
+Standard (SP / LP) MiniDiscs in a Hi-MD recorder such as the MZ-NH700
+* Reading the disc, erasing it, adding tracks in SP, LP2 and LP4, playing tracks on the Mac (the app reads the audio back with the same optional
+  firmware patch as the Windows version: the patch lives only in the recorder's memory and is cleared when you unplug it).
+* Convert SP disc to Hi-MD.
+CDs
+* Ripping an audio CD to the disc, with titles from the disc and (online) MusicBrainz, and an album cover. The disc name becomes "Album: Artist".
+Casting
+* Playing to a Google TV / Chromecast, including 5.1 sound and the picture.
+
+EXPERIMENTAL ON THE MAC
+-----------------------
+* Burn Audio CD uses macOS's own burner. The app reads the tracks, prepares the disc and starts the
+  burn correctly, but it has NOT yet been confirmed with a real burn: the one test drive (a bus-powered slim USB drive) lost its USB connection
+  every time it started to write. A drive that macOS supports, with enough power (a powered USB hub or a two-plug cable), should work. Try it on
+  a rewritable disc (CD-RW) first.
+* Saving or adding as MP3, lyric videos with text, and https radio in the stretch and HLS modes: the Mac's audio tool now has an MP3 encoder, https and
+  the text filters, but these have not been tried inside the app yet.
+
+NOT AVAILABLE ON THE MAC YET (the buttons may still be visible)
+--------------------------------------------------------------
+* The Bluetooth speaker chooser and Bluetooth label printing (Polaroid Hi-Print, HP Sprocket).
+* Cloning a standard (SP) disc to another disc.
+* Sonos casting has not been tried on the Mac.
+
+KNOWN QUIRKS
+------------
+* Starting a standard-disc track for the first time takes about 20 to 30 seconds (the disc has to spin up); following tracks start at once.
+* After plugging the recorder in, the app waits about 45 seconds before it uses it. This is deliberate: macOS is still looking at the disc and
+  taking the recorder over sooner can leave it stuck.
+* The window may change size by itself for a few seconds right after the disc first appears.
+* The volume of a cast to a TV cannot be turned very low.
+* The timings shown while ripping a CD are approximate.
+* A bus-powered CD drive that is short of power can drop off the USB port while reading or burning; plug it straight into the Mac (both plugs of a two-plug cable) or use a powered USB hub.
+* Recording from a streaming-site window needs macOS's "Screen & System Audio Recording" permission for MiniDisc Manager (the app asks for it).
+
+THANKS AND LICENCES
+-------------------
+See LICENSE.txt and THIRD-PARTY-NOTICES.txt (section C-Mac lists what is different on the Mac).

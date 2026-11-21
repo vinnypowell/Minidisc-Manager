@@ -448,7 +448,7 @@
   .progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .25s; }
   .disc-card { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; align-content: flex-start; justify-content: center; container-type: inline-size; }       /* tight gaps: the pictures use the card's width instead of leaving blank space */
   /* the disc picture and the cover share the card's width (56 % / 44 %) and follow it as the window is resized, within sensible limits */
-  :root { --pic-disc: clamp(64px, min(calc((100cqw - 20px) * .58), 52vh), 640px); --pic-cover: clamp(50px, min(calc((100cqw - 20px) * .42), 30vh), 420px); }   /* a wide card (other cards hidden or moved away) gets bigger pictures, but never more than the window height allows */
+  :root { --pic-disc: clamp(64px, min(calc((100cqw - 20px) * .55), 52vh), 640px); --pic-cover: clamp(50px, min(calc((100cqw - 20px) * .40), 30vh), 420px); }      /* .55 + .40 leave a little slack: at .58 + .42 the two pictures filled the card exactly and the album art could wrap onto a row below the disc */   /* a wide card (other cards hidden or moved away) gets bigger pictures, but never more than the window height allows */
   .disc-info { flex: 1 1 150px; min-width: 0; }
   .cover-box { flex: none; width: var(--pic-cover); display: grid; gap: 6px; justify-items: center; }
   #coverImg { width: var(--pic-cover); height: var(--pic-cover); object-fit: cover; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 6px 16px rgba(0,0,0,.22); cursor: pointer; }
@@ -1304,7 +1304,7 @@ function maybeAskMissing(d) {
       'None of the tracks has a title, so there is nothing to search by. The program can identify them from the audio (AcoustID): each track is read from the recorder once, which takes about ' + Math.max(1, Math.round(m.seconds / 60)) + ' minutes for this disc. Then it looks up the album, picture and lyrics. You can press Stop at any time.'));
   } else if (m.names.length) list.append(add('names', 'Titles, artists and albums', plural(m.names.length, 'track') + ' of ' + n + ' have no artist or album (or no title). Searches the album online by the track lengths.'));
   if (m.cover && !untitledAll) list.append(add('cover', 'Disc picture', netmd ? 'No album art is kept for this disc. Suggests covers from free online sources; kept on this PC only.' : 'No picture is stored on this disc. Suggests covers from free online sources; you choose whether to store one on the disc.'));
-  if (m.discName) list.append(add('discname', 'Disc name', 'The disc has no name. It is named after the album' + (netmd ? ' (“Artist - Album”, because a standard disc has no artist field)' : '') + ', from the tracks or from what the lookup above finds.'));
+  if (m.discName) list.append(add('discname', 'Disc name', 'The disc has no name. It is named after the album (“Album: Artist”)' + ', from the tracks or from what the lookup above finds.'));
   if (m.lyrics.length && !untitledAll) list.append(add('lyrics', 'Lyrics', plural(m.lyrics.length, 'track') + ' of ' + n + ' have no lyrics. Searches online lyric services by artist and title.'));
   const never = el('input', { type: 'checkbox' }), thisDisc = el('input', { type: 'checkbox' });
   const opt = (cb, text) => el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px;color:var(--muted)' }, cb, el('span', { textContent: text }));
@@ -1338,12 +1338,12 @@ function maybeAskMissing(d) {
 }
 
 
-// The disc's name from the album: the album a lookup found (when given), else the one the tracks share. A standard disc has no artist field, so it is "Artist - Album".
+// The disc's name from the album: the album a lookup found (when given), else the one the tracks share, with the artist after a colon: "Album: Artist".
 function artistOf(list) {                                               // the one artist of these tracks, "Various Artists" for several, '' for none
   const a = [...new Set(list.map(x => (x || '').trim()).filter(Boolean))];
   return a.length > 1 ? 'Various Artists' : (a[0] || '');
 }
-const discNameFor = (album, artist) => album ? (netmd && artist ? artist + ' - ' + album : album) : '';          // a standard disc has no artist field, so "Artist - Album"
+const discNameFor = (album, artist) => album ? (artist ? album + ': ' + artist : album) : '';          // "Album: Artist" (the album first, then a colon and a space, then the artist)
 async function renameDisc(name) {
   let r; try { r = await api().rename_disc(current, name); } catch (e) { r = { error: String(e) }; }
   return r && r.error ? { mark: '✗', text: 'could not be named: ' + r.error } : { mark: '✓', text: 'named “' + name + '”' };
@@ -2241,14 +2241,15 @@ const SEG_COLORS = ['#5b8cff', '#8f6bff', '#3ecf8e', '#f5b84a', '#ff7aa8', '#4cc
 function fitTracks() {
   const wrap = $('trackWrap'), main = document.querySelector('main');
   if (!wrap || !wrap.offsetParent) return;
-  const kept = wrap.scrollTop;                                              // measuring without the height limit clamps the scroll position to the top: put it back below
-  wrap.style.maxHeight = '';
+  // The list's top edge does not depend on its own height limit, so nothing is cleared and re-set here: doing that made the page change its own size on every
+  // measurement, and on the Mac's web view that fed the observer below thousands of times (the window shook). The limit is only written when it really changes.
   const top = wrap.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop;
-  wrap.style.maxHeight = Math.max(340, main.clientHeight - top - 10) + 'px';
-  wrap.scrollTop = kept;
+  const want = Math.max(340, main.clientHeight - top - 10) + 'px';
+  if (wrap.style.maxHeight !== want) wrap.style.maxHeight = want;
 }
-// the observer also fires when the window is resized, so there is no separate resize listener
-if (window.ResizeObserver) { const ro = new ResizeObserver(() => fitTracks()); ro.observe(document.querySelector('main')); ro.observe(document.querySelector('#board')); ro.observe(document.querySelector('.tracks-head')); }
+// the observer also fires when the window is resized, so there is no separate resize listener; it acts once per frame, outside the observer's own callback
+let fitRaf = 0;
+if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (!fitRaf) fitRaf = requestAnimationFrame(() => { fitRaf = 0; fitTracks(); }); }); ro.observe(document.querySelector('main')); ro.observe(document.querySelector('#board')); ro.observe(document.querySelector('.tracks-head')); }
 function listScrollTo(row) {                                                 // centre a row in the track list without moving the page above it
   const wrap = $('trackWrap'), w = wrap.getBoundingClientRect(), r = row.getBoundingClientRect();
   wrap.scrollBy({ top: r.top - w.top - wrap.clientHeight / 2 + r.height / 2, behavior: 'smooth' });
@@ -6092,6 +6093,8 @@ async function showRip(letter, drives) {
     const box = el('input', { type: 'checkbox', checked: true, onchange: () => { r.on = box.checked; update(); } });
     list.append(el('div', { className: 'file', style: 'grid-template-columns:auto auto 1fr 1fr auto' }, box, el('span', { className: 'chip', textContent: '#' + r.num }), r.title, r.artist, el('span', { className: 'meta', textContent: mm(r.seconds) })));
   }
+  const tickAll = on => { rows.forEach(r => { r.on = on; }); list.querySelectorAll('input[type=checkbox]').forEach(x => { x.checked = on; }); update(); };
+  const tickRow = el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px' }, el('button', { textContent: 'Tick all', onclick: () => tickAll(true) }), el('button', { textContent: 'Untick all', onclick: () => tickAll(false) }));
   function update() {
     const picked = rows.filter(r => r.on), sec = picked.reduce((n, r) => n + r.seconds, 0);
     let need, free, fits;
@@ -6111,7 +6114,7 @@ async function showRip(letter, drives) {
   openSheet(el('h2', { textContent: 'Rip a CD' }),
     el('div', { className: 'sub', textContent: 'Drive ' + letter + ': · ' + cd.tracks.length + ' tracks · ' + mm(cd.tracks.reduce((n, t) => n + t.seconds, 0)) + '. Only audio tracks are listed. Ticked tracks are ripped and added to the disc in the recorder, in this order.' }),
     drivePick, el('div', { className: 'eyebrow', textContent: 'Album title (becomes the disc name)' }), album, el('div', { className: 'eyebrow', textContent: 'Album artist' }), albumArtist,
-    el('div', { className: 'row', style: 'justify-content:flex-start' }, lookupBtn, searchBtn), where, cands, coverRow, list,
+    el('div', { className: 'row', style: 'justify-content:flex-start' }, lookupBtn, searchBtn), where, cands, coverRow, tickRow, list,
     el('div', { className: 'notice' }, el('b', { textContent: 'Recording format: ' }), fmt, kbpsRow), nameRow, ...(gc ? [gc.row] : []), est,
     el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   floatSheet(true);                                                // drag the title to move it; a click outside does not close it
@@ -6138,7 +6141,7 @@ async function runRip(p) {
   window.onUploadProgress = writeProgress(prog, n, m => (picked[m.file] && picked[m.file].title.value.trim()) || m.name, 'Stage 2 of 2: ', W_RIP, 1 - W_RIP);     // the temporary file is track01.wav; show the title
   const tracks = picked.map(r => ({ num: r.num, title: r.title.value.trim(), artist: r.artist.value.trim() || p.albumArtist, album: p.album }));
   const before = trackMap.size;
-  const r = await api().cd_rip_add(current, p.letter, tracks, p.fmt, p.kbps, p.setName ? p.album : '', p.cover);
+  const r = await api().cd_rip_add(current, p.letter, tracks, p.fmt, p.kbps, p.setName ? discNameFor(p.album, p.albumArtist) : '', p.cover);
   prog.stop(); window.onCdProgress = null; window.onUploadProgress = null; uploading = false;
   if (r.cancelled) { closeSheet(); toast('Cancelled. Nothing was written.'); return; }
   if (r.error) {

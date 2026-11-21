@@ -308,7 +308,9 @@ class NetMdMixin:
             return {'state': r.get('discState') or 'none', 'message': r.get('discMessage', '')}
         d = r['disc']
         need = m['needBytes'] + 2 * 16384 * len(m['tracks']) + 1000 * 1000
-        same = bool(self._disc_key) and self._disc_key == m['sourceId']
+        # The original disc only counts as "the same" while it still holds tracks. Once it has been erased (the disc keeps its identity through a format) the copy
+        # on this PC is all there is, and writing it back onto that empty disc is exactly what restoring a package or a saved copy means.
+        same = bool(self._disc_key) and self._disc_key == m['sourceId'] and len(d['tracks']) > 0
         return {'state': 'ok', 'same': same, 'empty': len(d['tracks']) == 0, 'tracks': len(d['tracks']), 'title': d['title'], 'free': d['free'],
                 'total': d['total'], 'need': need, 'fits': need < d['free'] * 0.98}
 
