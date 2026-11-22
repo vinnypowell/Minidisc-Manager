@@ -2,13 +2,13 @@
 
 A program for Windows, and as a beta for Macs with Apple silicon, for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.34.0 (Windows) · 0.34.1 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.34.5 (Windows) · 0.34.5 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
-- **macOS 0.34.1 (beta):** fixes the error "Unrecognized option 'vbr'" when adding a spatial audio track with the Opus (smaller) setting; the Mac program's ffmpeg now includes the Opus encoder. The Windows version is unchanged (0.34.0).
+- **0.34.5:** the Windows and Mac versions now share one version number. Windows has no other changes. On the Mac (beta): adding a spatial audio track with the Opus (smaller) setting now works (the error "Unrecognized option 'vbr'" is fixed), and copying a whole disc to the Mac (Disc Package, Clone, cut and join) no longer fails on a disc with more than 5 tracks. The Intel Mac image has both fixes too.
 - **0.34.0:** the disc is now named "Album: Artist" when you name it as you add tracks or rip a CD; Rip a CD has Tick all and Untick all buttons; a Hi-MD recorder's name ends with "(Hi-MD disc)"; smaller layout and Clone fixes. **New: a macOS version (beta, Apple silicon)** with the same version number: Hi-MD and standard discs, CD ripping, playing discs (also 5.1 to a Google TV), Convert, recording from Bandcamp and SoundCloud and internet radio, and lyrics, including the "Listen" recogniser. See the macOS section below.
 - **0.33.5:** Clearer "How it works" help for Disc Package, Clone, Remove, Disc labelling, Groups and the Recording entries (Rip CD, Yoto, Internet Radio), as short step-by-step lists in all five languages.
 - **0.33.4:** Find YouTube videos now searches every track when none is ticked, and its window closes by itself when the search is finished.
@@ -58,13 +58,13 @@ Read the full guide, including exactly what was and was not tested: **[SPATIAL-A
 
 ## Download
 
-See the Releases page for the Windows installer, the portable zip, the user manual and the Mac disk image (`MiniDisc-Manager-0.34.1-beta-mac-arm64.dmg`) and the highly experimental Intel Mac disk image (`MiniDisc-Manager-0.34.0-experimental-mac-x86_64.dmg`).
+See the Releases page for the Windows installer, the portable zip, the user manual and the Mac disk image (`MiniDisc-Manager-0.34.5-beta-mac-arm64.dmg`) and the highly experimental Intel Mac disk image (`MiniDisc-Manager-0.34.5-experimental-mac-x86_64.dmg`).
 
 ## macOS (beta)
 
 A Mac with Apple silicon (M1 or newer) and macOS 13 or newer. Download the `.dmg` from the Releases page, drag the app to Applications and read **READ ME FIRST** in the disk image. The app is not signed by Apple, so the first time you open it you use System Settings > Privacy & Security > Open Anyway; it then offers to install a small background service (macOS only lets a service talk to a recorder), which asks for your Mac password once. It has been tried on one recorder (a Sony MZ-NH700) and one Mac. Yoto, Save to disc, Bluetooth printing and speakers are not in the Mac version, and Burn Audio CD is experimental: see [`macos/mac/RELEASE-NOTES.txt`](macos/mac/RELEASE-NOTES.txt). The source is in [`macos/`](macos/).
 
-**Intel Macs (highly experimental):** there is also a separate disk image for Macs with an Intel chip, `MiniDisc-Manager-0.34.0-experimental-mac-x86_64.dmg`. It is the same version, but it was only built and checked by running its programs under Rosetta on an Apple silicon Mac: it has never been run on a real Intel Mac or with a recorder, and no further development of it is planned. Use it at your own risk, and never on a disc you cannot replace. The Apple silicon version above is the supported one. The Intel image is 0.34.0 and does not yet have the Opus encoder, so choose Lossless for spatial audio there.
+**Intel Macs (highly experimental):** there is also a separate disk image for Macs with an Intel chip, `MiniDisc-Manager-0.34.5-experimental-mac-x86_64.dmg`. It is the same version, but it was only built and checked by running its programs under Rosetta on an Apple silicon Mac: it has never been run on a real Intel Mac or with a recorder, and no further development of it is planned. Use it at your own risk, and never on a disc you cannot replace. The Apple silicon version above is the supported one.
 
 ## Languages and installation help
 

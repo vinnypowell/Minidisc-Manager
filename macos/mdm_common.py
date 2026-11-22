@@ -1,9 +1,19 @@
 """Small helpers and constants shared by himd_app.py and the modules split out of it."""
 import os
+import shutil
 import struct
 
 UNITS_PER_SECOND = 512        # a standard disc's capacity is counted in 1/512-second units of SP
 CLONE_MAX_PCM = 600 * 1000 * 1000                     # the helper holds a PCM track in memory while writing it
+
+
+def own_copy(path):
+    """macOS: the background service stages a track it reads and keeps only the 5 newest, leaving a link at `path`. Replaces that link with a real copy, so a file
+    kept for later (a clone of a whole disc) is not lost when more tracks are read. Does nothing for a plain file (Windows)."""
+    if os.path.islink(path):
+        tmp = path + '.own'
+        shutil.copyfile(path, tmp)
+        os.replace(tmp, path)
 
 
 def wav_data_bytes(path):

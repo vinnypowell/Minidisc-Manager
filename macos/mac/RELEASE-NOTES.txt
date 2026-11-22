@@ -1,4 +1,11 @@
-MiniDisc Manager for Mac - version 0.34.1 (BETA)
+MiniDisc Manager for Mac - version 0.34.5 (BETA)
+====================================================================
+
+Fix: copying a whole disc to the Mac (making a Disc Package, Clone, and the other tools that read several tracks) failed with "No such file or directory ...
+001.oma" on a disc with more than 5 tracks, because the background service only kept the 5 newest tracks it had read. Each track is now copied into the
+app's own folder as soon as it is read.
+
+Also in this version (first made in 0.34.1):
 ====================================================================
 
 Fix: adding a spatial audio track with the Opus (smaller) setting failed with "Unrecognized option 'vbr'". The program's built-in ffmpeg now includes the
@@ -24,7 +31,7 @@ Hi-MD discs
 * Formatting, Disc Packages (.mdpack export and import), and reading and writing 5.1 / spatial audio.
 * Lyrics: searching, saving, and "Listen" (the app listens to a track and writes timed lyrics itself, on your Mac, using its GPU; the 190 MB speech model
   is downloaded once, only when you ask).
-* Adding tracks by recording from Bandcamp and SoundCloud windows inside the app, and from internet radio song by song (see the limits below).
+* Adding tracks by recording from Bandcamp, SoundCloud and Apple Music windows inside the app, and from internet radio song by song (see the limits below).
 Standard (SP / LP) MiniDiscs in a Hi-MD recorder such as the MZ-NH700
 * Reading the disc, erasing it, adding tracks in SP, LP2 and LP4, playing tracks on the Mac (the app reads the audio back with the same optional
   firmware patch as the Windows version: the patch lives only in the recorder's memory and is cleared when you unplug it).

@@ -1,9 +1,9 @@
 # MiniDisc Manager for macOS (beta)
 
-Version 0.34.1 (beta) · for Macs with Apple silicon (M1 or newer), macOS 13 or newer.
+Version 0.34.5 (beta) · for Macs with Apple silicon (M1 or newer), macOS 13 or newer.
 
 This folder is the Mac version of MiniDisc Manager: the same program as the Windows version in the main folder, adapted for macOS.
-The download is the `.dmg` on the Releases page (`MiniDisc-Manager-0.34.1-beta-mac-arm64.dmg`).
+The download is the `.dmg` on the Releases page (`MiniDisc-Manager-0.34.5-beta-mac-arm64.dmg`).
 
 ## What is different on the Mac
 
@@ -27,7 +27,7 @@ One Mac mini (M1, macOS 26) with one recorder, a Sony MZ-NH700, and a handful of
 
 ## Intel Macs (highly experimental)
 
-The Releases page also carries `MiniDisc-Manager-0.34.0-experimental-mac-x86_64.dmg`, the same program built for Intel Macs. It was built on an Apple silicon Mac and only its programs were run there, under Rosetta (ffmpeg, the ATRAC3+ encoder, Node and the USB module, checked); it has never been run on a real Intel Mac or with a recorder, so the recorder hand-over and the mount guard are untried on Intel. Its speech recogniser (for "Listen" lyrics) is built without the GPU and without the fast CPU instructions, so it is slower, and ffmpeg is built without the Intel assembly optimisations. No further development of it is planned. It is still 0.34.0 and has no Opus encoder, so choose Lossless for spatial audio on Intel. `mac/x64/build_x64_tools.sh` rewrites the build recipes in `mac/` to build the Intel tools under Rosetta.
+The Releases page also carries `MiniDisc-Manager-0.34.5-experimental-mac-x86_64.dmg`, the same program built for Intel Macs. It was built on an Apple silicon Mac and only its programs were run there, under Rosetta (ffmpeg, the ATRAC3+ encoder, Node and the USB module, checked); it has never been run on a real Intel Mac or with a recorder, so the recorder hand-over and the mount guard are untried on Intel. Its speech recogniser (for "Listen" lyrics) is built without the GPU and without the fast CPU instructions, so it is slower, and ffmpeg is built without the Intel assembly optimisations. No further development of it is planned. `mac/x64/build_x64_tools.sh` rewrites the build recipes in `mac/` to build the Intel tools under Rosetta.
 
 ## Building from source
 

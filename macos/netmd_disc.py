@@ -13,7 +13,7 @@ import himd_dev
 import himd_disc
 import himd_fs
 import usb.util
-from mdm_common import UNITS_PER_SECOND
+from mdm_common import UNITS_PER_SECOND, own_copy
 from mdm_paths import BACKUP_DIR, CLONE_DIR, FFMPEG_EXE, HERE, NETMD_HELPER
 
 
@@ -231,6 +231,7 @@ class NetMdMixin:
                 if 'error' in res:
                     shutil.rmtree(CLONE_DIR, ignore_errors=True)
                     return {'error': 'Reading “%s” from the disc failed: %s Nothing was changed on the disc.' % (label, res['error'])}
+                own_copy(path)                                  # macOS: a real file, not a link to the service's staging folder (which keeps only the 5 newest)
                 if kind == 'atrac':
                     self._oma_frames(path, t)
                 skip, nbytes, sha = self._clone_core(path, kind)

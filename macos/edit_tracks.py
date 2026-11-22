@@ -17,7 +17,7 @@ import himd_disc
 import himd_fs
 import spatial
 import usb.util
-from mdm_common import wav_data_bytes, wav_header
+from mdm_common import own_copy, wav_data_bytes, wav_header
 from mdm_paths import FFMPEG_EXE, HERE, NETMD_HELPER, SPLIT_DIR
 
 
@@ -564,6 +564,7 @@ class EditMixin:
                         return {'cancelled': True}
                     if 'error' in res:
                         return {'error': 'Reading “%s” from the disc failed: %s Nothing was written.' % (label, res['error'])}
+                    own_copy(src)
                     if kind == 'atrac':
                         self._oma_frames(src, t)
                         if not lossless:                        # decode, so the cut is exact to the sample
