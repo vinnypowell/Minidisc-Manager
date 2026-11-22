@@ -1,4 +1,4 @@
-MiniDisc Manager for Mac 0.34.0 (beta) - READ ME FIRST
+MiniDisc Manager for Mac 0.34.1 (beta) - READ ME FIRST
 =========================================
 
 Manage the music on Hi-MD and standard MiniDiscs from your Mac: add tracks, rip CDs, play discs, edit titles, groups and pictures,

@@ -63,6 +63,7 @@ Node.js 24.22.0 (macOS arm64)   MIT (with licences of its bundled parts)   runti
 FFmpeg n8.1.3 (macOS arm64)     LGPL-3.0-or-later. Built from the official source (https://ffmpeg.org/releases/ffmpeg-8.1.3.tar.xz) with
                                 --disable-gpl --disable-nonfree --enable-version3, statically linked with these libraries (no GPL parts):
                                   LAME 3.100 (MP3 encoder)        LGPL-2.0   https://lame.sourceforge.io      LICENSES/mac/LAME-LGPL-2.0.txt
+                                  libopus 1.5.2 (Opus encoder)    BSD-3      https://opus-codec.org           LICENSES/mac/libopus-BSD-3-Clause.txt
                                   OpenSSL 3.5.4 (https)           Apache-2.0 https://www.openssl.org          LICENSES/mac/OpenSSL-Apache-2.0.txt
                                   libass 0.17.3 (subtitle text)   ISC        https://github.com/libass/libass LICENSES/mac/libass-ISC.txt
                                   FreeType 2.13.3 (text shapes)   FTL        https://freetype.org             LICENSES/mac/FreeType-FTL.txt

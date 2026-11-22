@@ -286,7 +286,10 @@ def encode(src, out, codec='opus', quality='medium', layout='', title='', progre
                 pass
         t.join(2)
         if p.returncode:
-            raise SpatialError('Could not encode the spatial audio: %s' % ((err[0] if err else b'').decode('utf-8', 'replace').strip()[-300:] or 'unknown error'))
+            msg = (err[0] if err else b'').decode('utf-8', 'replace').strip()[-300:] or 'unknown error'
+            if codec == 'opus' and ("Unrecognized option 'vbr'" in msg or 'libopus' in msg):
+                raise SpatialError('This copy of the app has no Opus encoder built in. Choose "Lossless" for the spatial audio instead, or update to a newer build.')
+            raise SpatialError('Could not encode the spatial audio: %s' % msg)
         with open(tmp, 'rb') as f:
             payload = f.read()
     finally:

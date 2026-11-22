@@ -1,3 +1,11 @@
+MiniDisc Manager for Mac - version 0.34.1 (BETA)
+====================================================================
+
+Fix: adding a spatial audio track with the Opus (smaller) setting failed with "Unrecognized option 'vbr'". The program's built-in ffmpeg now includes the
+Opus encoder. Lossless spatial audio was not affected. Everything else is unchanged from 0.34.0.
+
+Notes for 0.34.0 (first Mac release) follow.
+
 MiniDisc Manager for Mac - version 0.34.0 (first Mac release, BETA)
 ====================================================================
 

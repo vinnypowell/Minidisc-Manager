@@ -21,6 +21,7 @@ step() { echo; echo "=== $1  ($(date +%T))"; }
 step "sources"
 dl "https://ffmpeg.org/releases/ffmpeg-$V.tar.xz" ffmpeg.tar.xz
 dl "https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz" lame.tar.gz
+dl "https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz" opus.tar.gz
 dl "https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz" openssl.tar.gz
 dl "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz" freetype.tar.xz
 dl "https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz" fribidi.tar.xz
@@ -29,7 +30,7 @@ dl "https://github.com/libass/libass/releases/download/0.17.3/libass-0.17.3.tar.
 dl "https://distfiles.ariadne.space/pkgconf/pkgconf-2.3.0.tar.xz" pkgconf.tar.xz
 shasum -a 256 *.tar.* | tee "$W/sources.sha256"
 unpack() { rm -rf "$1"; mkdir "$1"; tar xf "$2" -C "$1" --strip-components=1; }
-unpack pkgconf pkgconf.tar.xz; unpack lame lame.tar.gz; unpack openssl openssl.tar.gz; unpack freetype freetype.tar.xz
+unpack pkgconf pkgconf.tar.xz; unpack lame lame.tar.gz; unpack opus opus.tar.gz; unpack openssl openssl.tar.gz; unpack freetype freetype.tar.xz
 unpack fribidi fribidi.tar.xz; unpack harfbuzz harfbuzz.tar.xz; unpack libass libass.tar.xz; unpack ffmpeg ffmpeg.tar.xz
 
 step "pkgconf"
@@ -39,6 +40,9 @@ pkg-config --version
 
 step "LAME (MP3 encoder, LGPL)"
 (cd lame && ./configure --prefix="$P" --disable-shared --enable-static --disable-frontend --disable-decoder > "$W/lame.log" 2>&1 && make -j"$NCPU" >> "$W/lame.log" 2>&1 && make install >> "$W/lame.log" 2>&1)
+
+step "Opus (spatial audio encoder, BSD-3)"
+(cd opus && ./configure --prefix="$P" --disable-shared --enable-static --disable-doc --disable-extra-programs > "$W/opus.log" 2>&1 && make -j"$NCPU" >> "$W/opus.log" 2>&1 && make install >> "$W/opus.log" 2>&1)
 
 step "OpenSSL (https, Apache-2.0)"
 (cd openssl && ./Configure darwin64-arm64-cc no-shared no-tests no-docs --prefix="$P" --openssldir=/etc/ssl > "$W/openssl.log" 2>&1 && make -j"$NCPU" >> "$W/openssl.log" 2>&1 && make install_sw >> "$W/openssl.log" 2>&1)
@@ -73,14 +77,14 @@ step "FFmpeg $V"
 cd ffmpeg
 ./configure --disable-gpl --disable-nonfree --enable-version3 --disable-autodetect --disable-doc --disable-ffplay --disable-ffprobe \
   --disable-shared --enable-static --enable-zlib --enable-iconv --enable-videotoolbox --enable-pthreads --disable-debug --arch=arm64 \
-  --enable-libmp3lame --enable-openssl --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libass \
+  --enable-libmp3lame --enable-libopus --enable-openssl --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libass \
   --pkg-config-flags=--static --extra-cflags="-I$P/include -mmacosx-version-min=13.0" --extra-ldflags="-L$P/lib -mmacosx-version-min=13.0" \
   --extra-libs="-liconv -lm -lc++" > "$W/configure.log" 2>&1 || { tail -n 25 "$W/configure.log"; exit 1; }
 tail -n 4 "$W/configure.log"
 make -j"$NCPU" > "$W/make.log" 2>&1 || { tail -n 25 "$W/make.log"; exit 1; }
 ./ffmpeg -hide_banner -version | head -n 3
 echo "--- check:"
-./ffmpeg -hide_banner -encoders 2>/dev/null | grep -i "mp3\|videotoolbox" | head -n 4
+./ffmpeg -hide_banner -encoders 2>/dev/null | grep -i "mp3\|videotoolbox\|libopus" | head -n 4
 ./ffmpeg -hide_banner -filters 2>/dev/null | grep -i " subtitles \| drawtext " | head -n 3
 ./ffmpeg -hide_banner -protocols 2>/dev/null | grep -i -w "https\|tls" | head -n 3
 echo "--- links:"
