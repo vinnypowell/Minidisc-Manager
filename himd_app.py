@@ -62,7 +62,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.34.5'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.35.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -132,7 +132,7 @@ except ImportError:
 
 
 class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, disc_package.PackageMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
-          sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, video_links.VideoLinksMixin):
+          sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, label_print.JCardMixin, video_links.VideoLinksMixin):
     def __init__(self):
         self._window = None
         self._devices = []
@@ -303,7 +303,7 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
                 extras = {}                                            # sizes of the small files kept in the root folder: lyrics, picture, track list
                 try:
                     for e in fs.listdir('/'):
-                        k = {'LYRICS.TXT': 'lyrics', 'COVER.JPG': 'cover', 'LABEL.JPG': 'label', 'TRACKS.CSV': 'list', 'GROUPART.JSN': 'groupart'}.get(e['short'].upper())
+                        k = {'LYRICS.TXT': 'lyrics', 'COVER.JPG': 'cover', 'LABEL.JPG': 'label', 'JCARD.PDF': 'jcard', 'TRACKS.CSV': 'list', 'GROUPART.JSN': 'groupart'}.get(e['short'].upper())
                         if k and not e['dir']:
                             extras[k] = e['size']
                 except Exception:
@@ -754,7 +754,7 @@ def main():
     try:
         page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
         stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
-        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_es.js', 'lang_es_more.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_p11.js', 'lang_p12.js', 'lang_es.js', 'lang_es_more.js', 'lang_es_p11.js', 'lang_es_p12.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
             ex = os.stat(os.path.join(HERE, 'ui', extra))
             stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
     except OSError:

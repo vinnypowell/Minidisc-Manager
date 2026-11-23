@@ -44,7 +44,7 @@ I18N.add([
 ["Copy out", "Copiar fuera"],
 ["Auto split & name", "Dividir y nombrar automáticamente"],
 ["Add tracks", "Añadir pistas"],
-["Disc labelling", "Etiquetado del disco"],
+["Disc Stickers", "Etiquetado del disco"],
 ["Artist", "Artista"],
 ["Album", "Álbum"],
 ["Codec", "Códec"],

@@ -309,6 +309,7 @@ async function streamAtrac(ctx, track, dump, out, isStopped, exact = false, kind
 const COVER = '/COVER.JPG';
 const TRACKLIST = '/TRACKS.CSV';           // the track list (a spreadsheet file), kept up to date by the app when the user switches that on
 const LABEL = '/LABEL.JPG';              // the printed-sticker label picture (JPEG), written when the user presses "Save to disc" in Disc labelling
+const JCARD = '/JCARD.PDF';              // the printable J-card page (PDF), written when the user presses "Save to disc" in Disc J-Cards
 const GROUPART = '/GROUPART.JSN';          // the pictures of the groups (JSON text), written when the user presses "Save group pictures to the disc"
 const LYRICS = '/LYRICS.TXT';              // the lyrics of the tracks (JSON text), written when the user presses "Save lyrics to disc"
 
@@ -384,7 +385,7 @@ async function verifyVolume(fsDriver, before, after, expectCover, target = COVER
     const head = await volumeHead(fsDriver), g = head.geometry;
     const fat1 = head.data.subarray(g.res * g.bps, (g.res + g.spf) * g.bps), fat2 = head.data.subarray((g.res + g.spf) * g.bps, (g.res + 2 * g.spf) * g.bps);
     if (g.nf >= 2 && !fat1.equals(fat2)) problems.push('the two copies of the FAT differ');
-    const present = a.has(target), what = target === COVER ? 'the picture' : target === LABEL ? 'the label' : target === LYRICS ? 'the lyrics file' : /^\/SP[0-9A-Z]*\.(HMS|JSN)$/.test(target) ? 'the spatial audio file' : 'the track list';
+    const present = a.has(target), what = target === COVER ? 'the picture' : target === LABEL ? 'the label' : target === JCARD ? 'the J-card file' : target === LYRICS ? 'the lyrics file' : /^\/SP[0-9A-Z]*\.(HMS|JSN)$/.test(target) ? 'the spatial audio file' : 'the track list';
     if (expectCover && !present) problems.push(what + ' is not in the root folder');
     if (!expectCover && present) problems.push(what + ' is still in the root folder');
     if (problems.length) throw new Error('Checking the disc afterwards found a problem: ' + problems.join('; ') + '.');
@@ -534,6 +535,19 @@ const commands = {
     // WRITES TO THE DISC (unless simulate): removes /GROUPART.JSN.
     async groupart_remove({ simulate = false, backupDir = null }) {
         return removeRootFile(GROUPART, { simulate, backupDir });
+    },
+
+    // WRITES A FILE TO THE DISC (unless simulate): stores the PDF `file` as /JCARD.PDF (the printable J-card page), replacing an earlier one.
+    async jcard_set({ file, simulate = false, backupDir = null }) {
+        const data = fs.readFileSync(file);
+        if (data.length < 100 || data.length > 4000000) throw new Error('The J-card file must be a PDF under 4 MB.');
+        if (data.subarray(0, 4).toString('latin1') !== '%PDF') throw new Error('The J-card file must be a PDF.');
+        return putRootFile(JCARD, data, 'J-card file', { simulate, backupDir });
+    },
+
+    // WRITES TO THE DISC (unless simulate): removes /JCARD.PDF.
+    async jcard_remove({ simulate = false, backupDir = null }) {
+        return removeRootFile(JCARD, { simulate, backupDir });
     },
 
     // WRITES A FILE TO THE DISC (unless simulate): stores the JPEG file as /LABEL.JPG, replacing an earlier label.

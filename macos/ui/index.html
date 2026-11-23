@@ -505,6 +505,8 @@
 <script src="lang_help2.js"></script>
 <script src="lang_p11.js"></script>
 <script src="lang_es_p11.js"></script>
+<script src="lang_p12.js"></script>
+<script src="lang_es_p12.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -587,6 +589,7 @@
           <button id="coverSearch" class="cover-find hidden" title="Search MusicBrainz and Discogs yourself by artist and album, pick the right release, and fill in the artist, album and album art from it.">Search by hand…</button>
           <button id="coverLookup" class="cover-find hidden" title="Standard discs: look the disc up online (MusicBrainz) for its artist, album and album art, kept on this PC. Only the words from the disc are sent.">Look up online</button>
           <div id="coverActions" class="cover-actions hidden"><button id="coverChange">Change</button><button id="coverRemove">Remove</button></div>
+          <div id="jcardRow" class="cover-actions hidden"><button id="jcardLink" type="button" title="Open the J-card saved on this disc (JCARD.PDF), ready to print">Open J-Card</button></div>
         <div id="labelBox" class="label-box hidden"><img id="labelImg" alt="Disc label" title="The sticker label stored on this disc. Click to see it larger."><span>Disc label</span></div>
         </div>
         <div class="disc-info">
@@ -612,6 +615,10 @@
                 <div class="tool-group g-label rec-tools">
           <div class="tool-buttons"><button id="printLabel" title="Make a sticker label for the disc (picture, album, artist and track list) as a 2x3 inch picture">Make disc label…</button></div>
           <div class="tool-text">Make a sticker label from the disc picture, album, artist and track list, to print on an HP Sprocket or any printer. <a href="#" class="help-link" data-help="label">ⓘ How it works…</a></div>
+        </div>
+        <div class="tool-group g-jcard rec-tools">
+          <div class="tool-buttons"><button id="printJCard" title="Make the slim-case J-card (optionally bi-fold, with the track list inside) and a disc sticker for an ordinary printer">Make J-cards…</button></div>
+          <div class="tool-text">Make the J-card for the slim MiniDisc case (11 mm tab, 5.5 mm spine, 68 mm front, plus an optional fold-out panel for the track list) and a disc sticker, at their real size on an A4 or Letter page, to print on an ordinary printer. <a href="#" class="help-link" data-help="jcard">ⓘ How it works…</a></div>
         </div>
       </section>
       <section class="card lyrics-card" id="lyricsCard" data-card="lyrics">
@@ -1126,7 +1133,7 @@ async function load(noSync) {
   }
   const d = r.disc, used = d.total - d.free;
   if (!curDisc || curDisc.key !== d.key) setLookupNote('');                   // a different disc: the old lookup message no longer applies
-  curDisc = d; eqDiscChanged(d); protectNoteRefresh(d); pendingNamesRefresh(d);
+  curDisc = d; jcardLinkRefresh(d); eqDiscChanged(d); protectNoteRefresh(d); pendingNamesRefresh(d);
   $('grpNewRow').style.display = netmd ? 'none' : 'flex';
   $('keepRow').style.display = netmd ? 'none' : 'flex'; $('openList').style.display = netmd ? 'none' : ''; $('openList').disabled = netmd || !d.hasTracklist;
   if (noSync !== true) setTimeout(() => syncTracklist(d), 0);                  // after this page has been drawn
@@ -1151,6 +1158,7 @@ async function load(noSync) {
     if (ex.lyrics != null) sp.append(part('Lyrics', fmtSize(ex.lyrics)));
     if (ex.cover != null) sp.append(part('Image', fmtSize(ex.cover)));
     if (ex.label != null) sp.append(part('Label', fmtSize(ex.label)));
+    if (ex.jcard != null) sp.append(part('J-Card', fmtSize(ex.jcard)));
     if (ex.video != null) sp.append(part('Video', fmtSize(ex.video)));
     if (ex.spatial != null) { sp.append(part('Spatial (HMSA)', fmtSize(ex.spatial))); if (d.spatialOrphans) sp.append(el('button', { className: 'sp-btn', textContent: 'TIDY', title: 'Remove the spatial files on this disc that no track uses any more (' + d.spatialOrphans + ')', onclick: tidySpatial })); }
     if (ex.list != null) sp.append(part('Track list', fmtSize(ex.list)));
@@ -2990,6 +2998,216 @@ function openLabel() {
   if (groups.length) { preload(); syncScope(); } else redraw();
 }
 $('printLabel').addEventListener('click', openLabel);
+// ---- Disc J-cards (J-card, disc sticker) for an ordinary printer ------------------------------------------------------------
+// Sizes in millimetres, drawn at 300 dpi: J-card 84.5 x 73, left to right tab 11, spine 5.5, front 68 (folds at 11 and 16.5); bi-fold 150.5 x 73 adds a fold-out panel 66 (fold at 84.5); sticker 3:4.
+const JC_DPI = 300, jcPx = mm => Math.round(mm * JC_DPI / 25.4);
+function jcFont(px, bold) { return (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif'; }
+function jcWrap(ctx, text, px, bold, maxLines, maxW) {
+  ctx.font = jcFont(px, bold); const words = String(text || '').split(/\s+/).filter(Boolean), lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; } }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) { lines.length = maxLines; let l = lines[maxLines - 1]; while (l.length > 1 && ctx.measureText(l + '…').width > maxW) l = l.slice(0, -1); lines[maxLines - 1] = l + '…'; }
+  return lines;
+}
+function jcCover(ctx, img, x, y, w, h) {                                    // the picture fills the box, cropped to fit
+  const s = Math.max(w / img.naturalWidth, h / img.naturalHeight), sw = w / s, sh = h / s;
+  ctx.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
+}
+function jcTheme(o) {                                                       // {bg, fg, sub}: dark, light, or the cover's average colour
+  let bg = '#0f2a52';
+  if (o.theme === 'light') bg = '#ffffff';
+  else if (o.theme === 'cover' && o.img) {
+    const c = document.createElement('canvas'); c.width = c.height = 8; const x = c.getContext('2d'); x.drawImage(o.img, 0, 0, 8, 8);
+    const p = x.getImageData(0, 0, 8, 8).data; let r = 0, g = 0, b = 0; for (let i = 0; i < p.length; i += 4) { r += p[i]; g += p[i + 1]; b += p[i + 2]; }
+    const n = p.length / 4; r = Math.round(r / n * .55); g = Math.round(g / n * .55); b = Math.round(b / n * .55); bg = 'rgb(' + r + ',' + g + ',' + b + ')';   // darkened so white text reads
+  }
+  const light = o.theme === 'light'; return { bg, fg: light ? '#111' : '#fff', sub: light ? '#444' : 'rgba(255,255,255,.78)', rule: light ? '#999' : 'rgba(255,255,255,.4)' };
+}
+function drawJFront(cv, o) {                                                // the slim-case J-card, left to right: rear tab 11, spine 5.5, front 68; extended (bi-fold): + one fold-out panel 66 (all 73 mm tall)
+  const T = jcPx(11), S = jcPx(5.5), F = jcPx(68), P1 = jcPx(66), H = jcPx(73), W = T + S + F + (o.extended ? P1 : 0), ctx = cv.getContext('2d'), th = jcTheme(o);
+  cv.width = W; cv.height = H; ctx.textBaseline = 'top'; ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, H);
+  const fx = T + S;                                                         // the front panel starts here
+  if (o.img) jcCover(ctx, o.img, fx, 0, F, H);
+  const M = jcPx(4), tw = F - 2 * M;
+  if (o.showText || !o.img) {                                               // title and artist on the front (always when there is no picture)
+    let fg = th.fg, sub = th.sub;
+    if (o.img) { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(fx, 0, F, H); fg = '#fff'; sub = 'rgba(255,255,255,.85)'; }
+    let tpx = 100, tl; for (; tpx >= 44; tpx -= 4) { tl = jcWrap(ctx, o.title, tpx, true, 5, tw); if (tl.length <= 3) break; }
+    tl = jcWrap(ctx, o.title, tpx, true, 5, tw); const apx = Math.round(tpx * .6), al = jcWrap(ctx, o.artist, apx, false, 3, tw);
+    const sp = px => Math.round(px * 1.18), th2 = sp(tpx) * tl.length + sp(apx) * al.length + (al.length ? 20 : 0);
+    let y = Math.max(M, Math.round((H - th2) / 2)); ctx.textAlign = 'left';
+    ctx.fillStyle = fg; ctx.font = jcFont(tpx, true); tl.forEach(l => { ctx.fillText(l, fx + M, y); y += sp(tpx); });
+    y += al.length ? 20 : 0; ctx.fillStyle = sub; ctx.font = jcFont(apx, false); al.forEach(l => { ctx.fillText(l, fx + M, y); y += sp(apx); });
+  }
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, fx, H);                         // rear tab and spine in the theme colour
+  const side = (cx, t, px0, bold) => { if (!t) return; ctx.save(); ctx.translate(cx, H / 2); ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = th.fg;
+    let px = px0; ctx.font = jcFont(px, bold); while (px > 18 && ctx.measureText(t).width > H - jcPx(6)) { px -= 2; ctx.font = jcFont(px, bold); } ctx.fillText(t, 0, 0); ctx.restore(); };
+  side(T + S / 2, [o.artist, o.title].filter(Boolean).join('  —  '), Math.round(S * .62), true);     // spine reads top to bottom
+  side(T / 2, [o.total ? 'Total ' + o.total : '', o.footer].filter(Boolean).join('   '), Math.round(T * .3), false);
+  ctx.fillStyle = th.rule; ctx.fillRect(T - 1, 0, 2, H); ctx.fillRect(fx - 1, 0, 2, H);
+  if (o.extended) {                                                         // the fold-out panel: the whole track list, with the total and footer at the foot
+    const x0 = fx + F, foot = jcPx(8), rows = o.rows || [];
+    ctx.fillStyle = th.bg; ctx.fillRect(x0, 0, P1, H); ctx.fillStyle = th.rule; ctx.fillRect(x0 - 1, 0, 2, H);
+    if (rows.length) jcTrackList(ctx, rows, x0 + M, M, P1 - 2 * M, H - 2 * M - foot, th.fg);
+    if (o.total || o.footer) { const fy = H - M - foot + 8; ctx.fillStyle = th.rule; ctx.fillRect(x0 + M, fy, P1 - 2 * M, 2); ctx.textBaseline = 'top'; ctx.fillStyle = th.fg; ctx.textAlign = 'left';
+      if (o.total) { ctx.font = jcFont(40, true); ctx.fillText('Total: ' + o.total, x0 + M, fy + 14); }
+      if (o.footer) { ctx.font = jcFont(34, false); ctx.fillStyle = th.sub; ctx.textAlign = 'right'; ctx.fillText(o.footer, x0 + P1 - M, fy + 16); } }
+  }
+}
+function jcFitList(ctx, rows, w, h) {                                       // biggest type, fewest columns, that lets every row fit; rows: {head,title} or {n,title,time}
+  const CG = jcPx(4);
+  for (let cols = 1; cols <= 3; cols++) for (let px = 64; px >= 22; px -= 2) {
+    const step = Math.round(px * 1.2), per = Math.floor(h / step); if (per * cols < rows.length) continue;
+    ctx.font = jcFont(px, false); const colW = (w - (cols - 1) * CG) / cols, nw = ctx.measureText('00  ').width, tw = Math.max(0, ...rows.map(r => r.time ? ctx.measureText(r.time).width : 0)) + 18;
+    if (rows.every(r => { ctx.font = jcFont(px, !!r.head); return ctx.measureText(r.title).width + (r.head ? 0 : nw + tw) <= colW; })) return { cols, px, step, per, colW, CG, nw };
+  }
+  const px = 22, step = Math.round(px * 1.2), per = Math.max(1, Math.floor(h / step)); return { cols: 3, px, step, per, colW: (w - 2 * CG) / 3, CG, nw: 44 };
+}
+function jcTrackList(ctx, rows, x, y, w, h, fg) {
+  const f = jcFitList(ctx, rows, w, h); ctx.textAlign = 'left';
+  rows.forEach((r, i) => {
+    const c = Math.floor(i / f.per), k = i % f.per; if (c >= f.cols) return; const cx = x + c * (f.colW + f.CG), cy = y + k * f.step;
+    ctx.fillStyle = fg;
+    if (r.head) { ctx.font = jcFont(f.px, true); let s = r.title; while (s.length > 1 && ctx.measureText(s).width > f.colW) s = s.slice(0, -1); ctx.fillText(s, cx, cy); return; }
+    ctx.font = jcFont(f.px, false); ctx.fillText(String(r.n), cx, cy);
+    let s = r.title; const tw = r.time ? ctx.measureText(r.time).width + 18 : 0; while (s.length > 1 && ctx.measureText(s).width + f.nw + tw > f.colW) s = s.slice(0, -1);
+    ctx.fillText(s + (s.length < r.title.length ? '…' : ''), cx + f.nw, cy);
+    if (r.time) { ctx.textAlign = 'right'; ctx.fillText(r.time, cx + f.colW, cy); ctx.textAlign = 'left'; }
+  });
+}
+function drawJSticker(cv, o) {                                              // 3:4 (width:height) with rounded corners; on a white page, so the corners stay white
+  const W = jcPx(o.wmm), H = Math.round(W * 4 / 3), ctx = cv.getContext('2d'), th = jcTheme(o), R = Math.round(W * .08);
+  cv.width = W; cv.height = H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, W, H, R); ctx.clip(); ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, H); ctx.textBaseline = 'top';
+  const M = Math.round(W * .07); let y = M;
+  if (o.img) { const s = W - 2 * M; jcCover(ctx, o.img, M, y, s, s * .85); y += s * .85 + M * .8; }
+  const tw = W - 2 * M; ctx.textAlign = 'center'; const tpx = Math.round(W * .085), apx = Math.round(tpx * .78);
+  const tl = jcWrap(ctx, o.title, tpx, true, 2, tw), al = jcWrap(ctx, o.artist, apx, false, 2, tw);
+  ctx.fillStyle = th.fg; ctx.font = jcFont(tpx, true); tl.forEach(l => { ctx.fillText(l, W / 2, y); y += Math.round(tpx * 1.18); });
+  ctx.fillStyle = th.sub; ctx.font = jcFont(apx, false); al.forEach(l => { ctx.fillText(l, W / 2, y); y += Math.round(apx * 1.18); });
+  ctx.textBaseline = 'alphabetic'; ctx.fillStyle = th.fg; ctx.font = jcFont(Math.round(W * .06), true); ctx.textAlign = 'left';
+  if (o.footer) ctx.fillText(o.footer, M, H - M * .9);
+  if (o.date) { ctx.textAlign = 'right'; ctx.font = jcFont(Math.round(W * .06), false); ctx.fillStyle = th.sub; ctx.fillText(o.date, W - M, H - M * .9); }
+  ctx.restore(); ctx.strokeStyle = '#bbb'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(1, 1, W - 2, H - 2, R); ctx.stroke();
+}
+function jcardLinkRefresh(d) { const r = $('jcardRow'); if (r) r.classList.toggle('hidden', !(d && d.extras && d.extras.jcard)); }
+$('jcardLink').addEventListener('click', async () => { const r = await api().jcard_open(current); if (r.error) toast(r.error, true); });
+// Print through the system print window (any attached printer): the pieces are laid out at real size on a page-sized sheet that only shows while printing.
+async function jcardPrint(items, paper) {
+  if (/Mac/.test(navigator.platform || '')) { const r = await api().jcard_open_page(items, paper); if (r.error) toast(r.error, true); else toast('Opened in Preview; print it from there at 100 % (Actual Size).', false, 8000); return; }
+  const st = document.createElement('style'), box = document.createElement('div'); box.id = 'jcPrint';
+  const land = /l$/.test(paper), lt = paper.startsWith('letter'), A = lt ? (land ? ['279.4mm', '215.9mm', 'letter landscape'] : ['215.9mm', '279.4mm', 'letter']) : (land ? ['297mm', '210mm', 'A4 landscape'] : ['210mm', '297mm', 'A4']);
+  st.textContent = '#jcPrint{display:none}@page{size:' + A[2] + ';margin:0}@media print{body>*:not(#jcPrint){display:none!important}html,body{background:#fff!important;margin:0!important}#jcPrint{display:block;position:absolute;left:0;top:0;width:' + A[0] + ';height:' + A[1] + ';background:#fff;overflow:hidden}#jcPrint *{position:absolute;margin:0;padding:0}#jcPrint .m{background:#555}}';
+  const mk = (x, y, w, h) => { const m = document.createElement('div'); m.className = 'm'; m.style.cssText = 'left:' + x + 'mm;top:' + y + 'mm;width:' + Math.max(w, .25) + 'mm;height:' + Math.max(h, .25) + 'mm'; box.append(m); };
+  items.forEach(it => {
+    const im = document.createElement('img'); im.src = it.data; im.style.cssText = 'left:' + it.x + 'mm;top:' + it.y + 'mm;width:' + it.w + 'mm;height:' + it.h + 'mm'; box.append(im);
+    const g = 1.5, L = 4;
+    [[it.x, it.y, -1, -1], [it.x + it.w, it.y, 1, -1], [it.x, it.y + it.h, -1, 1], [it.x + it.w, it.y + it.h, 1, 1]].forEach(([cx, cy, sx, sy]) => {
+      mk(Math.min(cx + sx * g, cx + sx * (g + L)), cy, L, 0); mk(cx, Math.min(cy + sy * g, cy + sy * (g + L)), 0, L); });
+    (it.folds || []).forEach(f => { mk(it.x + f, it.y - g - L, 0, L); mk(it.x + f, it.y + it.h + g, 0, L); });
+  });
+  document.head.append(st); document.body.append(box);
+  await Promise.all([...box.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => {}) : 0));
+  const done = () => { st.remove(); box.remove(); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  try { window.print(); } catch (e) { done(); const r = await api().jcard_open_page(items, paper); if (r.error) toast(r.error, true); else toast('Opened the page in your PDF viewer; print it from there at 100 %.'); }
+  setTimeout(done, 120000);
+}
+function openJCards() {
+  const d = curDisc; if (!d) return;
+  const g = coverGuess(), groups = groupsOf(), field = 'font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0;flex:1';
+  const sameArtist = () => { const s = new Set((d.tracks || []).map(t => (t.artist || '').trim())); return s.size === 1 ? [...s][0] : ''; };
+  const title = el('input', { type: 'text', value: (groups.length ? (d.title || '').trim() : '') || g.album || d.title || '', placeholder: 'Album', style: field });
+  const artist = el('input', { type: 'text', value: groups.length ? sameArtist() : g.artist, placeholder: 'Artist', style: field });
+  const footer = el('input', { type: 'text', value: netmd ? 'MiniDisc · SP' : 'MiniDisc · Hi-MD', placeholder: 'Footer text (e.g. MiniDisc · ATRAC · SP)', style: field });
+  const now = new Date(), dateIn = el('input', { type: 'text', value: String(now.getDate()).padStart(2, '0') + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + now.getFullYear(), style: field, title: 'Date printed on the disc sticker (leave empty for none)' });
+  const sel = (opts, v) => { const s = el('select', { style: field }, ...opts.map(([k, t]) => el('option', { value: k, textContent: t }))); s.value = v; return s; };
+  const theme = sel([['cover', 'Colour taken from the cover'], ['dark', 'Dark blue'], ['light', 'White (saves ink)']], 'cover');
+  const textOnFront = el('input', { type: 'checkbox', checked: !d.cover });
+  const paper = sel([['a4', 'Paper: A4'], ['letter', 'Paper: Letter']], 'a4'); try { const p = localStorage.getItem('jcPaper'); if (p) paper.value = p; } catch (e) { /* no storage */ }
+  const stickW = el('input', { type: 'number', min: 20, max: 90, step: 1, value: 45, style: field + ';max-width:90px' });
+  const useF = el('input', { type: 'checkbox', checked: true }), useExt = el('input', { type: 'checkbox', checked: true }), useS = el('input', { type: 'checkbox', checked: true });
+  const useImg = el('input', { type: 'checkbox', checked: !!d.cover, disabled: !d.cover }), useTime = el('input', { type: 'checkbox', checked: true }), useHeads = el('input', { type: 'checkbox', checked: true });
+  const opt = (box, text) => el('label', { style: 'display:flex;gap:7px;align-items:center;cursor:pointer' }, box, el('span', { textContent: text }));
+  const cvF = el('canvas'), cvS = el('canvas'); [cvF, cvS].forEach(c => { c.style.cssText = 'border:1px solid var(--line);background:#fff;max-width:100%;height:auto;flex:none'; });
+  let img = null;
+  const lt = sec => { sec = Math.round(sec || 0); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+  const rows = () => {
+    const mk = t => ({ n: t.number, title: (t.title === '(untitled)' ? 'Untitled' : t.title), time: useTime.checked ? lt(t.seconds) : '' });
+    const all = d.tracks || []; if (!groups.length || !useHeads.checked) return all.map(mk);
+    const out = []; let last = null;
+    all.forEach(t => { const m = trackMap.get(t.number) || t, key = m.groupIndex || 0; if (key !== last) { out.push({ head: true, title: key ? (m.groupTitle || 'Group (no name)') : 'No group' }); last = key; } out.push(mk(t)); });
+    return out;
+  };
+  const total = () => { const s = Math.round((d.tracks || []).reduce((a, t) => a + (t.seconds || 0), 0)); return !s ? '' : s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') : lt(s); };
+  const sw = () => Math.max(20, Math.min(90, +stickW.value || 45));
+  const base = () => ({ theme: theme.value, img: useImg.checked ? img : null, title: title.value.trim(), artist: artist.value.trim(), footer: footer.value.trim() });
+  const redraw = () => {
+    drawJFront(cvF, { ...base(), showText: textOnFront.checked, total: total(), extended: useExt.checked, rows: rows() });
+    drawJSticker(cvS, { ...base(), wmm: sw(), date: dateIn.value.trim() });
+    cvF.style.display = useF.checked ? '' : 'none'; cvS.style.display = useS.checked ? '' : 'none';
+    const cw = useExt.checked ? 520 : 300; cvF.style.width = cw + 'px'; cvS.style.width = Math.round(sw() * cw / (useExt.checked ? 150.5 : 84.5)) + 'px';
+  };
+  const loadImg = src => new Promise(res => { if (!src) { res(null); return; } const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+  const jpg = (cv, q) => cv.toDataURL('image/jpeg', q || 0.95);
+  const makeItems = q => {                                                  // flow the chosen pieces onto the page at real size (mm), left to right, new row when full
+    const ext = useExt.checked, jw = ext ? 150.5 : 84.5, PW = paper.value === 'letter' ? 215.9 : 210, m = 12, G = 10, items = [], w = sw(); let x = m, y = m, rowH = 0;
+    const put = (cv, pw, ph, folds) => { if (x + pw > PW - m && x > m) { x = m; y += rowH + G; rowH = 0; } items.push({ data: jpg(cv, q), wpx: cv.width, hpx: cv.height, x, y, w: pw, h: ph, folds }); x += pw + G; rowH = Math.max(rowH, ph); };
+    if (useF.checked) put(cvF, jw, 73, ext ? [11, 16.5, 84.5] : [11, 16.5]);
+    if (useS.checked) put(cvS, w, w * 4 / 3, []);
+    return items;
+  };
+  const pageCode = () => paper.value;                                        // 'a4' or 'letter'
+  const nameOf = () => (artist.value + ' - ' + title.value).replace(/^ - | - $/g, '');
+  const savePdf = el('button', { className: 'primary', textContent: 'Make printable PDF…', title: 'One A4 or Letter page with the chosen pieces at their real size, with crop and fold marks. It opens so you can print it at 100 % (actual size).', onclick: async () => {
+    if (!useF.checked && !useS.checked) { toast('Tick at least one piece to print.', true); return; }
+    savePdf.disabled = true; try { localStorage.setItem('jcPaper', paper.value); } catch (e) { /* no storage */ }
+    const r = await api().jcard_save_pdf(makeItems(), pageCode(), nameOf()); savePdf.disabled = false;
+    if (r.error) toast(r.error, true); else if (r.saved) toast('Saved ' + r.saved + ' — print it at 100 % (actual size).', false, 8000);
+  } });
+  const printBtn = el('button', { textContent: 'Print…', title: 'Choose any attached printer in the print window. Print at 100 % (actual size); the pieces are already at real size on the page.', onclick: async () => {
+    if (!useF.checked && !useS.checked) { toast('Tick at least one piece to print.', true); return; }
+    try { localStorage.setItem('jcPaper', paper.value); } catch (e) { /* no storage */ }
+    const items = makeItems(); closeSheet(); await jcardPrint(items, pageCode());
+  } });
+  const onDisc = el('button', { textContent: d.extras && d.extras.jcard ? 'Replace the J-card on the disc' : 'Save to disc', disabled: netmd, title: netmd ? 'Only Hi-MD discs can hold a file' : 'Store the printable J-card page on the disc as JCARD.PDF; it can then be opened and printed from the Disc J-Cards tab', onclick: async () => {
+    if (uploading) return;
+    if (!useF.checked && !useS.checked) { toast('Tick at least one piece first.', true); return; }
+    if (!await askOk((d.extras && d.extras.jcard ? 'Replace the J-card on the disc with this one?' : 'Store this J-card on the disc?') + '\n\nIt is saved as one small PDF file (JCARD.PDF, about a megabyte) in the disc’s main folder. The recorder ignores it, and your tracks are not touched.')) return;
+    uploading = true; stopPlayer(); onDisc.disabled = true; toast('Saving the J-card to the disc…', false, 4000);
+    const r = await api().jcard_save_disc(current, makeItems(0.88), pageCode());
+    uploading = false; onDisc.disabled = false;
+    if (r.error) { toast(r.error, true); return; }
+    closeSheet(); toast('J-card saved on the disc'); load();
+  } });
+  const offDisc = d.extras && d.extras.jcard && !netmd ? el('button', { className: 'danger', textContent: 'Remove from disc', title: 'Delete JCARD.PDF from the disc; your tracks are not touched', onclick: async () => {
+    if (uploading || !await askOk('Remove the J-card file from the disc?')) return;
+    uploading = true; stopPlayer(); offDisc.disabled = true;
+    const r = await api().jcard_remove(current); uploading = false; offDisc.disabled = false;
+    if (r.error) { toast(r.error, true); return; }
+    closeSheet(); toast('J-card removed from the disc'); load();
+  } }) : '';
+  const savePng = el('button', { textContent: 'Save pictures…', title: 'Each piece as its own 300 dpi picture (PNG) in a folder you choose', onclick: async () => {
+    const items = []; if (useF.checked) items.push({ name: 'J-card', data: cvF.toDataURL('image/png') }); if (useS.checked) items.push({ name: 'disc sticker', data: cvS.toDataURL('image/png') });
+    if (!items.length) { toast('Tick at least one piece.', true); return; }
+    const r = await api().label_save_many(items); if (r.error) toast(r.error, true); else if (r.saved) toast('Saved ' + r.count + ' pictures in ' + r.saved);
+  } });
+  openSheet(el('h2', { textContent: 'Disc J-Cards' }),
+    el('div', { style: 'display:flex;gap:16px;align-items:flex-start;margin:8px 0;flex-wrap:wrap' },
+      el('div', { style: 'display:grid;gap:10px;justify-items:start;flex:1 1 440px;min-width:0' }, cvF, el('div', { style: 'display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap' }, cvS)),
+      el('div', { style: 'display:grid;gap:8px;flex:1 1 260px;min-width:0' },
+        opt(useF, 'J-card for the slim case: 84.5 × 73 mm (tab 11, spine 5.5, front 68)'), opt(useExt, 'Bi-fold: add a fold-out panel (150.5 × 73 mm) with the track list'), el('div', { style: 'display:flex;gap:8px;align-items:center' }, opt(useS, 'Disc sticker, width (mm):'), stickW),
+        title, artist, footer, dateIn, theme, paper, opt(useImg, 'Use the album art'), opt(textOnFront, 'Title and artist on the front panel'), opt(useTime, 'Show track times'),
+        groups.length ? opt(useHeads, 'Group names as headings in the track list') : '',
+        el('div', { className: 'notice', textContent: 'Print at 100 % (actual size), not “fit to page”. Paper 120–160 g/m² suits a J-card. Cut on the corner marks, fold on the short marks at the top and bottom.' }))),
+    el('div', { style: 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px' }, printBtn, savePdf, savePng, onDisc, offDisc),
+    el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
+  floatSheet(true);
+  [title, artist, footer, dateIn, stickW].forEach(i => i.addEventListener('input', redraw));
+  [theme, textOnFront, useF, useExt, useS, useImg, useTime, useHeads].forEach(i => i.addEventListener('change', redraw));
+  redraw(); loadImg(d.cover).then(im => { img = im; if (!im) { useImg.checked = false; useImg.disabled = true; } redraw(); });
+}
+$('printJCard').addEventListener('click', openJCards);
 // ---- Saving tracks to the PC -------------------------------------------------
 // Reads the disc only. Hi-MD tracks are read directly; on a standard disc the app uses its saved copy of a track or, on a
 // recorder that can send audio back (the MZ-RH1), asks the recorder for it.
@@ -3684,7 +3902,26 @@ const helpText = () => ({
     ['Keep a track list on the disc', 'Hi-MD discs only. When ticked, the list is also stored on the disc as TRACKS.CSV and brought up to date whenever tracks are added, deleted, renamed or moved. A standard MiniDisc has no room for files, so this is not offered there.'],
     ['Open track list', 'Opens the TRACKS.CSV stored on the disc in your spreadsheet program. It is read from the disc into a temporary copy, so editing it does not change the disc. The button is switched off until the disc has a track list.'],
   ]],
-  label: ['Disc labelling', [
+  jcard: ['Disc J-Cards', [
+    ['Make J-cards', [
+      "Draws the paper parts of a MiniDisc case for the loaded disc, to print on an ordinary printer. Nothing is written to the disc or the recorder.",
+      "• Press “Make J-cards…”. Previews appear of two pieces: the J-card for the slim case that blank and recordable discs come in, and a disc sticker (3:4, width of your choice). The J-card is laid out left to right as an 11 mm rear tab, a 5.5 mm spine (title on its side) and a 68 mm front panel with the album art: 84.5 × 73 mm unfolded. Tick “Bi-fold” to add a 66 mm fold-out panel (150.5 × 73 mm in all) that carries the track list with times and the total.",
+      "• The title, artist and footer text (for example “MiniDisc · ATRAC · SP”) start from what is on the disc; change them and the previews follow. Choose the colour (from the cover, dark blue or white to save ink), whether the title goes on the front panel, and A4 or Letter paper.",
+      "• Untick any piece you do not need.",
+    ]],
+    ['Printing', [
+      "“Make printable PDF…” puts the chosen pieces on one page at their real size, with crop marks at the corners and short fold marks at the top and bottom, and opens it.",
+      "• Print at 100 % (actual size), never “fit to page”. Paper 120–160 g/m² suits a J-card.",
+      "• Cut on the corner marks, fold the J-card at 11 and 16.5 mm (and, if bi-fold, at 84.5 mm).",
+      "“Print…” opens the Windows print window so you can choose any attached printer. Print at 100 % (actual size), and the pieces come out at real size.",
+      "“Save pictures…” saves each piece as its own 300 dpi PNG instead.",
+    ]],
+    ['Keeping it on the disc', [
+      "• “Save to disc” (Hi-MD discs only) stores the printable page on the disc as one small PDF file, JCARD.PDF, in the main folder. The recorder ignores it and your tracks are not touched.",
+      "• Once it is there, an “Open J-Card” button appears in Disc Information. It copies the file off the disc and opens it, ready to print. “Replace the J-card on the disc” and “Remove from disc” are in the same sheet.",
+    ]],
+  ]],
+  label: ['Disc Stickers', [
     ['Make disc label', [
       "Draws a sticker label for the loaded disc and saves it as a picture. Nothing is written to the disc or the recorder.",
       "• Press “Make disc label…”. A preview appears, made from the disc’s picture, the album name, the artist and the track list.",
@@ -6740,7 +6977,7 @@ function makeTabs(cardId, classes, remember, names) {                 // names: 
   card.querySelector('.card-title').after(strip);
   pick(active);
 }
-makeTabs('recordCard', ['g-add', 'g-label'], 'mdm.tab.record', { 'g-add': 'Add tracks', 'g-label': 'Disc labelling' });
+makeTabs('recordCard', ['g-add', 'g-label', 'g-jcard'], 'mdm.tab.record', { 'g-add': 'Add tracks', 'g-label': 'Disc Stickers', 'g-jcard': 'Disc J-Cards' });
 makeTabs('mgmtCard', ['g-arrange', 'g-fade', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove', 'g-format'], 'mdm.tab.mgmt');
 makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-video', 'g-check', 'g-tracks', 'g-copyout', 'g-package'], 'mdm.tab.extras');
 

@@ -32,8 +32,8 @@ let lastAttach = Date.now();                                       // when a rec
 // The "root file" commands each store (or remove) one small file in the disc's root folder: the track list (TRACKS.CSV), the lyrics (LYRICS.TXT), the disc
 // picture (COVER.JPG), the group pictures and the disc label. They all share one routine in the helper that backs up the start of the volume first and
 // checks the whole volume afterwards (nothing else changed, the file reads back the same).
-const ROOT_FILE_SET = ['tracklist_set', 'lyrics_set', 'cover_set', 'groupart_set', 'label_set'];          // take a file
-const ROOT_FILE_REMOVE = ['cover_remove', 'groupart_remove', 'label_remove'];                              // take nothing
+const ROOT_FILE_SET = ['tracklist_set', 'lyrics_set', 'cover_set', 'groupart_set', 'label_set', 'jcard_set'];          // take a file
+const ROOT_FILE_REMOVE = ['cover_remove', 'groupart_remove', 'label_remove', 'jcard_remove'];                              // take nothing
 // "format" erases the whole Hi-MD disc and sets up a fresh volume. It takes no arguments (the app makes the user type FORMAT first), and like every
 // change it only runs while the writes switch is on.
 // "backup" only reads the disc (it saves the index files into a staged folder, copied to the caller afterwards). "upload_frames" writes ATRAC audio that

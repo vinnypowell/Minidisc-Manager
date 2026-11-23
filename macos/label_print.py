@@ -7,10 +7,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 
 import webview
+import himd_dev
+import himd_fs
 import sprocket
 import hiprint
 from mdm_paths import BACKUP_DIR, USER_DIR
@@ -242,3 +245,158 @@ class LabelMixin:
             return {'ok': True, 'printer': name, 'bytes': len(data)}
         finally:
             shutil.rmtree(folder, ignore_errors=True)
+
+
+class JCardMixin:
+    """Disc J-cards: the page draws the front cover, rear insert and disc sticker as pictures; this lays them out at their real size on an A4 or
+    Letter page (crop and fold marks included) and writes a PDF for an ordinary printer. No extra library: the PDF is written by hand."""
+    _PAPER_MM = {'a4': (210.0, 297.0), 'letter': (215.9, 279.4), 'a4l': (297.0, 210.0), 'letterl': (279.4, 215.9)}
+
+    @staticmethod
+    def _jcard_pdf(items, paper):
+        pw, ph = JCardMixin._PAPER_MM.get(paper, JCardMixin._PAPER_MM['a4'])
+        pt = 72.0 / 25.4
+        objs = []                                                       # object bodies (bytes); object n is objs[n-1]
+        def add(b):
+            objs.append(b)
+            return len(objs)
+        add(b'')                                                        # 1 catalog, 2 pages, 3 page: filled in below
+        add(b''); add(b'')
+        names, ops = [], []
+        for i, it in enumerate(items):
+            m = re.match(r'data:image/jpeg;base64,(.+)$', it.get('data') or '', re.S)
+            if not m:
+                raise ValueError('A picture was not in the expected form.')
+            raw = base64.b64decode(m.group(1))
+            n = add(b'<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n'
+                    % (int(it['wpx']), int(it['hpx']), len(raw)) + raw + b'\nendstream')
+            names.append((i, n))
+            x, y, w, h = float(it['x']), float(it['y']), float(it['w']), float(it['h'])
+            ops.append('q %.3f 0 0 %.3f %.3f %.3f cm /Im%d Do Q' % (w * pt, h * pt, x * pt, (ph - y - h) * pt, i))
+            ln = []                                                     # crop marks at the four corners, fold ticks above and below
+            g, L = 1.5, 4.0
+            for cx, cy, sx, sy in ((x, y, -1, -1), (x + w, y, 1, -1), (x, y + h, -1, 1), (x + w, y + h, 1, 1)):
+                ln.append((cx + sx * g, cy, cx + sx * (g + L), cy)); ln.append((cx, cy + sy * g, cx, cy + sy * (g + L)))
+            for f in it.get('folds') or []:
+                ln.append((x + float(f), y - g, x + float(f), y - g - L)); ln.append((x + float(f), y + h + g, x + float(f), y + h + g + L))
+            ops.append('0.3 w 0.35 G ' + ' '.join('%.3f %.3f m %.3f %.3f l S' % (a * pt, (ph - b) * pt, c * pt, (ph - d) * pt) for a, b, c, d in ln))
+        content = '\n'.join(ops).encode('ascii')
+        cn = add(b'<< /Length %d >>\nstream\n' % len(content) + content + b'\nendstream')
+        xo = ' '.join('/Im%d %d 0 R' % (i, n) for i, n in names)
+        objs[0] = b'<< /Type /Catalog /Pages 2 0 R >>'
+        objs[1] = b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>'
+        objs[2] = ('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] /Resources << /XObject << %s >> >> /Contents %d 0 R >>' % (pw * pt, ph * pt, xo, cn)).encode('ascii')
+        out = bytearray(b'%PDF-1.4\n'); offs = []
+        for n, b in enumerate(objs, 1):
+            offs.append(len(out)); out += b'%d 0 obj\n' % n + b + b'\nendobj\n'
+        xr = len(out)
+        out += b'xref\n0 %d\n0000000000 65535 f \n' % (len(objs) + 1)
+        for o in offs:
+            out += b'%010d 00000 n \n' % o
+        out += b'trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n' % (len(objs) + 1, xr)
+        return bytes(out)
+
+    def jcard_save_pdf(self, items, paper, name):
+        """Ask where to save, write the PDF, and open it so it can be printed at 100 % (actual size)."""
+        try:
+            data = self._jcard_pdf(items or [], paper)
+        except (ValueError, KeyError, TypeError) as exc:
+            return {'error': 'The J-card page could not be made: %s' % exc}
+        safe = re.sub(r'[\/:*?"<>|]+', ' ', name or 'J-card').strip()[:80] or 'J-card'
+        kind = getattr(getattr(webview, 'FileDialog', None), 'SAVE', None) or webview.SAVE_DIALOG
+        start = getattr(self, '_last_save_dir', None)
+        path = self._window.create_file_dialog(
+            kind, directory=start if start and os.path.isdir(start) else os.path.join(os.path.expanduser('~'), 'Documents'),
+            save_filename=safe + ' J-card.pdf', file_types=('PDF file (*.pdf)',))
+        if not path:
+            return {'cancelled': True}
+        path = path if isinstance(path, str) else path[0]
+        if not path.lower().endswith('.pdf'):
+            path += '.pdf'
+        try:
+            with open(path, 'wb') as f:
+                f.write(data)
+        except OSError as exc:
+            return {'error': 'The J-card page could not be saved: %s' % exc}
+        try:
+            if os.name == 'nt':
+                os.startfile(path)                                      # opens in the PDF viewer; print from there at 100 %
+            else:
+                subprocess.Popen(['open' if sys.platform == 'darwin' else 'xdg-open', path])
+        except Exception:
+            pass
+        return {'saved': path}
+
+    def jcard_save_disc(self, index, items, paper):
+        """WRITES A FILE TO THE DISC. Stores the printable J-card page as /JCARD.PDF in the root folder (a Hi-MD disc only), replacing an earlier one."""
+        if self._is_netmd(index):
+            return {'error': 'Only Hi-MD discs can hold a J-card file.'}
+        try:
+            data = self._jcard_pdf(items or [], paper)
+        except (ValueError, KeyError, TypeError) as exc:
+            return {'error': 'The J-card page could not be made: %s' % exc}
+        folder = tempfile.mkdtemp(prefix='mdm-jcard-')
+        try:
+            pdf = os.path.join(folder, 'JCARD.PDF')
+            with open(pdf, 'wb') as f:
+                f.write(data)
+            res = {'error': 'not tried'}
+            for attempt in range(3):                                   # a recorder can stay busy for a few seconds after a write
+                with self._lock:
+                    res = self._run_helper('jcard_set', {'file': pdf, 'backupDir': os.path.join(BACKUP_DIR, 'jcard_' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))})
+                if 'error' not in res:
+                    break
+                time.sleep(2.5)
+            if 'error' in res:
+                self.log('jcard_save_disc failed: %s' % res['error'])
+            return res
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+
+    def jcard_remove(self, index):
+        """WRITES TO THE DISC. Removes /JCARD.PDF."""
+        if self._is_netmd(index):
+            return {'error': 'Only Hi-MD discs can hold a J-card file.'}
+        with self._lock:
+            return self._run_helper('jcard_remove', {'backupDir': os.path.join(BACKUP_DIR, 'jcard_' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))})
+
+    def jcard_open(self, index):
+        """Copies JCARD.PDF off the disc into a temporary folder and opens it (print from there at 100 %)."""
+        if self._is_netmd(index):
+            return {'error': 'Only Hi-MD discs can hold a J-card file.'}
+        with self._lock:
+            try:
+                dev = himd_dev.Device(self._devices[int(index)])
+                fs = himd_fs.Fat16(dev)
+                if not any(not e['dir'] and e['short'].upper() == 'JCARD.PDF' for e in fs.listdir('/')):
+                    return {'error': 'There is no J-card on this disc yet.'}
+                data = bytes(fs.read_file('/JCARD.PDF'))
+            except Exception as exc:
+                return {'error': 'The J-card could not be read from the disc: %s' % exc}
+            finally:
+                self._release_devices()
+        return self._jcard_open_bytes(data, 'J-card from disc.pdf')
+
+    def jcard_open_page(self, items, paper):
+        """Opens the page in the PDF viewer without asking where to save (used when the built-in print window is not available)."""
+        try:
+            data = self._jcard_pdf(items or [], paper)
+        except (ValueError, KeyError, TypeError) as exc:
+            return {'error': 'The J-card page could not be made: %s' % exc}
+        return self._jcard_open_bytes(data, 'J-card.pdf')
+
+    @staticmethod
+    def _jcard_open_bytes(data, name):
+        folder = os.path.join(tempfile.gettempdir(), 'MiniDiscManager-jcard')
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, name)
+        try:
+            with open(path, 'wb') as f:
+                f.write(data)
+            if os.name == 'nt':
+                os.startfile(path)
+            else:
+                subprocess.Popen(['open' if sys.platform == 'darwin' else 'xdg-open', path])
+        except OSError as exc:
+            return {'error': 'The J-card could not be opened: %s' % exc}
+        return {'ok': True, 'path': path}

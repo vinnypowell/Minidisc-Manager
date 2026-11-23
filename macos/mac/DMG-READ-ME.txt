@@ -46,7 +46,7 @@ INSTALLING - 4 STEPS
 
 THINGS macOS WILL ASK FOR LATER
 -------------------------------
-* "Screen & System Audio Recording" - only when you record from Bandcamp, SoundCloud, Apple Music and similar windows
+* "Screen & System Audio Recording" - only when you record from Bandcamp, SoundCloud and similar windows
   inside MiniDisc Manager. The app tells you when it is needed and opens the right page of System Settings.
   Switch on "MiniDisc Manager", then quit the app (MiniDisc Manager > Quit) and open it again.
   Nothing is recorded from your screen: only the sound of the window is captured.

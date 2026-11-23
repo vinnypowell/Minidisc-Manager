@@ -9,9 +9,9 @@ The window
 - The top row has four panels, each with a heading (on a narrower window they wrap into two rows). Recording and the tool panels
   show one section at a time: click a tab to change section. The last tab you used is remembered.
   * Disc capacity (this card was called Disc Information; it is now three cards without headings: Visualiser, Track time and Disc capacity, stacked in one column by default, each ticked on or off in the Cards menu, and moved by the ⠿ grip that appears in a card's top right corner when the pointer is over it. Visualiser and Track time show only while a track plays): the disc picture (one arc per track), the disc name, track count, used / free space, and the disc image. While a track plays on this PC a live display of the music appears at the top of this panel (see Visualizer).
-  * Recording: tabs "Add tracks" and "Disc labelling". Add tracks: Add tracks from PC... (a file with 6 or more channels also offers to keep its surround version, see Spatial audio), Rip CD..., Rip Yoto Card..., Send to Yoto Card...,
+  * Recording: tabs "Add tracks", "Disc Stickers" and "Disc J-Cards". Add tracks: Add tracks from PC... (a file with 6 or more channels also offers to keep its surround version, see Spatial audio), Rip CD..., Rip Yoto Card..., Send to Yoto Card...,
     Add tracks from Bandcamp..., Add tracks from SoundCloud..., Add tracks from Internet Radio... and a tick box "Put each batch of added
-    tracks in a new group" (see Groups). Disc labelling: Make disc label....
+    tracks in a new group" (see Groups). Disc Stickers: Make disc label.... Disc J-Cards: Make J-cards....
   * Disc Management: tabs Arrange, Groups, Auto split & name, Clone, Remove and Format:
       Arrange              Move...  Split...  Combine...  Edit details...  Fade & level...
       Groups               Group by album...  Make group...  Add to group...  Ungroup...  Delete group...
@@ -499,7 +499,7 @@ Identify by listening (Hi-MD discs; its own group, Identify)
 - Both sheets: nothing is written until you press Apply names: every title, artist and album can be edited and each track unticked. The change is
   one write with a backup that Undo last change can restore.
 
-Disc labelling (its own group in the Recording box, under the Add tracks buttons)
+Disc Stickers (its own tab in the Recording box, next to Add tracks)
 - Press Make disc label... to draw a sticker label for the loaded disc: the disc picture (Hi-MD discs only), album, artist and track list, as a
   portrait picture 2 x 3 inches (1000 x 1500 pixels), the size of an HP Sprocket sticker. Album and artist start from what is on the disc and can be
   edited; three tick boxes switch the album art, the disc title and artist, and the track list on or off. A long track list gets smaller type, then a smaller picture, then two columns,
@@ -529,6 +529,20 @@ Disc labelling (its own group in the Recording box, under the Add tracks buttons
 - On a Hi-MD disc, Save to disc (Replace the label on the disc, if one is there) stores the label as LABEL.JPG in the disc's main folder, like
   COVER.JPG: the file table is backed up first (backups\label_<time>) and checked afterwards. The label then shows under the disc picture in Disc
   information (click it to see it larger, make a new one or remove it) and its size is listed with the other files. Standard discs cannot hold files.
+
+Disc J-Cards (a tab in the Recording box, next to Disc Stickers)
+- Press Make J-cards... to draw the paper parts of a MiniDisc case for the loaded disc and print them on an ordinary printer (A4 or Letter).
+- The J-card is for the slim case that blank and recordable discs come in. Unfolded it is 84.5 x 73 mm, left to right an 11 mm rear tab, a
+  5.5 mm spine (artist and title on their side) and a 68 mm front panel with the album art (the title can go on it too). Tick Bi-fold to add
+  a 66 mm fold-out panel (150.5 x 73 mm in all) that carries the track list with times and the total. The sizes follow the Band CDs template.
+- A disc sticker (3:4, the width you choose, rounded corners) is drawn next to it.
+- The title, artist, footer text (for example MiniDisc - ATRAC - SP) and sticker date start from the disc; change them and the previews follow.
+  Colour: taken from the cover, dark blue or white (saves ink). Untick any piece you do not need.
+- Print... opens the print window so you can choose any attached printer. Make printable PDF... saves one page with the pieces at their real
+  size, with crop marks and short fold marks, and opens it. Save pictures... saves each piece as a 300 dpi PNG. Print at 100 % (actual size).
+- Hi-MD discs: Save to disc stores the printable page on the disc as JCARD.PDF (one small file in the main folder; the recorder ignores it).
+  Then an Open J-Card button appears under the disc picture in Disc Information, and the file's size is listed with the others. Replace the
+  J-card on the disc and Remove from disc are in the same window.
 
 Lyrics (its own group, Lyrics)
 - Press Lyrics... to see the ticked tracks (or the whole disc when none is ticked), each marked Timed, Text only or None. "Find..." searches three free
@@ -693,6 +707,7 @@ Playing to a Sonos speaker
 - How it works: the speaker fetches each track from a small web server the app runs on this PC's home-network address, behind a
   random secret in the address, and only while you are playing to a room. The speaker and this PC must be on the same network.
   The first time, Windows may ask whether to let the app on your network: choose Allow for private networks.
+- 0.35.0: NEW: Disc J-Cards tab (Recording box). Makes the J-card for the slim MiniDisc case (11 mm tab, 5.5 mm spine, 68 mm front, optional 66 mm fold-out panel with the track list) and a disc sticker, to print on any printer (Print..., or a PDF with crop and fold marks, or PNG pictures). On a Hi-MD disc the printable page can be stored as JCARD.PDF and opened again from an Open J-Card button in Disc Information. The Disc labelling tab is now called Disc Stickers (unchanged otherwise). French, German, Dutch and Spanish texts for the new tab. On the Mac (beta, M1 and newer) the same version; Intel Macs are no longer updated.
 - 0.34.5: Version numbers for Windows and the Mac version (beta) now match. Windows has no other changes. On the Mac: adding a spatial audio track with the Opus setting works (the Mac program's ffmpeg now has the Opus encoder), and copying a whole disc to the Mac (Disc Package, Clone, cut and join) no longer fails on a disc with more than 5 tracks.
 - 0.34.0: When tracks are added, or a CD is ripped, with the "name the disc" box ticked, the disc is now named "Album: Artist" (the album, a colon and a space, then the artist). Rip a CD has Tick all and Untick all buttons above its track list. A Hi-MD recorder's name now ends with "(Hi-MD disc)", as a standard disc's ends with "(standard disc)". Smaller fixes: the album picture in Disc Information no longer pushes the card layout about, the track list keeps a steady height when the window changes size, and Clone can write back onto the original disc after it was erased. MiniDisc Manager also has a Mac version now (beta, for Macs with an M1 or newer chip) with the same version number; see the README on GitHub.
 - 0.33.5: The "How it works" help is clearer: Disc Package, Clone, Remove (Delete and Undo), Disc labelling, Groups (Add to group, Delete group, Group headers, Ungroup) and the Recording entries for Rip CD, Rip Yoto Card, Send to Yoto Card and Internet Radio are now short step-by-step lists, in all five languages. The Disc Package help also matches the way Import package works now.

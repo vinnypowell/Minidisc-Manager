@@ -49,7 +49,7 @@ I18N.add([
   ['Copy out', 'Exporter', 'Auslesen', 'Kopiëren naar pc'],
   ['Auto split & name', 'Découpe et noms automatiques', 'Automatisch teilen und benennen', 'Automatisch splitsen en benoemen'],
   ['Add tracks', 'Ajouter des pistes', 'Titel hinzufügen', 'Nummers toevoegen'],
-  ['Disc labelling', 'Étiquette du disque', 'Disc-Beschriftung', 'Disclabel'],
+  ['Disc Stickers', 'Étiquette du disque', 'Disc-Beschriftung', 'Disclabel'],
 
   // ---- track list columns
   ['Artist', 'Artiste', 'Interpret', 'Artiest'],
