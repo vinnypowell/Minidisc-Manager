@@ -404,6 +404,12 @@
   }
   #toast.show { opacity: 1; transform: translate(-50%, -50%); }
   #toast.error { border-color: var(--bad); }
+  #updateNote {
+    position: fixed; right: 18px; bottom: 18px; z-index: 35; max-width: min(420px, 88vw); background: var(--panel-2); border: 1px solid var(--accent); border-radius: 12px;
+    padding: 14px 16px; box-shadow: var(--shadow); font-size: 14px;
+  }
+  #updateNote.hidden { display: none; }
+  #updateNote .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   #drop {
     position: fixed; inset: 0; z-index: 20; display: none; place-items: center; text-align: center;
     background: rgba(15,17,21,.82); backdrop-filter: blur(4px);
@@ -508,6 +514,8 @@
 <script src="lang_es_p11.js"></script>
 <script src="lang_p12.js"></script>
 <script src="lang_es_p12.js"></script>
+<script src="lang_p13.js"></script>
+<script src="lang_es_p13.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -865,6 +873,7 @@
 <div id="modal"><div class="sheet" id="sheet"></div></div>
 <div id="eqWin" class="hidden"></div>
 <div id="toast"></div>
+<div id="updateNote" class="hidden" role="status"></div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -1214,7 +1223,7 @@ async function load(noSync) {
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
 // App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
-let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true };
+let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true };
 async function appSettingsLoad() {
   try {
     let s = await api().get_app_settings();
@@ -1250,6 +1259,7 @@ function openSettings() {
     ['spatialBinaural', 'Play the spatial version of a track with headphone surround', 'A track that was added with a spatial (multichannel) version plays that version in this window, mixed down for headphones. The recorder and the Sonos rooms always play the normal stereo track. Switched off: the stereo track plays here too.'],
     ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows a still picture of the track (cover, title, artist), not the lyric video. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
     ['allowPatch', 'Allow the experimental firmware patch (MZ-NH700 and similar recorders)', 'Lets a Hi-MD recorder that holds a standard disc send its audio back to this PC, so tracks can play here, be saved, identified, split, combined or cloned. The patch is a small temporary change in the recorder’s memory (nothing is written to the disc or the recorder’s permanent memory) and unplugging the recorder clears it. Switched off: the patch is never used, and tracks without a saved copy can only be played on the recorder by remote control.'],
+    ['checkUpdates', 'Tell me when a new version is available', 'Once a day the program asks this project’s page on GitHub which version is the newest, and shows a small notice if yours is older. Nothing about you or your computer is sent, and nothing is downloaded or installed by itself. Help > Check for updates asks straight away.'],
     ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, or has no name, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
     ['askConvert', 'Suggest converting a standard disc to Hi-MD', 'When a standard (SP / LP) disc with audio is inserted in a recorder that also uses Hi-MD, a note under the Recorder card offers to convert it. Switched off: no note; Convert SP Disc to Hi-MD stays in the Disc Conversion card.'],
   ].map(([key, title, text]) => {
@@ -6873,13 +6883,28 @@ async function firstRunNotice() {
     el('div', { className: 'row' }, el('button', { textContent: 'Driver setup guide…', onclick: () => api().open_driver_guide(I18N.get()) }), go));
 }
 // The version number, next to the name in the top-left corner.
+// ---- new-version notice: a small box says a newer version exists (update_check.py); "Skip this version" keeps it quiet until the next one.
+async function updateCheck(manual) {
+  let r;
+  try { r = await api().check_update(!!manual); } catch (e) { r = { error: String(e) }; }
+  const box = $('updateNote');
+  if (!r || !r.available) { if (manual) toast(r && r.error ? r.error : 'You have the newest version (' + ((r && r.current) || '') + ').', !!(r && r.error), 5000); return; }
+  box.replaceChildren(
+    el('b', { textContent: 'MiniDisc Manager ' + r.version + ' is available' }),
+    el('div', { className: 'meta', style: 'white-space:normal', textContent: 'You have ' + r.current + '. The new version is on the download page; install it over the old one and your settings stay.' }),
+    el('div', { className: 'row' },
+      el('button', { className: 'primary', type: 'button', textContent: 'Open download page', onclick: () => { api().open_update_page(r.url); box.classList.add('hidden'); } }),
+      el('button', { type: 'button', textContent: 'Later', onclick: () => box.classList.add('hidden') }),
+      el('button', { type: 'button', textContent: 'Skip this version', onclick: () => { api().skip_update(r.version); box.classList.add('hidden'); } })));
+  box.classList.remove('hidden');
+}
 async function showVersion() {
   try {
     const i = await api().app_info(), v = $('appVersion');
     v.textContent = 'v' + i.version; v.title = 'MiniDisc Manager ' + i.version + ' - Copyright (c) 2026 Vinny Powell' + (i.packaged ? '' : ' (running from the source folder)');
   } catch (e) { /* the number is only informative */ }
 }
-window.addEventListener('pywebviewready', async () => { await appSettingsLoad(); showVersion(); firstRunNotice(); scan(); });
+window.addEventListener('pywebviewready', async () => { await appSettingsLoad(); showVersion(); firstRunNotice(); scan(); if (appSettings.checkUpdates !== false) setTimeout(() => updateCheck(false), 6000); });
 
 // ---- Edit the artist / album of the ticked tracks in one go (Hi-MD) -----------------------------------------------------------------
 function editDetailsStandard() {                                    // a standard disc: titles only, so the artist goes in front of the titles and the album + artist name the disc
@@ -7366,6 +7391,7 @@ const helpMenu = $('helpMenu');
 [['User manual (PDF)', 'MiniDisc-Manager-User-Manual.pdf', 'The illustrated user manual'], ['Full read me (English)', 'README.txt', 'The complete description of everything the program does']].forEach(([label, file, tip]) => {
   helpMenu.append(el('button', { type: 'button', textContent: label, title: tip, onclick: async () => { helpMenu.classList.add('hidden'); const r = await api().open_guide(file); if (r && r.error) toast(r.error, true, 6000); } }));
 });
+helpMenu.append(el('button', { type: 'button', textContent: 'Check for updates…', title: 'Ask whether a newer version has been released', onclick: () => { helpMenu.classList.add('hidden'); updateCheck(true); } }));
 $('helpBtn').addEventListener('click', e => { e.stopPropagation(); helpMenu.classList.toggle('hidden'); });
 document.addEventListener('click', e => { if (!helpMenu.classList.contains('hidden') && !helpMenu.contains(e.target)) helpMenu.classList.add('hidden'); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') helpMenu.classList.add('hidden'); });

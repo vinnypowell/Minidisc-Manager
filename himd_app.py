@@ -32,6 +32,7 @@ import clone_disc
 import disc_package
 import convert_disc
 import app_settings
+import update_check
 import lp_to_sp
 import groupart
 import copies
@@ -62,7 +63,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.35.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.36.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -570,6 +571,26 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
             return {'error': 'Could not open the driver guide: %s' % exc}
         return {'ok': True}
 
+    def check_update(self, force=False):
+        """Is a newer version released? (the notice in the page; see update_check.py). Only when the Settings switch is on, unless the user asked (force)."""
+        if not force and not self._app_setting('checkUpdates'):
+            return {'available': False}
+        return update_check.check(APP_VERSION, bool(force))
+
+    def skip_update(self, version):
+        return update_check.skip(version)
+
+    def open_update_page(self, url=''):
+        """Opens the release page in the browser (only a page of this project)."""
+        url = str(url or '')
+        if not url.startswith(update_check.PAGE_PREFIX):
+            url = update_check.PAGE_PREFIX + 'releases/latest'
+        try:
+            webbrowser.open(url)
+        except Exception as exc:
+            return {'error': 'Could not open the browser: %s' % exc}
+        return {'ok': True}
+
     GUIDES = ('SPATIAL-AUDIO.txt', 'README.txt', 'MiniDisc-Manager-User-Manual.pdf')
 
     def open_guide(self, name='SPATIAL-AUDIO.txt'):
@@ -754,7 +775,7 @@ def main():
     try:
         page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
         stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
-        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_p11.js', 'lang_p12.js', 'lang_es.js', 'lang_es_more.js', 'lang_es_p11.js', 'lang_es_p12.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_p11.js', 'lang_p12.js', 'lang_p13.js', 'lang_es.js', 'lang_es_more.js', 'lang_es_p11.js', 'lang_es_p12.js', 'lang_es_p13.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
             ex = os.stat(os.path.join(HERE, 'ui', extra))
             stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
     except OSError:
