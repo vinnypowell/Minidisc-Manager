@@ -2,12 +2,13 @@
 
 A program for Windows, and as a beta for Macs with Apple silicon, for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.36.0 (Windows) · 0.36.0 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.36.1 (Windows) · 0.36.1 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **0.36.1:** new: **Update now** in the new-version notice (installed Windows copy): the program downloads the new Setup, checks it against the published checksum, closes, installs it and starts again by itself; it will not start while a disc operation is running.
 - **0.36.0:** new: new-version notice. Once a day the program asks this project's GitHub release page which version is the newest and shows a small box (Open download page, Later, Skip this version) if yours is older. Nothing about you is sent and nothing is installed by itself; switch it off in Settings, or use Help > Check for updates.
 - **0.35.2:** fix: the bass (LFE) meter in the Surround channels display now moves; it is judged against its own loud level instead of the full-range channels.
 - **0.35.1:** fix: the program now starts even when the numpy library cannot be loaded on a computer (for example a missing Microsoft Visual C++ runtime); only the Surround channels display, binaural playback and the TV picture styles are switched off then.
@@ -62,7 +63,7 @@ Read the full guide, including exactly what was and was not tested: **[SPATIAL-A
 
 ## Download
 
-See the Releases page for the Windows installer, the portable zip, the user manual and and the Mac disk image (`MiniDisc-Manager-0.36.0-beta-mac-arm64.dmg`). The highly experimental Intel Mac disk image stays at 0.34.5 (release `v_0_34_5`) and is no longer updated.
+See the Releases page for the Windows installer, the portable zip, the user manual and and the Mac disk image (`MiniDisc-Manager-0.36.1-beta-mac-arm64.dmg`). The highly experimental Intel Mac disk image stays at 0.34.5 (release `v_0_34_5`) and is no longer updated.
 
 ## macOS (beta)
 

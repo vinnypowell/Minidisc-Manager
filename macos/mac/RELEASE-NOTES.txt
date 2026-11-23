@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.36.0 (BETA)
+MiniDisc Manager for Mac - version 0.36.1 (BETA)
 ====================================================================
 
-New: new-version notice. Once a day the program asks this project's GitHub release page for the newest version and shows a small box if yours is older (Open download page, Later, Skip this version). Nothing about you is sent and nothing is installed by itself. Switch it off in Settings; Help > Check for updates asks straight away.
+Windows: an Update now button in the new-version notice (installed copy). Mac: no change except the version number; the Mac keeps the Open download page link.
+
+Since 0.36.0 - New: new-version notice. Once a day the program asks this project's GitHub release page for the newest version and shows a small box if yours is older (Open download page, Later, Skip this version). Nothing about you is sent and nothing is installed by itself. Switch it off in Settings; Help > Check for updates asks straight away.
 
 Since 0.35.2 - Fix: the bass (LFE) meter in the Surround channels display now moves; it is judged against its own loud level instead of the full-range channels'.
 
@@ -13,7 +15,7 @@ Actual Size), "Make printable PDF..." saves it with crop and fold marks, and "Sa
 as JCARD.PDF, and an "Open J-Card" button then appears in Disc Information. The Disc labelling tab is now called Disc Stickers (unchanged otherwise).
 French, German, Dutch and Spanish texts are included.
 
-Intel Macs: there is no Intel version of 0.36.0. The experimental Intel build stays at 0.34.5 and is no longer updated.
+Intel Macs: there is no Intel version of 0.36.1. The experimental Intel build stays at 0.34.5 and is no longer updated.
 
 Everything else is unchanged from 0.35.0.
 

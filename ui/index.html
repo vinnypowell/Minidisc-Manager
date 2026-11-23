@@ -6893,10 +6893,26 @@ async function updateCheck(manual) {
     el('b', { textContent: 'MiniDisc Manager ' + r.version + ' is available' }),
     el('div', { className: 'meta', style: 'white-space:normal', textContent: 'You have ' + r.current + '. The new version is on the download page; install it over the old one and your settings stay.' }),
     el('div', { className: 'row' },
-      el('button', { className: 'primary', type: 'button', textContent: 'Open download page', onclick: () => { api().open_update_page(r.url); box.classList.add('hidden'); } }),
+      ...(r.can_install ? [el('button', { className: 'primary', type: 'button', textContent: 'Update now', onclick: () => updateNow(r, box) })] : []),
+      el('button', { className: r.can_install ? '' : 'primary', type: 'button', textContent: 'Open download page', onclick: () => { api().open_update_page(r.url); box.classList.add('hidden'); } }),
       el('button', { type: 'button', textContent: 'Later', onclick: () => box.classList.add('hidden') }),
       el('button', { type: 'button', textContent: 'Skip this version', onclick: () => { api().skip_update(r.version); box.classList.add('hidden'); } })));
   box.classList.remove('hidden');
+}
+async function updateNow(r, box) {                                  // Windows installed copy: download the Setup, check it, close the program, install, start again
+  if (!await askOk('Update MiniDisc Manager to ' + r.version + ' now? The new version is downloaded and checked, then the program closes, installs it and starts again by itself. Do not do this while a disc is being written.')) return;
+  const res = await api().update_start(r.version);
+  if (res && res.error) { toast(res.error, true, 8000); return; }
+  const say = t => box.replaceChildren(el('b', { textContent: 'Updating to ' + r.version }), el('div', { className: 'meta', style: 'white-space:normal', textContent: t }));
+  say('Downloading…');
+  for (;;) {
+    await new Promise(ok => setTimeout(ok, 700));
+    let st; try { st = await api().update_state(); } catch (e) { return; }                // the window is closing: the update is on its way
+    if (!st) return;
+    if (st.phase === 'error') { box.classList.add('hidden'); toast(st.error || 'The update failed', true, 9000); return; }
+    if (st.phase === 'install') { say('Installing… the program will close and start again.'); }
+    else say('Downloading… ' + (st.total ? Math.round(st.done / st.total * 100) + ' %  (' + mb(st.done) + ' of ' + mb(st.total) + ')' : mb(st.done)));
+  }
 }
 async function showVersion() {
   try {
