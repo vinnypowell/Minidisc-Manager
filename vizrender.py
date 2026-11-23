@@ -14,7 +14,7 @@ try:
     import numpy as np
     from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
     OK = True
-except ImportError:                                            # the caller falls back to ffmpeg's own (simpler) drawing
+except Exception:                                              # (ImportError, or numpy's own load errors) the caller falls back to ffmpeg's own (simpler) drawing
     OK = False
 
 BG = (18, 22, 28)                                              # the lyric video's background, 0x12161c

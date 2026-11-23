@@ -11,7 +11,7 @@ import time
 
 try:
     import vizrender
-except ImportError:                                         # a copy without the new module: ffmpeg's own drawing is used
+except Exception:                                           # a copy without the new module: ffmpeg's own drawing is used
     class vizrender:                                        # noqa: N801
         OK = False
 

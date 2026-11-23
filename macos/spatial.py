@@ -20,7 +20,10 @@ import struct
 import subprocess
 import threading
 
-import numpy as np
+try:
+    import numpy as np
+except Exception:                                   # numpy failed to load: the app still starts, only the level display / binaural play are off
+    np = None
 
 from mdm_paths import FFMPEG_EXE, HERE
 
@@ -202,6 +205,8 @@ def levels(hms_path, hz=20, cancel=None):
     """How loud each channel of a spatial file is, `hz` times a second (for the "Surround channels" display). The audio is decoded here at a low sample rate (the levels need no
     detail) and the RMS level of every channel in every 1/hz second is measured. Returns {'names', 'hz', 'frames', 'seconds', 'data'}: data is `frames` x channels bytes,
     row by row, each byte the level 0..255 on a -60 dB .. 0 dB scale. Nothing is written except a temporary copy of the audio, which is removed."""
+    if np is None:
+        raise SpatialError('The surround display needs numpy, which could not be loaded on this computer.')
     info = peek(hms_path)
     names, n = info['names'], info['channels']
     ext = '.opus' if info['codec'] == 'opus' else '.wv'
@@ -402,6 +407,8 @@ def _ear_filters(names, rate, nfft):
 
 def render_binaural(src_hms, out_wav, progress=None, cancel=None, gain=0.55):
     """Decodes the spatial file and writes a stereo 16-bit WAV for headphones. Returns {'seconds'}. Streams in blocks, so long files are fine."""
+    if np is None:
+        raise SpatialError('Binaural playback needs numpy, which could not be loaded on this computer.')
     info, payload = unpack(src_hms)
     names, n, rate = info['names'], info['channels'], info['rate']
     ext = '.opus' if info['codec'] == 'opus' else '.wv'

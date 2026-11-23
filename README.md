@@ -2,12 +2,13 @@
 
 A program for Windows, and as a beta for Macs with Apple silicon, for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.35.0 (Windows) · 0.35.0 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.35.1 (Windows) · 0.35.1 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio and Yoto cards.
+- **0.35.1:** fix: the program now starts even when the numpy library cannot be loaded on a computer (for example a missing Microsoft Visual C++ runtime); only the Surround channels display, binaural playback and the TV picture styles are switched off then.
 - **0.35.0:** new **Disc J-Cards** tab (Recording box): makes the J-card for the slim MiniDisc case (11 mm tab, 5.5 mm spine, 68 mm front, with an optional 66 mm fold-out panel for the track list) and a disc sticker, to print on any printer (Print, a PDF with crop and fold marks, or PNG pictures). On a Hi-MD disc the printable page can be stored as `JCARD.PDF` and opened again from an **Open J-Card** button in Disc Information. The Disc labelling tab is now called **Disc Stickers** (unchanged otherwise). French, German, Dutch and Spanish texts included. Same version number on the Mac (beta). There is no Intel Mac version of 0.35.0: the experimental Intel image stays at 0.34.5 and is no longer updated.
 - **0.34.5:** the Windows and Mac versions now share one version number. Windows has no other changes. On the Mac (beta): adding a spatial audio track with the Opus (smaller) setting now works (the error "Unrecognized option 'vbr'" is fixed), and copying a whole disc to the Mac (Disc Package, Clone, cut and join) no longer fails on a disc with more than 5 tracks. The Intel Mac image has both fixes too.
 - **0.34.0:** the disc is now named "Album: Artist" when you name it as you add tracks or rip a CD; Rip a CD has Tick all and Untick all buttons; a Hi-MD recorder's name ends with "(Hi-MD disc)"; smaller layout and Clone fixes. **New: a macOS version (beta, Apple silicon)** with the same version number: Hi-MD and standard discs, CD ripping, playing discs (also 5.1 to a Google TV), Convert, recording from Bandcamp and SoundCloud and internet radio, and lyrics, including the "Listen" recogniser. See the macOS section below.
@@ -59,7 +60,7 @@ Read the full guide, including exactly what was and was not tested: **[SPATIAL-A
 
 ## Download
 
-See the Releases page for the Windows installer, the portable zip, the user manual and and the Mac disk image (`MiniDisc-Manager-0.35.0-beta-mac-arm64.dmg`). The highly experimental Intel Mac disk image stays at 0.34.5 (release `v_0_34_5`) and is no longer updated.
+See the Releases page for the Windows installer, the portable zip, the user manual and and the Mac disk image (`MiniDisc-Manager-0.35.1-beta-mac-arm64.dmg`). The highly experimental Intel Mac disk image stays at 0.34.5 (release `v_0_34_5`) and is no longer updated.
 
 ## macOS (beta)
 

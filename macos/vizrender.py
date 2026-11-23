@@ -15,7 +15,7 @@ try:
     from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
     from mdm_paths import ui_font
     OK = True
-except ImportError:                                            # the caller falls back to ffmpeg's own (simpler) drawing
+except Exception:                                              # the caller falls back to ffmpeg's own (simpler) drawing
     OK = False
 
 BG = (18, 22, 28)                                              # the lyric video's background, 0x12161c
