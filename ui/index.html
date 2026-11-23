@@ -8070,7 +8070,10 @@ async function surroundLoad(num) {
     const step = Math.max(1, Math.floor(buf.length / 30000)), samp = []; for (let i = 0; i < buf.length; i += step) if (buf[i] > 8) samp.push(buf[i]);
     samp.sort((a, b) => a - b);
     const refB = samp.length ? samp[Math.floor(samp.length * 0.98)] : 200;                 // loud, but not the one stray peak
-    Object.assign(sl, { names: r.names, hz: r.hz, frames: r.frames, data: buf, state: 'ready', ref: refB / 255 * 60 - 60, lv: r.names.map(() => 0), db: r.names.map(() => -60), pk: r.names.map(() => 0), pkAt: r.names.map(() => 0) });
+    let refL = refB;                                                                       // the bass channel is judged against its own loud level: it is band-limited, so it sits far below the full-range channels
+    const li = r.names.indexOf('LFE');
+    if (li >= 0) { const nn = r.names.length, ls = []; for (let i = li; i < buf.length; i += nn * Math.max(1, Math.floor(buf.length / nn / 8000))) if (buf[i] > 8) ls.push(buf[i]); ls.sort((a, b) => a - b); if (ls.length > 20) refL = ls[Math.floor(ls.length * 0.98)]; }
+    Object.assign(sl, { names: r.names, hz: r.hz, frames: r.frames, data: buf, state: 'ready', ref: refB / 255 * 60 - 60, refL: refL / 255 * 60 - 60, lv: r.names.map(() => 0), db: r.names.map(() => -60), pk: r.names.map(() => 0), pkAt: r.names.map(() => 0) });
     return;
   }
 }
@@ -8092,7 +8095,7 @@ function drawSurround(g, W, H, dpr, bars) {
   let sx = 0, sy = 0, sp = 0;
   sl.names.forEach((name, c) => {
     const b = sl.data[i0 * n + c] * (1 - fr) + sl.data[i1 * n + c] * fr, db = b / 255 * 60 - 60;
-    const SPAN = 30, lin = Math.max(0, Math.min(1.15, (db - (sl.ref - SPAN)) / SPAN));         // 30 dB below this track's own loud level is nothing, that level is full
+    const SPAN = 30, lin = Math.max(0, Math.min(1.15, (db - ((name === 'LFE' ? sl.refL : sl.ref) - SPAN)) / SPAN));         // 30 dB below this track's own loud level is nothing, that level is full
     const target = Math.min(1, Math.pow(lin, 1.6) * vizSet.gain);                               // the curve pulls quiet channels down and loud ones apart
     sl.lv[c] += (target - sl.lv[c]) * (target > sl.lv[c] ? 0.6 : 0.2);
     sl.db[c] += (db - sl.db[c]) * 0.3;                                              // the figure shown beside the speaker: smoothed a little so it can be read

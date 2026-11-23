@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.35.1 (BETA)
+MiniDisc Manager for Mac - version 0.35.2 (BETA)
 ====================================================================
 
-Fix: the program now starts even if the numpy library cannot be loaded (only the Surround channels display, binaural playback and the TV picture styles are switched off then).
+Fix: the bass (LFE) meter in the Surround channels display now moves; it is judged against its own loud level instead of the full-range channels'.
+
+Since 0.35.1 - Fix: the program now starts even if the numpy library cannot be loaded (only the Surround channels display, binaural playback and the TV picture styles are switched off then).
 
 Since 0.35.0 - New: Disc J-Cards (Recording box, next to Disc Stickers). It makes the J-card for the slim MiniDisc case (11 mm tab, 5.5 mm spine, 68 mm front, plus an
 optional 66 mm fold-out panel with the track list) and a disc sticker, to print on any printer. "Print..." opens the page in Preview (press Cmd+P and print at
@@ -9,7 +11,7 @@ Actual Size), "Make printable PDF..." saves it with crop and fold marks, and "Sa
 as JCARD.PDF, and an "Open J-Card" button then appears in Disc Information. The Disc labelling tab is now called Disc Stickers (unchanged otherwise).
 French, German, Dutch and Spanish texts are included.
 
-Intel Macs: there is no Intel version of 0.35.1. The experimental Intel build stays at 0.34.5 and is no longer updated.
+Intel Macs: there is no Intel version of 0.35.2. The experimental Intel build stays at 0.34.5 and is no longer updated.
 
 Everything else is unchanged from 0.35.0.
 
