@@ -518,6 +518,8 @@
 <script src="lang_es_p13.js"></script>
 <script src="lang_p14.js"></script>
 <script src="lang_es_p14.js"></script>
+<script src="lang_p15.js"></script>
+<script src="lang_es_p15.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -618,7 +620,7 @@
       <section class="card record-card" id="recordCard" data-card="record">
         <h2 class="card-title">Recording</h2>
         <div class="tool-group g-add rec-tools">
-          <div class="tool-buttons"><button id="add" class="primary" title="Add music files from this PC: ordinary stereo files, and also surround (multichannel) files, 5.1 / 7.1 and larger, which can keep their spatial version on a Hi-MD disc.">Add tracks from PC…<span class="mc-badge">also 5.1 · 7.1</span></button><button id="rip" title="Copy an audio CD from this PC’s CD drive onto the disc">Rip CD…</button><div class="yoto-pair"><button id="yt" title="Copy the card that is in your Yoto player onto the disc">Rip Yoto Card…</button><button id="yts" title="Copy the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, ready to link to a blank MYO card">Send to Yoto Card…</button></div><button id="bc" title="Play music on Bandcamp and record it onto the disc as it plays">Add tracks from Bandcamp…</button><button id="sc" title="Play music on SoundCloud and record it onto the disc as it plays">Add tracks from SoundCloud…</button><button id="rd" title="Record an internet radio station, song by song, onto the disc">Add tracks from Internet Radio…</button></div>
+          <div class="tool-buttons"><button id="add" class="primary" title="Add music files from this PC: ordinary stereo files, and also surround (multichannel) files, 5.1 / 7.1 and larger, which can keep their spatial version on a Hi-MD disc.">Add tracks from PC…<span class="mc-badge">also 5.1 · 7.1</span></button><button id="rip" title="Copy an audio CD from this PC’s CD drive onto the disc">Rip CD…</button><div class="yoto-pair"><button id="yt" title="Copy the card that is in your Yoto player onto the disc">Rip Yoto Card…</button><button id="yts" title="Copy the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, ready to link to a blank MYO card">Send to Yoto Card…</button></div><button id="bc" title="Play music on Bandcamp and record it onto the disc as it plays">Add tracks from Bandcamp…</button><button id="sc" title="Play music on SoundCloud and record it onto the disc as it plays">Add tracks from SoundCloud…</button><button id="rd" title="Record an internet radio station, song by song, onto the disc">Add tracks from Internet Radio…</button><button id="pod" title="Find a podcast, pick episodes and add them to the disc (works well with the 48 kbps format)">Add tracks from Podcasts…</button><button id="lv" title="Find a free public-domain audiobook (LibriVox), pick chapters and add them to the disc (works well with the 48 kbps format)">Add tracks from Audiobooks…</button></div>
           <label id="grpNewRow" class="tool-text" style="display:flex;gap:7px;align-items:center;cursor:pointer" title="Hi-MD discs: after files, a CD, a Yoto card or an online recording have been added, the new tracks are put in one new group named after their album (a single new track is left ungrouped)"><input type="checkbox" id="grpNew"> Put each batch of added tracks in a new group</label>
           <div class="tool-text">Put music on the disc from files, CDs, Yoto cards or online recordings. Bandcamp, SoundCloud and radio are recorded in real time. <span class="mc-note">Surround (multichannel) files, 5.1 / 7.1 and larger, can also be added, and keep their spatial version on a Hi-MD disc.</span> <a href="#" class="help-link" data-help="add">ⓘ How it works…</a></div>
         </div>
@@ -5978,7 +5980,8 @@ function splitFirstRow(path, info) {
   if (hasChapters) show(); else go.disabled = true;
   return row;
 }
-async function startAdd(paths) {
+const LONG_STD = 30 * 60;                                   // seconds: a single file longer than this gets a warning on a standard disc
+async function startAdd(paths, meta, opts) {                                  // opts.noArt: podcasts and audiobooks have no album art to look up
   if (uploading) return;
   if (!paths || !paths.length) return;
   const prog = liveProgress('Reading the files and the disc to see what fits. Nothing is written yet.', 4);
@@ -5993,8 +5996,9 @@ async function startAdd(paths) {
   for (const f of p.files) {
     const name = f.path.split(/[\\/]/).pop();
     if (f.error) { list.append(el('div', { className: 'file bad' }, el('span', { className: 'chip', textContent: '✕' }), el('span', { textContent: name + ' — ' + f.error }))); continue; }
-    const title = el('input', { value: f.title, maxLength: 120, placeholder: 'Title' });
-    const artist = el('input', { value: f.artist, maxLength: 120, placeholder: 'Artist' });
+    const mt = (meta && meta[f.path]) || {};                                            // podcast episodes: the episode title and the show name win over the file's own tags
+    const title = el('input', { value: mt.title || f.title, maxLength: 120, placeholder: 'Title' });
+    const artist = el('input', { value: mt.artist || f.artist, maxLength: 120, placeholder: 'Artist' });
     if (p.netmd) artist.style.display = 'none';                                       // standard discs keep track titles only
     const cb = el('input', { type: 'checkbox', checked: true, title: 'Untick to leave this file out', style: 'width:auto', onchange: () => refresh() });
     list.append(el('div', { className: 'file', style: 'grid-template-columns:auto auto 1fr ' + (p.netmd ? '' : '1fr ') + 'auto' }, cb, el('span', { className: 'chip', textContent: (f.label || f.kind).toUpperCase() }), title, artist,
@@ -6029,6 +6033,7 @@ async function startAdd(paths) {
   const info = el('div', { className: 'notice' });
   const speedHint = el('div', { className: 'sub' });          // standard disc, SP: how long it will take, and that LP2 / LP4 send faster
   const warn = el('div', { className: 'notice warn' });
+  const longWarn = el('div', { className: 'notice warn', style: 'display:none' });        // standard disc: a very long single file can stall the recorder (advice only, it does not block)
   const noteEl = el('div', { className: 'notice warn' });
   const go = el('button', { className: 'primary' });
   let chosen = p.netmd ? 'sp' : 'auto';
@@ -6049,10 +6054,18 @@ async function startAdd(paths) {
       speedHint.textContent = chosen === 'sp' && needNet() >= 120
         ? 'SP is sent at about twice the playing speed, so adding these takes about ' + len(Math.round(sendEst)) + '. LP2 and LP4 are encoded on this PC and send several times faster, at lower sound quality.' : '';
       speedHint.style.display = speedHint.textContent ? '' : 'none';
+      const longOnes = picked().filter(r => r.f.seconds > LONG_STD);
+      longWarn.textContent = longOnes.length ? (longOnes.length === 1 ? 'One file is ' + len(longOnes[0].f.seconds) + ' long' : longOnes.length + ' files are longer than ' + len(LONG_STD)) +
+        '. Very long single files can stall a standard-disc recorder (a 55-minute podcast stopped at 0% on an MZ-RH1 and had to be cancelled). Safer: split it into parts of about half an hour first (with a single file, tick “This is one long recording” above), or try one in LP2. If nothing moves for a few minutes, press stop on the recorder and cancel.' : '';
+      longWarn.style.display = longWarn.textContent ? '' : 'none';
     } else {
       const need = needMd(chosen);
       info.textContent = 'The disc has ' + fmtSize(p.freeBytes) + ' free (' + p.trackCountNow + ' tracks now). The ' + picked().length + ' ticked ' + (picked().length === 1 ? 'file needs' : 'files need') + ' about ' + fmtSize(need) + '.';
       warn.textContent = lpTooLong(chosen) ? 'LP2 and LP4 can only encode files up to 90 minutes long.' : !picked().length ? 'Tick at least one file to add.' : !fits(chosen) ? 'They will not fit. Untick some files or choose a smaller format.' : '';
+      const secs = picked().reduce((n, r) => n + (r.f.seconds || 0), 0);                    // how long the PC takes to encode (measured on a 3-minute track: Hi-SP about 7 times faster than playing, the online 48 kbps encoder about 60 times); writing to the disc comes on top
+      const encEst = chosen === 'hi48' ? secs * 0.04 + 6 * picked().length : ['hisp', 'hilp', 'at3p'].includes(chosen) ? secs * 0.18 + 2 * picked().length : 0;
+      speedHint.textContent = encEst >= 60 ? 'Encoding these will take roughly ' + len(Math.round(encEst)) + (secs >= 3600 ? ' (a rough estimate: it depends on the computer' + (chosen === 'hi48' ? ' and the internet connection' : '') + ')' : '') + ', before the audio is written to the disc.' : '';
+      speedHint.style.display = speedHint.textContent ? '' : 'none';
       const secure = chosen === 'auto' ? p.hasNonMp3 : chosen !== 'mp3';                // everything except MP3 uses the copy-protection session
       noteEl.textContent = (secure ? 'Anything except MP3 needs the disc’s copy-protection session, which renames the disc’s data files and rewrites its integrity data.'
         : 'MP3 audio is added to the end of the data file and the track index is updated; no copy-protection session is needed.') +
@@ -6087,7 +6100,8 @@ async function startAdd(paths) {
   let nameEdited = false;
   nameText.addEventListener('input', () => { nameEdited = true; nameBox.checked = !!nameText.value.trim(); });
   const hasPic = !!(curDisc && (curDisc.cover || curDisc.pcCover));
-  const artBox = el('input', { type: 'checkbox', checked: !hasPic });
+  const noArt = !!(opts && opts.noArt);
+  const artBox = el('input', { type: 'checkbox', checked: !hasPic && !noArt });
   const artRow = el('label', { className: 'meta', style: 'display:flex;gap:8px;align-items:center;cursor:pointer', title: 'Looks the album up on MusicBrainz and Discogs (only an album that matches most of the tracks is used)' }, artBox,
     el('span', { textContent: 'Look up the album art online (MusicBrainz, Discogs) and ' + (p.netmd ? 'keep it on this PC' : 'store it as the disc picture') + (hasPic ? ' (replaces the current picture)' : '') }));
   const detailsChanged = () => {
@@ -6096,7 +6110,7 @@ async function startAdd(paths) {
       const n = discNameFor(alb, artistAll.value.trim());
       nameText.value = n; nameBox.checked = !!n && !hasName;
     }
-    artRow.style.display = alb ? '' : 'none';
+    artRow.style.display = alb && !noArt ? '' : 'none';
   };
   albumBox.addEventListener('input', detailsChanged);
   artistAll.addEventListener('input', () => { const v = artistAll.value.trim(); if (v) rows.forEach(r => { r.artist.value = v; }); detailsChanged(); });
@@ -6126,7 +6140,7 @@ async function startAdd(paths) {
     const pick = el('div', { className: 'notice', style: 'display:grid;gap:6px' }, el('b', { textContent: 'Recording format' }));
     for (const k of keys) {
       const radio = el('input', { type: 'radio', name: 'recfmt', checked: k === chosen, onchange: () => { chosen = k; try { localStorage.setItem(store, k); } catch (e) { /* no storage */ } refresh(); } });
-      pick.append(el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;flex-wrap:wrap' }, radio, el('span', { textContent: names[k][0] + ' - ' + names[k][1] }), k === 'mp3' && !p.netmd ? kbpsPick : ''));
+      pick.append(el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;flex-wrap:wrap' }, radio, el('span', { style: 'flex:1 1 0;min-width:200px', textContent: names[k][0] + ' - ' + names[k][1] }), k === 'mp3' && !p.netmd ? kbpsPick : ''));
     }
     if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The ATRAC3+ options are encoded on this PC (this takes about a minute for a three-minute track). They are new: try one short track on your recorder before adding a lot.' }));
     if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The 48 kbps option is the exception: it is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (nothing else is). Use it mainly for podcasts and audio books (speech); music at 48 kbps sounds thin.' }));
@@ -6151,7 +6165,7 @@ async function startAdd(paths) {
       el('div', { className: 'sub', textContent: spFiles().length + (spFiles().length === 1 ? ' file has' : ' files have') + ' more than two channels (a 5.1 / 7.1 / Atmos-style bed). The recorder plays a stereo version of each; this program can play the full spatial version in headphone surround.' }),
       el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, keepBox, el('span', { textContent: 'Also keep the spatial version on the disc' })), spBody, helpLink('spatial')));
   }
-  parts.push(nameRow, ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, speedHint, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  parts.push(nameRow, ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, speedHint, longWarn, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
 }async function runUpload(rows, format, kbps, { spatial, group, artistInTitle, discTitle, wantArt, albumAll } = {}) {
@@ -6671,6 +6685,101 @@ function hear(url) {
 $('bc').addEventListener('click', () => openBandcamp('bandcamp'));
 $('sc').addEventListener('click', () => openBandcamp('soundcloud'));
 $('rd').addEventListener('click', () => openBandcamp('radio'));
+$('pod').addEventListener('click', () => openPodcasts());
+$('lv').addEventListener('click', () => openPodcasts('librivox'));
+async function openPodcasts(kind = 'podcast') {                     // also the free LibriVox audiobooks: the same dialog, a different directory
+  const LV = kind === 'librivox';
+  if (uploading) return;
+  if (!curDisc) { toast('Load a disc first.', true); return; }
+  stopPlayer();
+  const hms = t => { t = Math.round(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), x = String(t % 60).padStart(2, '0'); return h ? h + ':' + String(m).padStart(2, '0') + ':' + x : m + ':' + x; };
+  const lenOf = e => e.seconds ? hms(e.seconds) : e.bytes ? '~' + hms(e.bytes * 8 / 128000) : '?';        // no length in the feed: a rough guess from the file size, assuming 128 kbps
+  const q = el('input', { placeholder: LV ? 'Title, author or subject' : 'Name or subject', style: 'flex:1;min-width:160px' });
+  const feedIn = el('input', { placeholder: 'or paste a feed address (https://…)', style: 'flex:1;min-width:160px' });
+  const status = el('div', { className: 'sub', textContent: LV ? 'Search for a book by title, author or subject (for example detective or ghost), then pick chapters.' : 'Search by name, subject (for example crime or comedy) or the title of an episode, or paste a feed address, then pick episodes.' });
+  const shows = el('select', { size: 9, style: 'width:100%;display:none' });
+  const eplist = el('div', { className: 'filelist', style: 'max-height:260px;overflow:auto' });
+  const filt = el('input', { placeholder: 'Filter these by a word in the title', style: 'display:none', oninput: () => { const w = filt.value.trim().toLowerCase(); for (const x of eps) x.row.style.display = !w || x.e.title.toLowerCase().includes(w) ? '' : 'none'; } });
+  const go = el('button', { className: 'primary', textContent: 'Download and add…', disabled: true });
+  let found = [], feed = null, eps = [], busy = false;
+  const ticked = () => eps.filter(e => e.cb.checked);
+  const upd = () => { const n = ticked().length; go.disabled = busy || !n; go.textContent = n ? 'Download ' + n + ' episode' + (n === 1 ? '' : 's') + ' and add…' : 'Download and add…'; };
+  const loadFeed = async (url, want) => {                                              // want: an episode title to tick and scroll to (picked from an episode search result)
+    status.textContent = 'Reading the feed…'; eplist.textContent = ''; eps = []; feed = null; filt.value = ''; filt.style.display = 'none'; upd();
+    const r = await (LV ? api().librivox_book(url) : api().podcast_feed(url));
+    if (r.error) { status.textContent = r.error; return; }
+    feed = r;
+    status.textContent = r.show + ': ' + r.episodes.length + (LV ? ' chapters, in reading order. Tick the ones you want, or use Tick all (a whole book can be several hundred MB to download).' : ' episodes, newest first. Tick the ones you want (a long episode can be several hundred MB to download).');
+    for (const e of r.episodes) {
+      const cb = el('input', { type: 'checkbox', style: 'width:auto', onchange: upd });
+      const row = el('label', { className: 'file', style: 'grid-template-columns:auto 4.6em 1fr;cursor:pointer' }, cb,          // the length comes first so it can never be pushed out of view by a long title
+        el('b', { textContent: lenOf(e), title: 'Length of the episode', style: 'white-space:nowrap' }),
+        el('span', { style: 'min-width:0' }, el('span', { textContent: e.title }), el('div', { className: 'meta', style: 'white-space:normal', textContent: [e.date, e.bytes ? fmtSize(e.bytes) : ''].filter(Boolean).join(' · ') })));
+      eplist.append(row);
+      eps.push({ e, cb, row });
+    }
+    filt.style.display = r.episodes.length > 8 ? '' : 'none';
+    if (want) { const hit = eps.find(x => x.e.title === want); if (hit) { hit.cb.checked = true; upd(); hit.row.scrollIntoView({ block: 'nearest' }); } }
+  };
+  const search = async () => {
+    const t = q.value.trim(); if (!t) return;
+    status.textContent = 'Searching…'; shows.style.display = 'none';
+    const r = await (LV ? api().librivox_search(t) : api().podcast_search(t, countrySel.value));
+    if (r.error) { status.textContent = r.error; return; }
+    fill(r.shows, found => found.length ? found.length + (LV ? ' books. Pick one.' : ' shows. Pick one.') : (LV ? 'Nothing found. Try other words.' : 'Nothing found. Try other words, or paste the feed address.'));
+  };
+  // Browse without knowing a name: the most popular shows (podcasts, by genre and country) or the most downloaded books (by subject).
+  const fill = (list, msg) => {
+    found = list; shows.textContent = '';
+    found.forEach((s, i) => shows.append(el('option', { value: i, textContent: s.name + (s.author ? ' — ' + s.author : '') + (s.info ? '  (' + s.info + ')' : '') })));
+    shows.style.display = found.length ? '' : 'none';
+    status.textContent = msg(found);
+  };
+  const genreSel = el('select', { onchange: () => browse() }, el('option', { value: '', textContent: LV ? 'Most downloaded' : 'Most popular now' }));
+  const countrySel = el('select', { onchange: () => browse() });
+  const browse = async () => {
+    status.textContent = 'Loading the list…'; shows.style.display = 'none'; eplist.textContent = ''; eps = []; feed = null; upd();
+    const r = await (LV ? api().librivox_browse(genreSel.value) : api().podcast_top(genreSel.value, countrySel.value));
+    if (r.error) { status.textContent = r.error; return; }
+    const g = genreSel.selectedOptions[0].textContent;
+    fill(r.shows, f => f.length ? g + ': ' + f.length + (LV ? ' books' : ' shows') + '. Pick one.' : 'Nothing in this list right now.');
+  };
+  (async () => {                                                                         // fill the genre (and country) choices, then show the first list
+    try {
+      const l = await (LV ? api().librivox_lists() : api().podcast_lists());
+      for (const g of l.genres || []) genreSel.append(el('option', { value: g.id, textContent: g.name }));
+      for (const c of l.countries || []) countrySel.append(el('option', { value: c.id, textContent: c.name }));
+    } catch (e) { /* the search still works */ }
+    browse();
+  })();
+  shows.onchange = () => { const s = found[Number(shows.value)]; if (s) loadFeed(s.feed, s.episode); };
+  q.addEventListener('keydown', ev => { if (ev.key === 'Enter') search(); });
+  feedIn.addEventListener('keydown', ev => { if (ev.key === 'Enter' && feedIn.value.trim()) loadFeed(feedIn.value.trim()); });
+  go.onclick = async () => {
+    const sel = ticked(); if (!sel.length || busy) return;
+    busy = true; upd();
+    const paths = [], meta = {};
+    for (let i = 0; i < sel.length; i++) {
+      const e = sel[i].e;
+      status.textContent = 'Downloading ' + (i + 1) + ' of ' + sel.length + ': ' + e.title + '…';
+      const r = await api().podcast_download(e.url, e.title, e.ext, feed.show);
+      if (r.error) { toast(r.error, true); continue; }
+      paths.push(r.path); meta[r.path] = { title: (LV ? feed.show + ' - ' + e.title : e.title).slice(0, 120), artist: (feed.author || feed.show).slice(0, 120) };
+    }
+    busy = false; upd();
+    if (!paths.length) { status.textContent = 'Nothing could be downloaded.'; return; }
+    closeSheet();
+    startAdd(paths, meta, { noArt: true });
+  };
+  const tickAll = el('button', { textContent: 'Tick all / none', onclick: () => { const on = !eps.every(x => x.cb.checked); eps.forEach(x => { x.cb.checked = on; }); upd(); } });
+  openFloat(el('h2', { textContent: LV ? 'Add tracks from Audiobooks' : 'Add tracks from Podcasts' }),
+    LV ? el('div', { className: 'sub', textContent: 'Free audiobooks from LibriVox: public-domain books read by volunteers, found and downloaded through the Internet Archive. Downloaded files are deleted when this program closes. Speech, so the 48 kbps format keeps a whole book small. Several versions of a book can exist; the list shows the most downloaded first.' }) : el('div', { className: 'sub', textContent: 'Shows are found in the free iTunes podcast directory; the episodes themselves are downloaded straight from the publisher’s own feed. Downloaded files are deleted when this program closes. For talk shows the 48 kbps format keeps the files small.' }),
+    el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, q, el('button', { textContent: 'Search', onclick: search })),
+    LV ? '' : el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, feedIn, el('button', { textContent: 'Load feed', onclick: () => { if (feedIn.value.trim()) loadFeed(feedIn.value.trim()); } })),
+    el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, el('span', { className: 'meta', textContent: 'Browse:' }), genreSel, LV ? '' : countrySel),
+    status, shows, tickAll, filt, eplist,
+    el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+}
 async function openBandcamp(site = 'bandcamp') {
   const NM = { soundcloud: 'SoundCloud', radio: 'Internet radio' }[site] || 'Bandcamp';
   const isRadio = site === 'radio';
@@ -8348,7 +8457,7 @@ function vizDraw() {
 // Shows or hides the display, and starts it. Runs every quarter of a second and whenever a choice changes.
 function vizSync() {
   vizShTick();
-  const show = !!curDisc || (!!nowNum && (playingRemote ? (!!castTarget && vizSh.on) : !!audio.getAttribute('src')));      // with a disc loaded the display and its choices are always there, so they can be set before playing or casting
+  const show = !!nowNum && (playingRemote ? (!!castTarget && vizSh.on) : !!audio.getAttribute('src'));      // the Visualiser card is only there while a track is playing or being cast (it used to show whenever a disc was loaded)
   $('viz').classList.toggle('hidden', !show);
   const off = vizSet.style === 'off';
   vizCv.classList.toggle('tall', /^(r(cream|amber)|surround[23]?)$/.test(vizSet.style)); vizCv.classList.toggle('xtall', /^surround[23]?$/.test(vizSet.style));

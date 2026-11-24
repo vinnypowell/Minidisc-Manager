@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.37.0 (BETA)
+MiniDisc Manager for Mac - version 0.38.0 (BETA)
 ====================================================================
 
-New: ATRAC3+ 48 kbps recording for Hi-MD discs, mainly for podcasts and audio books (speech): about 0.36 MB a minute. It is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (no other option does this). Fix: a saved card height can no longer stretch the cards above the track list and leave a large gap.
+New: Add tracks from Podcasts... and Add tracks from Audiobooks... (LibriVox): browse by genre or subject or search, pick episodes or chapters, and they are added in the usual Add to disc window (the 48 kbps format suits them). Episodes show their length. Add to disc shows an encoding time estimate for the ATRAC3+ formats and warns about files over 30 minutes on a standard disc. The Visualiser card is hidden unless a track is playing. Fix: some Spanish texts appeared in the French language.
+
+Since 0.37.0 - New: ATRAC3+ 48 kbps recording for Hi-MD discs, mainly for podcasts and audio books (speech): about 0.36 MB a minute. It is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (no other option does this). Fix: a saved card height can no longer stretch the cards above the track list and leave a large gap.
 
 Since 0.36.1 - Windows only: an Update now button in the new-version notice (installed copy). The Mac keeps the Open download page link.
 
@@ -17,9 +19,9 @@ Actual Size), "Make printable PDF..." saves it with crop and fold marks, and "Sa
 as JCARD.PDF, and an "Open J-Card" button then appears in Disc Information. The Disc labelling tab is now called Disc Stickers (unchanged otherwise).
 French, German, Dutch and Spanish texts are included.
 
-Intel Macs: there is no Intel version of 0.37.0. The experimental Intel build stays at 0.34.5 and is no longer updated.
+Intel Macs: there is no Intel version of 0.38.0. The experimental Intel build stays at 0.34.5 and is no longer updated.
 
-Everything else is unchanged from 0.36.1.
+Everything else is unchanged from 0.37.0.
 
 Notes for 0.34.5 follow.
 

@@ -12,4 +12,4 @@ I18N.add([
   ["Downloading…", "Descargando…"],
   ["Installing… the program will close and start again.", "Instalando… el programa se cerrará y volverá a abrirse."],
   ["Updating to ", "Actualizando a "]
-]);
+], 'es');

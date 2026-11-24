@@ -59,4 +59,4 @@ I18N.add([
   ["“Save pictures…” saves each piece as its own 300 dpi PNG instead.", "«Guardar imágenes…» guarda en cambio cada pieza como un PNG de 300 ppp."],
   ["• “Save to disc” (Hi-MD discs only) stores the printable page on the disc as one small PDF file, JCARD.PDF, in the main folder. The recorder ignores it and your tracks are not touched.", "• «Guardar en el disco» (solo discos Hi-MD) guarda la página imprimible en el disco como un pequeño archivo PDF, JCARD.PDF, en la carpeta principal. La grabadora lo ignora y tus pistas no se tocan."],
   ["• Once it is there, an “Open J-Card” button appears in Disc Information. It copies the file off the disc and opens it, ready to print. “Replace the J-card on the disc” and “Remove from disc” are in the same sheet.", "• Una vez guardada, aparece un botón «Abrir J-Card» en Información del disco. Copia el archivo del disco y lo abre, listo para imprimir. «Reemplazar la J-card del disco» y «Quitar del disco» están en la misma ventana."]
-]);
+], 'es');

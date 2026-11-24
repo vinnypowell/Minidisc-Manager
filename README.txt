@@ -158,6 +158,7 @@ Ripping an audio CD (Rip CD...)
 - The album title can become the disc's name (a tick box, on by default only when the disc is empty and has no name already).
 - After the tracks are written the sheet reports any re-reads or unreadable sectors. The tracks are added by the same code as "Add
   tracks" (so on a standard disc the app also keeps its FLAC copies for playback). Cancel works while ripping, not while writing.
+- Online data: the free iTunes podcast directory (show lists and feed addresses) and the Internet Archive (LibriVox audiobooks) for the podcast and audiobook dialogs; only what you type is sent.
 - Online data: radio-browser.info (station list for internet radio; community-run, free to use). MusicBrainz (core data CC0) and the Cover Art Archive (cover images belong to their owners; fine for your own copy).
   The app identifies itself as "MiniDiscManager/0.9 (personal use)" and keeps to MusicBrainz's one request per second.
 
@@ -204,6 +205,30 @@ Recording from SoundCloud (Add tracks from SoundCloud...)
 - Without SoundCloud Go+, some tracks play only a 30-second preview, and that is all that is recorded. Keep SoundCloud's own
   volume slider at maximum.
 - Only record music you are entitled to copy for your own use; SoundCloud's terms of use apply to its streams.
+
+Podcasts and audiobooks (Add tracks from Podcasts... / Add tracks from Audiobooks...)
+- Two buttons under Recording. They are plain downloads, not real-time recordings: the files arrive at your internet speed and are then
+  added to the disc in the usual Add to disc window, where you choose the recording format. The 48 kbps format is made for this
+  (speech): about 0.36 MB a minute.
+- Podcasts (podcasts.py): the dialog opens on the most popular shows now. The Browse list picks a genre (Comedy, True crime, History,
+  Technology and others) and a country chart. Or type a name, a subject (crime, comedy) or the title of an episode, or paste a
+  show's feed address. Shows come from the free iTunes podcast directory (only the list of shows and their feed addresses); the
+  episodes themselves are downloaded straight from the publisher's own feed. Each episode shows its length first, then its date and
+  size; a feed with no length gets a rough guess from the file size, marked with ~. A filter box narrows a long list by a word in
+  the title. Picking an episode from the search results opens its show with that episode already ticked.
+- Audiobooks (librivox.py): free public-domain books read by volunteers (LibriVox). They are found through the Internet Archive,
+  which hosts every LibriVox recording, so the program does not depend on librivox.org. Browse by subject (Fiction, Mystery,
+  Science fiction, Poetry, History and others) or search by title, author or subject. The chapters are listed in reading order with
+  Tick all / none; they use the Archive's 64 kbps MP3 files. Several recordings of one book can exist: the most downloaded come first.
+- On the disc each track is named after the episode (podcasts, with the show as the artist) or "Book - Chapter" (audiobooks, with the
+  author as the artist). No album art is looked up for these. The downloaded files are kept in a temporary folder
+  (%TEMP%\MiniDiscManager-podcasts) and deleted when the program closes.
+- Add to disc now also shows how long the encoding will take for Hi-SP, Hi-LP, 352 kbps and 48 kbps ("Encoding these will take
+  roughly ..."; measured on one PC, so only a rough guide; the writing to the disc comes on top). On a standard disc a ticked file
+  longer than 30 minutes shows an advice box: very long single files can stall some standard-disc recorders, so splitting them or
+  trying LP2 is safer.
+- The Visualiser card now only appears while a track is playing or being cast.
+- Only download what you are free to keep: public-domain books and podcasts that offer their episodes for download.
 
 Recording internet radio (Add tracks from Internet Radio...)
 - No browser window: the program reads the station's stream itself (radio.py) and uses runtime\ffmpeg.exe to turn each song into a
@@ -707,6 +732,7 @@ Playing to a Sonos speaker
 - How it works: the speaker fetches each track from a small web server the app runs on this PC's home-network address, behind a
   random secret in the address, and only while you are playing to a room. The speaker and this PC must be on the same network.
   The first time, Windows may ask whether to let the app on your network: choose Allow for private networks.
+- 0.38.0: NEW: Add tracks from Podcasts... and Add tracks from Audiobooks... (LibriVox, found through the Internet Archive): browse by genre or subject, or search by name, subject or episode title; episodes show their length; no album art lookup for them. Add to disc shows an encoding time estimate for the ATRAC3+ formats and a warning for files over 30 minutes on a standard disc. The Visualiser card is hidden unless a track is playing. FIX: some Spanish texts appeared in the French language.
 - 0.37.0: NEW: ATRAC3+ 48 kbps recording option for Hi-MD discs, mainly for podcasts and audio books (speech): about 0.36 MB a minute, about 45 hours on an empty 1 GB disc. It is offered wherever you pick a recording format (Add to disc, Rip CD and the other Add windows). Unlike the other formats it is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (nothing else is, and no other option does this); long tracks are sent in ten-minute pieces. If the service cannot be reached the program says so and suggests Hi-LP 64 kbps, which is encoded on this PC. Music at 48 kbps sounds thin. French, German, Dutch and Spanish texts are included. Also FIX: the cards above the track list can no longer be stretched by a saved height (a dragged Lyrics or Recorder card, or the splitter), which left a large empty gap and pushed the Tracks list to the bottom of the window.
 - 0.36.1: NEW: Update now. When the new-version notice appears in the installed Windows copy it has an Update now button: the program downloads the new Setup, checks it against the checksum published for that file, closes, installs it and starts again by itself. It does not start while a disc operation is running. The portable zip (and the Mac version) keep the Open download page link.
 - 0.36.0: NEW: new-version notice. Once a day the program asks this project's GitHub release page which version is the newest and, if yours is older, shows a small box with Open download page, Later and Skip this version. Nothing about you or your computer is sent and nothing is downloaded or installed by itself. Switch it off in Settings (Tell me when a new version is available); Help > Check for updates asks straight away. French, German, Dutch and Spanish texts for the buttons and the setting.
