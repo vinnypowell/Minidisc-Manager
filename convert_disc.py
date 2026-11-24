@@ -13,7 +13,7 @@ import shutil
 
 from mdm_paths import CONVERT_DIR, NETMD_HELPER
 
-CODECS = {'hisp': 32000, 'hilp': 8000, 'at3p': 44000, 'pcm': 176400}           # bytes of disc space per second of audio
+CODECS = {'hisp': 32000, 'hilp': 8000, 'hi48': 6000, 'at3p': 44000, 'pcm': 176400}           # bytes of disc space per second of audio
 CAP_80_MIN = 305 * 1000 * 1000                                   # an 80-minute disc used as a Hi-MD disc holds about this much
 
 

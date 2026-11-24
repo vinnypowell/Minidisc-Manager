@@ -110,7 +110,7 @@ class CdMixin:
         (if not empty). cover_id: store the cover fetched for that release as the picture of a Hi-MD disc."""
         index = int(index)
         netmd = self._is_netmd(index)
-        fmt = (fmt if fmt in ('sp', 'lp2', 'lp4') else 'sp') if netmd else (fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp') else 'auto')
+        fmt = (fmt if fmt in ('sp', 'lp2', 'lp4') else 'sp') if netmd else (fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp', 'hi48') else 'auto')
         if not tracks:
             return {'error': 'Choose at least one track to rip.'}
         tell = lambda **m: self._window and self._window.evaluate_js('window.onCdProgress && window.onCdProgress(%s)' % json.dumps(m))

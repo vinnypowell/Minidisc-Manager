@@ -516,6 +516,8 @@
 <script src="lang_es_p12.js"></script>
 <script src="lang_p13.js"></script>
 <script src="lang_es_p13.js"></script>
+<script src="lang_p14.js"></script>
+<script src="lang_es_p14.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -2261,6 +2263,8 @@ function fitTracks() {
   if (!wrap || !wrap.offsetParent) return;
   // The list's top edge does not depend on its own height limit, so nothing is cleared and re-set here: doing that made the page change its own size on every
   // measurement, and on the Mac's web view that fed the observer below thousands of times (the window shook). The limit is only written when it really changes.
+  capCardHeights();
+  if (topRow && layout.topH) { const t = topHCapped() + 'px'; if (topRow.style.minHeight !== t) topRow.style.minHeight = t; }     // keep the cap when the window is resized
   const top = wrap.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop;
   const want = Math.max(340, main.clientHeight - top - 10) + 'px';
   if (wrap.style.maxHeight !== want) wrap.style.maxHeight = want;
@@ -6009,7 +6013,7 @@ async function startAdd(paths) {
   const spExtra = () => spOn() ? spFiles().filter(r => r.cb.checked).reduce((n, r) => n + spEst(r), 0) : 0;
   // Recording formats. A standard disc takes SP / LP2 / LP4 for every file. A Hi-MD disc takes one format for every file, or
   // "automatic" (MP3 stays MP3, everything else becomes lossless PCM). ATRAC3+ (Hi-SP, Hi-LP, 352 kbps) is encoded on this PC first.
-  const keys = p.netmd ? ['sp', 'lp2', 'lp4'] : ['auto', 'pcm', 'mp3', 'lp2', 'lp4', 'hisp', 'hilp', 'at3p'];
+  const keys = p.netmd ? ['sp', 'lp2', 'lp4'] : ['auto', 'pcm', 'mp3', 'lp2', 'lp4', 'hisp', 'hilp', 'hi48', 'at3p'];
   const store = p.netmd ? 'mdFormat' : 'hmdFormat';
   let kbps = 192;
   try { const k = Number(localStorage.getItem('hmdMp3Kbps')); if ([128, 192, 256, 320].includes(k)) kbps = k; } catch (e) { /* no storage */ }
@@ -6116,6 +6120,7 @@ async function startAdd(paths) {
           lp2: ['ATRAC3 LP2', '132 kbps, about 1 MB a minute'], lp4: ['ATRAC3 LP4', '66 kbps, about 0.5 MB a minute'],
           hisp: ['ATRAC3+ Hi-SP 256 kbps', 'good quality, about 1.9 MB a minute'],
           hilp: ['ATRAC3+ Hi-LP 64 kbps', 'longest play, about 0.5 MB a minute, clearly lower quality'],
+          hi48: ['ATRAC3+ 48 kbps (podcasts, audio books)', 'the smallest, about 0.36 MB a minute, mainly for podcasts, audio books and other speech; needs the internet: the audio is sent to the free online encoder at atrac.minidisc.wiki'],
           at3p: ['ATRAC3+ 352 kbps', 'the highest ATRAC3+ quality, about 2.6 MB a minute']
         };
     const pick = el('div', { className: 'notice', style: 'display:grid;gap:6px' }, el('b', { textContent: 'Recording format' }));
@@ -6124,6 +6129,7 @@ async function startAdd(paths) {
       pick.append(el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;flex-wrap:wrap' }, radio, el('span', { textContent: names[k][0] + ' - ' + names[k][1] }), k === 'mp3' && !p.netmd ? kbpsPick : ''));
     }
     if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The ATRAC3+ options are encoded on this PC (this takes about a minute for a three-minute track). They are new: try one short track on your recorder before adding a lot.' }));
+    if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The 48 kbps option is the exception: it is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (nothing else is). Use it mainly for podcasts and audio books (speech); music at 48 kbps sounds thin.' }));
     parts.push(pick);
   }
   if (spFiles().length) {
@@ -6322,7 +6328,7 @@ async function showRip(letter, drives) {
   // recording format
   const stored = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const fmtOptions = md ? [['sp', 'SP (best sound on a standard disc)'], ['lp2', 'LP2'], ['lp4', 'LP4 (longest play)']]
-    : [['pcm', 'PCM (lossless, largest)'], ['mp3', 'MP3'], ['lp2', 'ATRAC3 LP2 (132 kbps)'], ['lp4', 'ATRAC3 LP4 (66 kbps)'], ['hisp', 'ATRAC3+ Hi-SP 256 kbps'], ['hilp', 'ATRAC3+ Hi-LP 64 kbps'], ['at3p', 'ATRAC3+ 352 kbps']];
+    : [['pcm', 'PCM (lossless, largest)'], ['mp3', 'MP3'], ['lp2', 'ATRAC3 LP2 (132 kbps)'], ['lp4', 'ATRAC3 LP4 (66 kbps)'], ['hisp', 'ATRAC3+ Hi-SP 256 kbps'], ['hilp', 'ATRAC3+ Hi-LP 64 kbps'], ['hi48', 'ATRAC3+ 48 kbps (podcasts, audio books; online encoder)'], ['at3p', 'ATRAC3+ 352 kbps']];
   const fmt = el('select', { onchange: () => { try { localStorage.setItem(md ? 'cdFmtMd' : 'cdFmtHimd', fmt.value); } catch (e) { /* no storage */ } kbpsRow.style.display = fmt.value === 'mp3' ? '' : 'none'; update(); } },
     ...fmtOptions.map(([v, t]) => el('option', { value: v, textContent: t })));
   const want = stored(md ? 'cdFmtMd' : 'cdFmtHimd'); if (want && fmtOptions.some(o => o[0] === want)) fmt.value = want;
@@ -6346,7 +6352,7 @@ async function showRip(letter, drives) {
     let need, free, fits;
     const f = fmt.value;
     if (md) { const div = { sp: 1, lp2: 2, lp4: 4 }[f]; need = Math.ceil(sec * 512 / div); free = curDisc.free; fits = need * 1.01 + 1024 <= free; }
-    else { const bps = { pcm: 180000, mp3: Number(kbps.value) * 125 * 1.03, lp2: 17000, lp4: 8500, hisp: 32000, hilp: 8000, at3p: 44000 }[f]; need = Math.ceil(sec * bps); free = curDisc.free * 0.98; fits = need < free; }
+    else { const bps = { pcm: 180000, mp3: Number(kbps.value) * 125 * 1.03, lp2: 17000, lp4: 8500, hisp: 32000, hilp: 8000, hi48: 6000, at3p: 44000 }[f]; need = Math.ceil(sec * bps); free = curDisc.free * 0.98; fits = need < free; }
     est.className = 'notice' + (fits ? '' : ' warn');
     est.textContent = picked.length + (picked.length === 1 ? ' track' : ' tracks') + ', ' + mm(sec) + ' of audio → about ' + (md ? mm(Math.round(need / 512)) + ' of the disc’s ' + mm(Math.round(free / 512)) + ' left' : mb(need) + ' of the disc’s ' + mb(free) + ' free') +
       (fits ? '.' : '. That does not fit: untick tracks or choose a smaller format.') + ' Ripping needs about ' + mb(sec * 176400) + ' of temporary space on this PC.';
@@ -6474,7 +6480,7 @@ async function showYoto(cardId, back) {
   const rows = card.tracks.map(t => ({ key: t.key, seconds: t.seconds, on: true, title: el('input', { value: t.title, maxLength: 120 }) }));
   const stored = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const fmtOptions = md ? [['sp', 'SP (best sound on a standard disc)'], ['lp2', 'LP2'], ['lp4', 'LP4 (longest play)']]
-    : [['pcm', 'PCM (lossless, largest)'], ['mp3', 'MP3'], ['lp2', 'ATRAC3 LP2 (132 kbps)'], ['lp4', 'ATRAC3 LP4 (66 kbps)'], ['hisp', 'ATRAC3+ Hi-SP 256 kbps'], ['hilp', 'ATRAC3+ Hi-LP 64 kbps'], ['at3p', 'ATRAC3+ 352 kbps']];
+    : [['pcm', 'PCM (lossless, largest)'], ['mp3', 'MP3'], ['lp2', 'ATRAC3 LP2 (132 kbps)'], ['lp4', 'ATRAC3 LP4 (66 kbps)'], ['hisp', 'ATRAC3+ Hi-SP 256 kbps'], ['hilp', 'ATRAC3+ Hi-LP 64 kbps'], ['hi48', 'ATRAC3+ 48 kbps (podcasts, audio books; online encoder)'], ['at3p', 'ATRAC3+ 352 kbps']];
   const fmt = el('select', { onchange: () => { try { localStorage.setItem(md ? 'ytFmtMd' : 'ytFmtHimd', fmt.value); } catch (e) { /* no storage */ } kbpsRow.style.display = fmt.value === 'mp3' ? '' : 'none'; update(); } },
     ...fmtOptions.map(([v, t]) => el('option', { value: v, textContent: t })));
   const want = stored(md ? 'ytFmtMd' : 'ytFmtHimd'); if (want && fmtOptions.some(o => o[0] === want)) fmt.value = want;
@@ -6498,7 +6504,7 @@ async function showYoto(cardId, back) {
     let need, free, fits;
     const f = fmt.value;
     if (md) { const div = { sp: 1, lp2: 2, lp4: 4 }[f]; need = Math.ceil(sec * 512 / div); free = curDisc.free; fits = need * 1.01 + 1024 <= free; }
-    else { const bps = { pcm: 180000, mp3: Number(kbps.value) * 125 * 1.03, lp2: 17000, lp4: 8500, hisp: 32000, hilp: 8000, at3p: 44000 }[f]; need = Math.ceil(sec * bps); free = curDisc.free * 0.98; fits = need < free; }
+    else { const bps = { pcm: 180000, mp3: Number(kbps.value) * 125 * 1.03, lp2: 17000, lp4: 8500, hisp: 32000, hilp: 8000, hi48: 6000, at3p: 44000 }[f]; need = Math.ceil(sec * bps); free = curDisc.free * 0.98; fits = need < free; }
     est.className = 'notice' + (fits ? '' : ' warn');
     est.textContent = picked.length + (picked.length === 1 ? ' track' : ' tracks') + ', ' + mm(sec) + ' of audio → about ' + (md ? mm(Math.round(need / 512)) + ' of the disc’s ' + mm(Math.round(free / 512)) + ' left' : mb(need) + ' of the disc’s ' + mb(free) + ' free') +
       (fits ? '.' : '. That does not fit: untick tracks or choose a smaller format.') + ' Needs about ' + mb(sec * 176400) + ' of temporary space on this PC.';
@@ -6742,7 +6748,7 @@ async function openBandcamp(site = 'bandcamp') {
   const album = el('input', { placeholder: 'Disc title (optional)', maxLength: 120, style: 'width:100%;box-sizing:border-box' });
   let albumTouched = false; album.addEventListener('input', () => { albumTouched = true; });
   const fmtOptions = md ? [['sp', 'SP (best sound on a standard disc)'], ['lp2', 'LP2'], ['lp4', 'LP4 (longest play)']]
-    : [['pcm', 'PCM (lossless, largest)'], ['mp3', 'MP3'], ['lp2', 'ATRAC3 LP2 (132 kbps)'], ['lp4', 'ATRAC3 LP4 (66 kbps)'], ['hisp', 'ATRAC3+ Hi-SP 256 kbps'], ['hilp', 'ATRAC3+ Hi-LP 64 kbps'], ['at3p', 'ATRAC3+ 352 kbps']];
+    : [['pcm', 'PCM (lossless, largest)'], ['mp3', 'MP3'], ['lp2', 'ATRAC3 LP2 (132 kbps)'], ['lp4', 'ATRAC3 LP4 (66 kbps)'], ['hisp', 'ATRAC3+ Hi-SP 256 kbps'], ['hilp', 'ATRAC3+ Hi-LP 64 kbps'], ['hi48', 'ATRAC3+ 48 kbps (podcasts, audio books; online encoder)'], ['at3p', 'ATRAC3+ 352 kbps']];
   const fmt = el('select', { onchange: () => { try { localStorage.setItem(md ? 'cdFmtMd' : 'cdFmtHimd', fmt.value); } catch (e) { /* no storage */ } kbpsRow.style.display = fmt.value === 'mp3' ? '' : 'none'; update(); } },
     ...fmtOptions.map(([v, t]) => el('option', { value: v, textContent: t })));
   const want = stored(md ? 'cdFmtMd' : 'cdFmtHimd'); if (want && fmtOptions.some(o => o[0] === want)) fmt.value = want;
@@ -6764,7 +6770,7 @@ async function openBandcamp(site = 'bandcamp') {
     let need, free, fits;
     const f = fmt.value;
     if (md) { const div = { sp: 1, lp2: 2, lp4: 4 }[f]; need = Math.ceil(sec * 512 / div); free = curDisc.free; fits = need * 1.01 + 1024 <= free; }
-    else { const bps = { pcm: 180000, mp3: Number(kbps.value) * 125 * 1.03, lp2: 17000, lp4: 8500, hisp: 32000, hilp: 8000, at3p: 44000 }[f]; need = Math.ceil(sec * bps); free = curDisc.free * 0.98; fits = need < free; }
+    else { const bps = { pcm: 180000, mp3: Number(kbps.value) * 125 * 1.03, lp2: 17000, lp4: 8500, hisp: 32000, hilp: 8000, hi48: 6000, at3p: 44000 }[f]; need = Math.ceil(sec * bps); free = curDisc.free * 0.98; fits = need < free; }
     est.className = 'notice' + (fits ? '' : ' warn');
     est.textContent = picked.length ? picked.length + (picked.length === 1 ? ' track' : ' tracks') + ', ' + mm(sec) + ' → about ' + (md ? mm(Math.round(need / 512)) + ' of the disc’s ' + mm(Math.round(free / 512)) + ' left' : mb(need) + ' of the disc’s ' + mb(free) + ' free') +
       (fits ? '.' : '. That does not fit: untick tracks or choose a smaller format.') : 'Recorded tracks appear above as they finish. Tick the ones to add.';
@@ -7349,7 +7355,7 @@ function renderBoard() {
     board.append(r);
   });
   Object.keys(CARD_NAMES).forEach(id => { const h = layout.h && layout.h[id]; cardEl(id).style.minHeight = h ? h + 'px' : ''; });
-  applyBases(); applyTopH(); syncCardsMenu(); requestAnimationFrame(fitTracks);
+  capCardHeights(); applyBases(); applyTopH(); syncCardsMenu(); requestAnimationFrame(fitTracks);
 }
 // ---- the splitter between the cards above and the Tracks card (standard layout: Tracks alone in the last row) ----------------------------------------
 // layout.topH is the height in px of the row just above the Tracks card; unset means automatic (as tall as its contents). The track list fills whatever
@@ -7357,6 +7363,14 @@ function renderBoard() {
 // Dragging down gives the cards above more height (they stretch to fill it) and the track list less; dragging back up stops where the cards' contents need
 // their own height, which is "automatic". The cards themselves are not scaled or scrolled.
 let topRow = null;
+// A splitter height kept from an earlier session (or a bigger window) must never leave the Tracks list squeezed at the bottom: the cards above get at most
+// 62 % of the window's height, whatever is saved. The saved value itself is left alone, so a larger window gets it back.
+// The same for a card's own saved minimum height (dragged by its bottom edge): above a quarter of the window it would stretch its whole row and leave empty space.
+function capCardHeights() {
+  if (!layout.h) return; const max = Math.round(document.querySelector('main').clientHeight * 0.25);
+  Object.keys(layout.h).forEach(id => { const c = cardEl(id), t = Math.min(layout.h[id], max) + 'px'; if (c && c.style.minHeight !== t && !document.body.classList.contains('card-resizing')) c.style.minHeight = t; });
+}
+const topHCapped = () => Math.min(layout.topH, Math.round(document.querySelector('main').clientHeight * 0.62));
 function applyTopH() {
   const board = $('board'); board.querySelectorAll('.vsplit').forEach(v => v.remove());
   const rows = [...board.children].filter(r => r.classList.contains('brow')), ti = rows.findIndex(r => r.querySelector('[data-card="tracks"]'));
@@ -7366,7 +7380,7 @@ function applyTopH() {
   const above = rows[ti - 1], bar = el('div', { className: 'vsplit', title: 'Drag down to give the cards above more height, up to put it back · double-click for automatic' });
   rows[ti].before(bar);
   topRow = above;
-  if (layout.topH) above.style.minHeight = layout.topH + 'px';
+  if (layout.topH) above.style.minHeight = topHCapped() + 'px';
   bar.addEventListener('dblclick', () => { delete layout.topH; saveLayout(); applyTopH(); requestAnimationFrame(fitTracks); });
   bar.addEventListener('pointerdown', e => {
     if (e.button !== 0) return; e.preventDefault();

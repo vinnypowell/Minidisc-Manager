@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.36.1 (BETA)
+MiniDisc Manager for Mac - version 0.37.0 (BETA)
 ====================================================================
 
-Windows: an Update now button in the new-version notice (installed copy). Mac: no change except the version number; the Mac keeps the Open download page link.
+New: ATRAC3+ 48 kbps recording for Hi-MD discs, mainly for podcasts and audio books (speech): about 0.36 MB a minute. It is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (no other option does this). Fix: a saved card height can no longer stretch the cards above the track list and leave a large gap.
+
+Since 0.36.1 - Windows only: an Update now button in the new-version notice (installed copy). The Mac keeps the Open download page link.
 
 Since 0.36.0 - New: new-version notice. Once a day the program asks this project's GitHub release page for the newest version and shows a small box if yours is older (Open download page, Later, Skip this version). Nothing about you is sent and nothing is installed by itself. Switch it off in Settings; Help > Check for updates asks straight away.
 
@@ -15,9 +17,9 @@ Actual Size), "Make printable PDF..." saves it with crop and fold marks, and "Sa
 as JCARD.PDF, and an "Open J-Card" button then appears in Disc Information. The Disc labelling tab is now called Disc Stickers (unchanged otherwise).
 French, German, Dutch and Spanish texts are included.
 
-Intel Macs: there is no Intel version of 0.36.1. The experimental Intel build stays at 0.34.5 and is no longer updated.
+Intel Macs: there is no Intel version of 0.37.0. The experimental Intel build stays at 0.34.5 and is no longer updated.
 
-Everything else is unchanged from 0.35.0.
+Everything else is unchanged from 0.36.1.
 
 Notes for 0.34.5 follow.
 

@@ -162,7 +162,7 @@ class SiteRecordMixin:
         index = int(index)
         netmd = self._is_netmd(index)
         rec = self._recs.get(self._site(site))
-        fmt = (fmt if fmt in ('sp', 'lp2', 'lp4') else 'sp') if netmd else (fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp') else 'auto')
+        fmt = (fmt if fmt in ('sp', 'lp2', 'lp4') else 'sp') if netmd else (fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp', 'hi48') else 'auto')
         if not rec or not tracks:
             return {'error': 'Choose at least one recorded track to add.'}
         have = {i['id']: i for i in rec.paths(set(int(t['id']) for t in tracks))}

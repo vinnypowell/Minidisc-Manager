@@ -50,7 +50,7 @@ function rawEncodeAtrac3(runtimeDir, wavPath, kind) {
 const AT3P_WIN = process.platform === 'win32';
 const AT3P_EXE_SHA256 = AT3P_WIN ? '52E7CC649A210390AC06CBFD238402559606C4324CC13F34CCC0621D7B71FBCC' : (process.arch === 'x64' ? '21CD5EF7CAE69798B63907B627A507164A3B04E693780E872F1E9FDCDCEB06A9' : 'E008FB5B9DAE0BFD17B862099A6EE39535B28B6016155AC37C808F2792BA4BDA');   // macOS: Intel (x64) and Apple silicon builds
 const AT3P_DLL_SHA256 = AT3P_WIN ? '4E3BD2DE8E1485110EAEBEF8E1239471F73D608773831C323BF528E05645655E' : null;
-const AT3P = { at3p: { frame: 2048, kbps: 352 }, hisp: { frame: 1488, kbps: 256 }, hilp: { frame: 376, kbps: 64 } };
+const AT3P = { at3p: { frame: 2048, kbps: 352 }, hisp: { frame: 1488, kbps: 256 }, hilp: { frame: 376, kbps: 64 }, hi48: { frame: 280, kbps: 48 } };       // hi48 = 48 kbps: made by the online encoder (see encodeAtrac3PlusOnline)
 const AT3P_SAMPLES_PER_FRAME = 2048;
 const framesForPlus = seconds => Math.ceil(seconds * 44100 / AT3P_SAMPLES_PER_FRAME) + 1;       // the encoder adds one frame of padding
 
@@ -202,7 +202,74 @@ async function encodeAtrac3(runtimeDir, wavPath, kind) {
 
 // onProgress({step: 'encoding' | 'checking', pass, frac}), if given: how far the encoder (then the check for clipping) has got; pass counts the
 // encodes made again at a lower level (0 is the first).
+// ---------------------------------------------------------------------------------------------------------------------------
+// ATRAC3+ 48 kbps ("hi48", for speech and very long recordings). The bundled encoder cannot go below about 55 kbps (below a 352-byte frame it stops after
+// a few frames), so this one rate is made by the free online ATRAC encoder at atrac.minidisc.wiki: the audio is SENT TO THAT SERVER, cut into pieces of ten
+// minutes (WAV, 16-bit 44.1 kHz stereo), and what comes back is a RIFF file of 280-byte ATRAC3+ frames, which is written to the disc as it is. The page tells
+// the user about the upload before it is chosen. Pieces are joined frame to frame (each carries one frame of encoder padding, about 46 ms).
+// ---------------------------------------------------------------------------------------------------------------------------
+const ONLINE_URL = 'https://atrac.minidisc.wiki/encode?type=PLUS48';
+const ONLINE_PIECE_SECONDS = 600;
+const ONLINE_FRAME = 280;
+function cutIntoPieces(runtimeDir, wavPath, dir) {
+    return new Promise((resolve, reject) => {
+        const exe = path.join(runtimeDir, 'ffmpeg' + (process.platform === 'win32' ? '.exe' : ''));
+        if (!fs.existsSync(exe)) return reject(new Error('The bundled decoder is missing.'));
+        const p = spawn(exe, ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-vn', '-ar', '44100', '-ac', '2', '-c:a', 'pcm_s16le', '-f', 'segment',
+            '-segment_time', String(ONLINE_PIECE_SECONDS), '-reset_timestamps', '1', path.join(dir, 'part%03d.wav')], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+        let err = '';
+        p.stderr.on('data', d => { err += d; });
+        p.on('error', reject);
+        p.on('close', code => code === 0 ? resolve(fs.readdirSync(dir).filter(f => /^part\d+\.wav$/.test(f)).sort().map(f => path.join(dir, f)))
+            : reject(new Error('Could not prepare the audio for the online encoder: ' + err.trim().slice(0, 200))));
+    });
+}
+// The frames inside the RIFF file the service returns: the 'fmt ' block align must be 280, then the 'data' chunk is whole frames.
+function framesFromRiff(buf) {
+    if (buf.length < 44 || buf.toString('latin1', 0, 4) !== 'RIFF' || buf.toString('latin1', 8, 12) !== 'WAVE') throw new Error('the online encoder did not return an audio file');
+    let pos = 12, align = 0, data = null;
+    while (pos + 8 <= buf.length) {
+        const id = buf.toString('latin1', pos, pos + 4), size = buf.readUInt32LE(pos + 4), body = pos + 8;
+        if (id === 'fmt ') align = buf.readUInt16LE(body + 12);
+        else if (id === 'data') { data = buf.subarray(body, Math.min(buf.length, body + size)); break; }
+        pos = body + size + (size & 1);
+    }
+    if (align !== ONLINE_FRAME) throw new Error('the online encoder made ' + align + '-byte frames, not ' + ONLINE_FRAME);
+    if (!data || !data.length || data.length % ONLINE_FRAME !== 0) throw new Error('the audio from the online encoder is not a whole number of frames');
+    return data;
+}
+async function encodeAtrac3PlusOnline(runtimeDir, wavPath, onProgress = null) {
+    if (typeof fetch !== 'function' || typeof FormData !== 'function' || typeof Blob !== 'function') throw new Error('This program cannot reach the online encoder.');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdm-48-'));
+    try {
+        const all = await cutIntoPieces(runtimeDir, wavPath, dir);
+        const pieces = all.filter(f => fs.statSync(f).size > 44 + 4 * 2048);               // a sliver of under 46 ms at the very end is dropped
+        if (!pieces.length) throw new Error('There is no audio to encode.');
+        const frames = [];
+        for (let i = 0; i < pieces.length; i++) {
+            if (onProgress) { try { onProgress({ step: 'encoding', pass: 0, frac: i / pieces.length }); } catch (e) { /* progress is only a courtesy */ } }
+            let lastErr = null, got = null;
+            for (let attempt = 0; attempt < 2 && !got; attempt++) {
+                try {
+                    const form = new FormData();
+                    form.append('file', new Blob([fs.readFileSync(pieces[i])]), 'audio.wav');
+                    const res = await fetch(ONLINE_URL, { method: 'POST', body: form, signal: AbortSignal.timeout(15 * 60 * 1000) });
+                    if (!res.ok) throw new Error('the server answered ' + res.status);
+                    got = framesFromRiff(Buffer.from(await res.arrayBuffer()));
+                } catch (e) { lastErr = e; }
+            }
+            if (!got) throw new Error('The online 48 kbps encoder (atrac.minidisc.wiki) did not work: ' + String(lastErr && lastErr.message || lastErr) + '. Check the internet connection, or choose Hi-LP 64 kbps, which is encoded on this PC.');
+            frames.push(got);
+        }
+        if (onProgress) { try { onProgress({ step: 'encoding', pass: 0, frac: 1 }); } catch (e) { /* courtesy */ } }
+        return { frames: Buffer.concat(frames), frameSize: ONLINE_FRAME, header: null, gain: 1 };
+    } finally {
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { /* temp folder, swept later */ }
+    }
+}
+
 async function encodeAtrac3Plus(runtimeDir, wavPath, kind = 'at3p', onProgress = null) {
+    if (kind === 'hi48') return encodeAtrac3PlusOnline(runtimeDir, wavPath, onProgress);
     const fmt = AT3P[kind];
     if (!fmt) throw new Error('Unknown ATRAC3+ format: ' + kind);
     let seconds = 0;

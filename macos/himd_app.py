@@ -63,7 +63,7 @@ import video_links
 from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (APPDATA, BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, open_path, PLAY_DIR, REC_DIR, USER_DIR, WEBVIEW_DIR)
 
-APP_VERSION = '0.36.1'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.37.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 FIRST_RUN_FILE = os.path.join(USER_DIR, 'first_run_done.txt')
 FETCH_PIDS = {0x0286}         # NetMD recorders that can send a track back to the PC (netmd-js: MZ-RH1, MZ-M200)
 EXPLOIT_PIDS = {0x0184}       # Hi-MD recorders in NetMD mode (MZ-NH700...): can be made to send a track back with a firmware
@@ -698,7 +698,7 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
 
     def upload(self, files, fmt='sp', mp3_kbps=192):
         """WRITES TO THE DISC. `files` is a list of {path, title, artist, album}. On a standard disc `fmt` is sp, lp2 or lp4; on a
-        Hi-MD disc it is auto, pcm, mp3, lp2, lp4, hisp (ATRAC3+ Hi-SP 256 kbps), hilp (Hi-LP 64 kbps) or at3p (ATRAC3+ 352 kbps); mp3_kbps: 128, 192, 256 or 320 when
+        Hi-MD disc it is auto, pcm, mp3, lp2, lp4, hisp (ATRAC3+ Hi-SP 256 kbps), hilp (Hi-LP 64 kbps), hi48 (ATRAC3+ 48 kbps, online encoder) or at3p (ATRAC3+ 352 kbps); mp3_kbps: 128, 192, 256 or 320 when
         audio has to be encoded to MP3."""
         def progress(msg):
             if self._window:
@@ -710,7 +710,7 @@ class Api(presplit.PresplitMixin, spatial_disc.SpatialMixin, lp_to_sp.LpToSpMixi
                     kbps = int(mp3_kbps)
                 except (TypeError, ValueError):
                     kbps = 192
-                return self._run_helper('upload', {'files': list(files), 'format': fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp') else 'auto',
+                return self._run_helper('upload', {'files': list(files), 'format': fmt if fmt in ('auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp', 'hi48') else 'auto',
                                                    'mp3Kbps': kbps if kbps in (128, 192, 256, 320) else 192}, progress)
             fmt = fmt if fmt in ('sp', 'lp2', 'lp4') else 'sp'
             res = self._run_helper('upload', {'files': list(files), 'copyDir': COPIES_DIR, 'format': fmt}, progress, helper=NETMD_HELPER)
@@ -927,7 +927,7 @@ def main():
     try:
         page = os.stat(os.path.join(HERE, 'ui', 'index.html'))
         stamp = '%s|%d|%d' % (APP_VERSION, page.st_size, int(page.st_mtime))
-        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_p11.js', 'lang_p12.js', 'lang_p13.js', 'lang_es.js', 'lang_es_more.js', 'lang_es_p11.js', 'lang_es_p12.js', 'lang_es_p13.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
+        for extra in ('i18n.js', 'lang.js', 'lang_p1.js', 'lang_p2.js', 'lang_p3.js', 'lang_p4.js', 'lang_p5.js', 'lang_p6.js', 'lang_p7.js', 'lang_p8.js', 'lang_p9.js', 'lang_p10.js', 'lang_p11.js', 'lang_p12.js', 'lang_p13.js', 'lang_p14.js', 'lang_es.js', 'lang_es_more.js', 'lang_es_p11.js', 'lang_es_p12.js', 'lang_es_p13.js', 'lang_es_p14.js', 'lang_pkg.js', 'lang_help2.js'):                            # the language files are part of the page too
             ex = os.stat(os.path.join(HERE, 'ui', extra))
             stamp += '|%d|%d' % (ex.st_size, int(ex.st_mtime))
     except OSError:

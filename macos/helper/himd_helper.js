@@ -65,7 +65,7 @@ const NodeID3 = mod('node-id3');
 const { parseWav } = require('./wav');
 const atrac3 = require('./atrac3');
 
-const FORMATS = ['auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp'];      // ATRAC3+: at3p 352 kbps, hisp (Hi-SP) 256 kbps, hilp (Hi-LP) 64 kbps
+const FORMATS = ['auto', 'pcm', 'mp3', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp', 'hi48'];      // ATRAC3+: at3p 352 kbps, hisp (Hi-SP) 256 kbps, hilp (Hi-LP) 64 kbps, hi48 48 kbps (online encoder)
 const MP3_RATES = [128, 192, 256, 320];
 const OTHER_AUDIO = ['.flac', '.m4a', '.mp4', '.aac', '.ogg', '.oga', '.opus', '.wma', '.aif', '.aiff', '.dts', '.dtshd', '.ac3', '.eac3', '.thd', '.mlp', '.mka', '.mkv', '.m2ts'];
 
@@ -664,13 +664,13 @@ const commands = {
             const infos = files.map(f => { try { return describe(f); } catch (e) { return { path: typeof f === 'string' ? f : f.path, error: e.message }; } });
             for (const i of infos) {                                  // what each file alone needs, so the page can add up only the files that stay ticked
                 if (i.error) continue;
-                i.need = { byFormat: Object.fromEntries(['auto', 'pcm', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp'].map(k => [k, blocksNeeded(i, k) * himdjs.BLOCK_SIZE])),
+                i.need = { byFormat: Object.fromEntries(['auto', 'pcm', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp', 'hi48'].map(k => [k, blocksNeeded(i, k) * himdjs.BLOCK_SIZE])),
                            mp3: Object.fromEntries(MP3_RATES.map(k => [k, blocksNeeded(i, 'mp3', k) * himdjs.BLOCK_SIZE])) };
             }
             const space = await ctx.fsDriver.statFilesystem();
             const needFor = (fmt, kbps) => infos.reduce((n, i) => n + (i.error ? 0 : blocksNeeded(i, fmt, kbps)), 0) * himdjs.BLOCK_SIZE;
             const needMp3 = Object.fromEntries(MP3_RATES.map(k => [k, needFor('mp3', k)]));
-            const needByFormat = { auto: needFor('auto'), pcm: needFor('pcm'), mp3: needMp3[192], lp2: needFor('lp2'), lp4: needFor('lp4'), at3p: needFor('at3p'), hisp: needFor('hisp'), hilp: needFor('hilp') };
+            const needByFormat = { auto: needFor('auto'), pcm: needFor('pcm'), mp3: needMp3[192], lp2: needFor('lp2'), lp4: needFor('lp4'), at3p: needFor('at3p'), hisp: needFor('hisp'), hilp: needFor('hilp'), hi48: needFor('hi48') };
             const needBytes = needByFormat.auto;
             const fitsIn = v => v < space.left * 0.98;
             const good = infos.filter(i => !i.error);
