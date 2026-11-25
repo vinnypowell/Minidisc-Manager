@@ -1,6 +1,6 @@
 # MiniDisc Manager
 
-A program for Windows, and as a beta for Macs with Apple silicon, for managing Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
+A software utility for Windows, and as a beta for Macs with Apple silicon, to manage Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC or to a Walkman, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
 Version 0.39.0 (Windows) · 0.39.0 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
