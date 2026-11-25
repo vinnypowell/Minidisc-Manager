@@ -2,12 +2,13 @@
 
 A software utility for Windows, and as a beta for Macs with Apple silicon, to manage Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC or to a Walkman, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.41.0 (Windows) · 0.41.0 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.41.1 (Windows) · 0.41.1 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio, podcasts, audiobooks, Yoto cards and a Sony Walkman (or another audio player that shows up as a drive), and copies a disc to such a player.
+- **0.41.1:** fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead to the last lines while the track is still being read from the disc.
 - **0.41.0:** fix: the lyrics in the Pop Out window now keep time with the music even when the main window is behind it or minimised. The player bar at the bottom no longer clips its right-hand buttons (Play on, Repeat, EQ, Surround, room, volume) in a narrow window: they drop to a second row.
 - **0.40.0:** new: **Pop Out Playing Disc Information**: once a track is playing, a button at the top opens the Visualiser, the Track time display, the cover, the play / previous / next buttons, the seek bar, a volume slider and the lyrics in a window of their own (on another screen if you like), and the main window takes the space back. Fix: Disc Stickers and Disc J-Cards now use the album picture kept on the PC for a standard disc. French, German, Dutch and Spanish texts are included.
 - **0.39.0:** new: **Add tracks from Walkman (Audio Player)** and **Save tracks to Walkman (Audio Player)**: for a Sony Walkman, or another audio player that shows up as a drive when plugged in (or any folder you choose). Add its music to the disc through the usual Add to disc window, or copy the whole disc or just the ticked tracks to the player as FLAC, MP3 or WAV in a new Artist / Album folder. The heading says whether the whole disc or only some tracks are copied, every track has a tick box, and the artist and album folder names are worked out from the tracks and the disc title and can be changed. Existing files on the player are never changed. French, German, Dutch and Spanish texts are included. Tried with a Sony NW-A30 on Windows; the Mac version (beta) is new there and has not yet been tried with a real player.

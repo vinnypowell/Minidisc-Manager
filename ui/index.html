@@ -9060,7 +9060,7 @@ $('eqBtn').addEventListener('click', () => { $('eqWin').classList.contains('hidd
 // Found online (LRCLIB) or loaded from an .lrc file, kept on this PC, and copied to a Hi-MD disc as LYRICS.TXT. While a track plays, the
 // panel above the player shows its lines and lights the current one. A track's lyrics are matched by title, artist and length.
 const lyr = { num: -1, data: null, cur: -2, hidden: localStorage.getItem('lyricsHidden') === '1', rows: [] };
-function lyrPos() { return playingRemote ? remoteNow() : audio.currentTime; }
+function lyrPos() { return playingRemote ? remoteNow() : (audio.getAttribute('src') ? audio.currentTime : 0); }      // no sound source yet (the next track is still being read): the clock of the previous track must not count
 function lyrShow() { $('lyrics').classList.toggle('hidden', !(lyr.data && !lyr.hidden && nowNum)); }
 async function lyrLoad(num) {
   lyr.num = num; lyr.data = null; lyr.cur = -2; lyr.rows = []; $('lyrTrack').replaceChildren(); $('lyrTrack').style.transform = ''; $('lyrSrc').textContent = '';

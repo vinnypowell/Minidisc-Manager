@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.41.0 (BETA)
+MiniDisc Manager for Mac - version 0.41.1 (BETA)
 ====================================================================
 
-Fix: the lyrics in the Pop Out window keep time with the music; the player bar no longer clips its right-hand buttons in a narrow window (they wrap to a second row).
+Fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead while it is still being read.
+
+Since 0.41.0 - Fix: the lyrics in the Pop Out window keep time with the music; the player bar no longer clips its right-hand buttons in a narrow window (they wrap to a second row).
 
 Since 0.40.0 - New: Pop Out Playing Disc Information: a button at the top (it appears once a track is playing) opens the Visualiser, Track time display, cover, transport buttons, volume and lyrics in a window of their own. Fix: Disc Stickers and J-Cards use the album picture kept on the PC for a standard disc.
 
