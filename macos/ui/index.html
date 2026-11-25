@@ -376,6 +376,9 @@
   .lyr-row .btns button { padding: 3px 9px; font-size: 12px; }
   #player { display: flex; align-items: center; gap: 14px; padding: 10px 28px; border-top: 1px solid var(--line); background: var(--panel); }
   #player.hidden { display: none; }
+  #player { flex-wrap: wrap; row-gap: 8px; }   /* a narrow window drops the right-hand controls (Play on, Repeat, EQ, Surround, room, volume) to a second row instead of clipping them */
+  #player button { white-space: nowrap; }
+  #player #seek { flex: 1 1 140px; min-width: 100px; }
   #player .np { min-width: 0; width: 230px; flex: none; }
   #player .np b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #player .np span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -8810,16 +8813,18 @@ async function lyrLoad(num) {
 }
 function lyrTick() {
   if (!lyr.data || !lyr.data.synced || $('lyrics').classList.contains('hidden')) return;
-  const p = lyrPos() - lyr.data.offset, L = lyr.data.lines;
+  const p = lyrPos() - lyr.data.offset + (popOut.on ? 0.12 : 0), L = lyr.data.lines;
   let i = -1; while (i + 1 < L.length && L[i + 1][0] <= p) i++;
   if (i === lyr.cur) return;
   lyr.cur = i;
+  if (popOut.on) popPush(false);                                                  // the pop-out lights the new line at once (not up to 250 ms later)
   lyr.rows.forEach((r, k) => { r.classList.toggle('cur', k === i); r.classList.toggle('past', k < i); });
   const r = lyr.rows[Math.max(i, 0)], box = $('lyrLines');
   if (r) $('lyrTrack').style.transform = 'translateY(' + Math.min(0, Math.round(box.clientHeight / 2 - (r.offsetTop + r.offsetHeight / 2))) + 'px)';      // the current line goes to the middle (the first ones stay at the top)
 }
 function lyrFrame() { if (nowNum !== lyr.num) lyrLoad(nowNum); lyrTick(); requestAnimationFrame(lyrFrame); }           // every frame: a line changes the moment its time comes. A new track (or none) is noticed here too.
 requestAnimationFrame(lyrFrame);
+setInterval(() => { if (popOut.on) lyrTick(); }, 40);                        // while popped out the main window is often behind or hidden and its frames stop: keep the lyrics on time
 $('lyrBtn').addEventListener('click', () => {
   const t = trackMap.get(nowNum);
   if (t && t.lyrics && layout.hidden.includes('lyrics')) { layout.hidden = layout.hidden.filter(h => h !== 'lyrics'); saveLayout(); renderBoard(); lyr.hidden = false; localStorage.setItem('lyricsHidden', '0'); lyrShow(); }      // the Lyrics card was hidden: bring it back
