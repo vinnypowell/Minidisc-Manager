@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MiniDisc Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  The pop-out window: the Visualiser and the track that is playing (the Track time display with its seven-segment digits, the cover and the player buttons)
+  in a window of their own. It is a second page of the same program (same address, so it shares the browser storage and can talk to the main window
+  through a BroadcastChannel). The main window does all the work: it draws the Visualiser exactly as it always does (into a canvas that is kept off-screen
+  while this window is open) and sends each picture here, together with the track, the times and the colours of the theme; this window only shows them and
+  sends back what was pressed. Nothing here touches the recorder.
+-->
+<style>
+  :root { --bg: #0f1115; --panel: #171a21; --panel-2: #1d212a; --line: #262b36; --text: #e8eaf0; --muted: #8b93a5; --accent: #5b8cff; --accent-2: #8f6bff; --screen: #0b0d11; --screen-edge: none; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font: 14px system-ui, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+  #app { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; }
+  .tools { flex: none; }
+  #cols { flex: 1 1 0; min-height: 0; display: flex; gap: 12px; }
+  #left { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .deck, .np { flex: none; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: var(--muted); }
+  .tools label { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+  select, button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; cursor: pointer; }
+  select { max-width: 190px; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  input[type=range] { accent-color: var(--accent); }
+  .tools .grow { flex: 1; }
+  #stage { flex: 1 1 0; position: relative; background: var(--screen); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--screen-edge); overflow: hidden; min-height: 60px; }
+  #cv { width: 100%; height: 100%; display: block; }
+  #idle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); }
+  #idle[hidden] { display: none; }
+
+  /* the lyrics of the track that is playing, in a column on the right (the current line is lit and kept in the middle) */
+  #lyrBox { flex: 0 0 38%; min-width: 220px; max-width: 560px; display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+  #lyrBox[hidden] { display: none; }
+  #lyrSrc { color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+  #lyrSrc:empty { display: none; }
+  #lyrLines { position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; text-align: center; padding: 24px 0; scrollbar-width: thin; }
+  #lyrLines div { padding: 3px 8px; font-size: 17px; font-weight: 600; line-height: 1.4; color: var(--muted); transition: color .2s, transform .2s, opacity .2s; }
+  #lyrLines div.past { opacity: .6; }
+  #lyrLines div.cur { color: var(--accent); transform: scale(1.12); opacity: 1; }
+  #lyrLines.plain { text-align: left; padding: 6px 0; }
+  #lyrLines.plain div { font-size: 14px; font-weight: 400; color: var(--text); }
+
+  /* the Track time display: the same look as the card in the main window */
+  .deck { --deck-ink: var(--accent); min-width: 0; padding: 9px 12px 10px; border-radius: 12px; background: var(--screen); border: 1px solid var(--line); box-shadow: var(--screen-edge); font-variant-numeric: tabular-nums; }
+  .deck[hidden] { display: none; }
+  .deck-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 12px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: var(--deck-ink); text-shadow: 0 0 7px color-mix(in srgb, var(--deck-ink) 60%, transparent); }
+  .deck-head #dkMode { color: var(--muted); font-weight: 600; letter-spacing: .06em; }
+  .deck-now { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin-bottom: 8px; }
+  .deck-now b { font-size: 17px; font-weight: 700; line-height: 1.25; color: var(--deck-ink); text-shadow: 0 0 9px color-mix(in srgb, var(--deck-ink) 55%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-now span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-now span:empty { display: none; }
+  .deck-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+  .deck-grid > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .deck-grid i { font-style: normal; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .deck-grid b { font: 600 20px/1.15 ui-monospace, 'Cascadia Mono', Consolas, monospace; color: var(--deck-ink); text-shadow: 0 0 9px color-mix(in srgb, var(--deck-ink) 55%, transparent); }
+  .deck-grid b svg.dg { height: 22px; width: 12.8px; margin-right: 2px; vertical-align: middle; overflow: visible; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--deck-ink) 70%, transparent)); }
+  .deck-grid b svg.dg.col { width: 5.6px; }
+  .deck-grid b svg.dg .on { fill: var(--deck-ink); }
+  .deck-grid b svg.dg .off { fill: var(--deck-ink); opacity: .09; }
+  .deck-grid .na b { color: var(--muted); text-shadow: none; opacity: .6; }
+
+  /* the cover and the player buttons */
+  .np { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+  .np.nocover { grid-template-columns: 1fr; }
+  #cover { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--screen); border: 1px solid var(--line); }
+  #cover[hidden] { display: none; }
+  .meta { min-width: 0; display: grid; gap: 4px; }
+  .ctl { display: flex; align-items: center; gap: 8px; }
+  .ctl button { min-width: 38px; font-size: 15px; }
+  .ctl .time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; min-width: 3.1em; text-align: center; }
+  #seek { flex: 1; min-width: 60px; }
+  .volbox { display: flex; align-items: center; gap: 4px; margin-left: 6px; }
+  .volbox[hidden] { display: none; }
+  #vol { width: 80px; }
+  #status { color: var(--muted); font-size: 12px; min-height: 0; }
+  #status:empty { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="tools">
+    <label><span id="lDisplay">Display</span> <select id="style"></select></label>
+    <label id="wColor"><span id="lColour">Colour</span> <select id="color"></select></label>
+    <label id="wGain"><span id="lSens">Sensitivity</span> <input type="range" id="gain" min="40" max="300" value="100"></label>
+    <label id="wPeaks"><input type="checkbox" id="peaks"> <span id="lPeaks">Peak marks</span></label>
+    <label id="wLyr" style="display:none"><input type="checkbox" id="lyrOn"> <span id="lLyr">Lyrics</span></label>
+    <span class="grow"></span>
+    <button id="dock">Dock back</button>
+  </div>
+  <div id="cols">
+  <div id="left">
+  <div id="stage"><canvas id="cv"></canvas><div id="idle">Waiting for the main window…</div></div>
+  <div class="deck" id="deck" hidden>
+    <div class="deck-head"><span id="dkTrack"></span><span id="dkMode"></span></div>
+    <div class="deck-now"><b id="dkTitle"></b><span id="dkArtist"></span></div>
+    <div class="deck-grid">
+      <div><i id="lEl">Elapsed</i><b id="dkEl">0:00</b></div>
+      <div><i id="lRem">Remaining</i><b id="dkRem">-0:00</b></div>
+      <div><i id="lLen">Track length</i><b id="dkLen">0:00</b></div>
+      <div><i id="lDEl">Disc elapsed</i><b id="dkDEl">0:00</b></div>
+      <div id="dkDRemBox"><i id="lDRem">Disc remaining</i><b id="dkDRem">-0:00</b></div>
+      <div><i id="lDTot">Disc total</i><b id="dkDTot">0:00</b></div>
+    </div>
+  </div>
+  <div class="np nocover" id="np">
+    <img id="cover" alt="" hidden>
+    <div class="meta">
+      <div class="ctl">
+        <button id="prev" title="Previous track">⏮</button>
+        <button id="pp" class="primary" title="Play / pause">▶</button>
+        <button id="next" title="Next track">⏭</button>
+        <span class="time" id="tcur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0"><span class="time" id="ttot">0:00</span><span id="volBox" class="volbox" hidden><span id="volIcon" title="Volume">🔊</span><input type="range" id="vol" min="0" max="100" value="80" title="Volume"></span>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+  </div>
+  <div id="lyrBox" hidden><div id="lyrSrc"></div><div id="lyrLines"></div></div>
+  </div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ch = new BroadcastChannel('mdm-popout');
+  const post = m => { try { ch.postMessage(m); } catch (e) { /* the channel is gone */ } };
+  const cv = $('cv'), g = cv.getContext('2d');
+  let volDrag = false, volT = 0, lastState = 0, seeking = false, haveStyles = '', waitingText = 'Waiting for the main window…', idleText = 'Nothing is playing', ok = false, connected = false;
+
+  // Retro seven-segment digits, drawn as small SVGs (the same as the Track time card of the main window). Unlit segments stay faintly visible.
+  const SEG_ON = { 0: 'abcdef', 1: 'bc', 2: 'abdeg', 3: 'abcdg', 4: 'bcfg', 5: 'acdfg', 6: 'acdefg', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g' };
+  const SEG_P = { a: '2,1 12,1 10,3.6 4,3.6', b: '13,1.8 13,11.4 10.6,10.2 10.6,4.2', c: '13,12.6 13,22.2 10.6,19.8 10.6,13.8', d: '2,23 12,23 10,20.4 4,20.4',
+                  e: '1,12.6 3.4,13.8 3.4,19.8 1,22.2', f: '1,1.8 3.4,4.2 3.4,10.2 1,11.4', g: '2.2,12 4.2,9.7 9.8,9.7 11.8,12 9.8,14.3 4.2,14.3' };
+  function segHtml(str) {
+    let out = '';
+    for (const c of String(str)) {
+      if (c === ':') { out += '<svg class="dg col" viewBox="0 0 6 24"><circle class="on" cx="3" cy="8" r="1.7"/><circle class="on" cx="3" cy="16.4" r="1.7"/></svg>'; continue; }
+      const lit = SEG_ON[c];
+      if (lit === undefined) { out += '<svg class="dg" viewBox="0 0 14 24"></svg>'; continue; }
+      out += '<svg class="dg" viewBox="0 0 14 24">' + Object.keys(SEG_P).map(k => '<polygon class="' + (lit.includes(k) ? 'on' : 'off') + '" points="' + SEG_P[k] + '"/>').join('') + '</svg>';
+    }
+    return out;
+  }
+  function deckSet(id, text) {                                       // only redraws when the text changed
+    const e = $(id); text = String(text == null ? '' : text);
+    if (e.dataset.v === text) return;
+    e.dataset.v = text; e.setAttribute('aria-label', text); e.innerHTML = segHtml(text);
+  }
+
+  // the lyrics: the lines arrive when the track (or its lyrics) changes, the number of the lit line with every state
+  let lyrRows = [], haveLyr = false, lyrOn = true, lastCur = -3;
+  try { lyrOn = localStorage.getItem('mdm.popLyrics') !== '0'; } catch (e) { /* not kept */ }
+  $('lyrOn').checked = lyrOn;
+  function showLyr() { $('lyrBox').hidden = !(ok && haveLyr && lyrOn); $('wLyr').style.display = haveLyr ? '' : 'none'; }
+  $('lyrOn').addEventListener('change', () => { lyrOn = $('lyrOn').checked; try { localStorage.setItem('mdm.popLyrics', lyrOn ? '1' : '0'); } catch (e) { /* not kept */ } showLyr(); });
+  function setLyrics(l) {
+    const box = $('lyrLines');
+    box.textContent = ''; lyrRows = []; haveLyr = !!l; lastCur = -3; $('lyrSrc').textContent = l ? (l.source || '') : '';
+    if (l) { box.classList.toggle('plain', !l.synced); l.lines.forEach(t => { const d = document.createElement('div'); d.textContent = t; box.append(d); lyrRows.push(d); }); }
+    box.scrollTop = 0;
+  }
+  function markLyric(i) {
+    if (i === lastCur) return;
+    lastCur = i;
+    const box = $('lyrLines');
+    lyrRows.forEach((r, k) => { r.classList.toggle('cur', k === i); r.classList.toggle('past', k < i); });
+    if (box.classList.contains('plain')) return;
+    const r = lyrRows[i];
+    if (r) box.scrollTo({ top: Math.max(0, r.offsetTop - box.clientHeight / 2 + r.offsetHeight / 2), behavior: 'smooth' });          // the lit line goes to the middle
+    else box.scrollTop = 0;
+  }
+
+  function sizeCanvas() {                                           // the canvas has the size of the stage in device pixels; the main window is told, and draws to fit
+    const r = $('stage').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const w = Math.max(2, Math.round(r.width * dpr)), h = Math.max(2, Math.round(r.height * dpr));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    post({ t: 'size', w: Math.round(r.width), h: Math.round(r.height), dpr });
+  }
+  let rt = 0;
+  new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(sizeCanvas, 60); }).observe($('stage'));
+
+  function show(bmp) {
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.drawImage(bmp, 0, 0, cv.width, cv.height);
+    if (bmp.close) bmp.close();
+  }
+  function applyLabels(L) {
+    if (!L) return;
+    const set = (id, k) => { if (L[k] != null) $(id).textContent = L[k]; };
+    set('lDisplay', 'display'); set('lColour', 'colour'); set('lSens', 'sens'); set('lPeaks', 'peaks'); set('dock', 'dock');
+    set('lLyr', 'lyrics'); set('lEl', 'elapsed'); set('lRem', 'remaining'); set('lLen', 'trackLength'); set('lDEl', 'discElapsed'); set('lDRem', 'discRemaining'); set('lDTot', 'discTotal');
+    if (L.volume) { $('vol').title = L.volume; $('volIcon').title = L.volume; }
+    $('prev').title = L.prev || $('prev').title; $('pp').title = L.pp || $('pp').title; $('next').title = L.next || $('next').title;
+    if (L.waiting) waitingText = L.waiting;
+    if (L.idle) idleText = L.idle;
+    if (L.title) document.title = L.title;
+  }
+  function fill(sel, list, value) {
+    sel.textContent = '';
+    list.forEach(([k, n]) => { const o = document.createElement('option'); o.value = k; o.textContent = n; sel.append(o); });
+    sel.value = value;
+  }
+  function apply(m) {
+    lastState = performance.now(); connected = true; ok = !!m.ok;
+    applyLabels(m.labels);
+    if (m.vars) Object.keys(m.vars).forEach(k => { if (m.vars[k]) document.documentElement.style.setProperty(k, m.vars[k]); });
+    if (m.scheme) document.documentElement.style.colorScheme = m.scheme;
+    if (m.styles) {
+      const key = JSON.stringify([m.styles, m.colors]);
+      if (key !== haveStyles) { haveStyles = key; fill($('style'), m.styles, m.viz.style); fill($('color'), m.colors, m.viz.color); }
+    }
+    if (m.viz) {                                                     // what the main window shows now (not while one of these boxes is being used)
+      if (document.activeElement !== $('style')) $('style').value = m.viz.style;
+      if (document.activeElement !== $('color')) $('color').value = m.viz.color;
+      if (document.activeElement !== $('gain')) $('gain').value = Math.round(m.viz.gain * 100);
+      $('peaks').checked = !!m.viz.peaks;
+      const off = m.viz.style === 'off';
+      $('wColor').style.display = $('wGain').style.display = $('wPeaks').style.display = off ? 'none' : '';
+      if (off) g.clearRect(0, 0, cv.width, cv.height);                // nothing is drawn any more: do not leave the last picture on screen
+    }
+    // the Track time display
+    const d = m.deck;
+    $('deck').hidden = !ok || !d;
+    if (ok && d) {
+      $('deck').style.setProperty('--deck-ink', d.ink || 'var(--accent)');
+      $('dkTrack').textContent = d.track || ''; $('dkMode').textContent = d.mode || '';
+      $('dkTitle').textContent = d.title || ''; $('dkTitle').title = d.title || ''; $('dkArtist').textContent = d.who || ''; $('dkArtist').title = d.who || '';
+      deckSet('dkEl', d.el); deckSet('dkRem', d.rem); deckSet('dkLen', d.len); deckSet('dkDEl', d.dEl); deckSet('dkDRem', d.dRem); deckSet('dkDTot', d.dTot);
+      $('dkDRemBox').classList.toggle('na', !!d.dRemNa);
+    }
+    if (m.lyrics !== undefined) setLyrics(m.lyrics);
+    if (m.lyrCur !== undefined) markLyric(m.lyrCur);
+    showLyr();
+    $('status').textContent = ok ? (m.status || '') : '';
+    if (m.cover !== undefined) {                                     // the picture is sent when it changes (it can be large)
+      if (m.cover) { $('cover').src = m.cover; $('cover').hidden = false; $('np').classList.remove('nocover'); }
+      else { $('cover').hidden = true; $('cover').removeAttribute('src'); $('np').classList.add('nocover'); }
+    }
+    $('pp').textContent = m.playing ? '❚❚' : '▶';
+    $('prev').disabled = !m.ok || m.prevOk === false; $('next').disabled = !m.ok || m.nextOk === false; $('pp').disabled = !m.ok;
+    $('tcur').textContent = m.tcur || '0:00'; $('ttot').textContent = m.ttot || '0:00';
+    if (!seeking) $('seek').value = m.seek || 0;
+    $('seek').disabled = !m.ok;
+    $('volBox').hidden = !m.ok || m.vol === null || m.vol === undefined;
+    if (!volDrag && m.vol !== null && m.vol !== undefined) $('vol').value = m.vol;
+    const idle = $('idle');
+    if (!ok) { idle.textContent = idleText; idle.hidden = false; g.clearRect(0, 0, cv.width, cv.height); }
+    else idle.hidden = true;
+  }
+
+  ch.onmessage = ev => {
+    const m = ev.data;
+    if (!m) return;
+    if (m.t === 'f') { if (ok) show(m.b); else if (m.b.close) m.b.close(); }
+    else if (m.t === 'fb') { if (ok) createImageBitmap(m.blob).then(show).catch(() => {}); }         // a picture sent as an image file when a bitmap could not be sent
+    else if (m.t === 'state') apply(m);
+  };
+
+  // what the user presses
+  const cmd = c => () => post({ t: 'cmd', c });
+  $('prev').onclick = cmd('prev'); $('pp').onclick = cmd('pp'); $('next').onclick = cmd('next');
+  $('dock').onclick = () => post({ t: 'dock' });
+  $('vol').addEventListener('input', () => { volDrag = true; clearTimeout(volT); volT = setTimeout(() => { volDrag = false; }, 1500); post({ t: 'vol', v: Number($('vol').value) }); });
+  $('seek').addEventListener('input', () => { seeking = true; });
+  $('seek').addEventListener('change', () => { seeking = false; post({ t: 'seek', v: Number($('seek').value) }); });
+  const viz = () => post({ t: 'viz', style: $('style').value, color: $('color').value, gain: Number($('gain').value) / 100, peaks: $('peaks').checked });
+  ['style', 'color'].forEach(id => $(id).addEventListener('change', viz));
+  $('gain').addEventListener('input', viz); $('peaks').addEventListener('change', viz);
+
+  // connect, and say where the window is so that the main window can open it in the same size next time
+  let geom = '';
+  function hello() { sizeCanvas(); post({ t: 'hello' }); }
+  hello();
+  setInterval(() => {
+    if (!connected) { $('idle').textContent = waitingText; $('idle').hidden = false; hello(); }
+    else if (performance.now() - lastState > 3500) { connected = false; ok = false; $('idle').textContent = waitingText; $('idle').hidden = false; }
+    const gm = [window.screenX, window.screenY, window.outerWidth, window.outerHeight].join(',');
+    if (gm !== geom) { geom = gm; post({ t: 'geom', x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight }); }
+  }, 1000);
+  window.addEventListener('pagehide', () => post({ t: 'bye' }));
+})();
+</script>
+</body>
+</html>

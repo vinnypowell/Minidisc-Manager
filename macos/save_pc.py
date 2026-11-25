@@ -80,6 +80,24 @@ class SavePcMixin:
         if r.returncode:
             raise RuntimeError('Could not convert the audio: %s' % (r.stderr.strip()[-300:] or 'unknown error'))
 
+    def _save_cover_file(self, cover, tmp):
+        """The disc's picture (a data: address) as a small JPEG file in `tmp` (at most 1024 pixels a side), or None."""
+        m = re.match(r'^data:image/(?:jpeg|png);base64,(.+)$', cover or '', re.S)
+        if not m:
+            return None
+        try:
+            import base64
+            raw = os.path.join(tmp, 'cover-source.img')
+            with open(raw, 'wb') as f:
+                f.write(base64.b64decode(m.group(1)))
+            if os.path.getsize(raw) > 8 * 1000 * 1000:
+                return None
+            out = os.path.join(tmp, 'cover.jpg')
+            self._ffmpeg(['-i', raw, '-frames:v', '1', '-vf', "scale='min(1024,iw)':'min(1024,ih)':force_original_aspect_ratio=decrease", '-pix_fmt', 'yuvj420p', '-q:v', '3', out])
+            return out if os.path.isfile(out) else None
+        except Exception:
+            return None
+
     def open_folder(self, path):
         if path and os.path.isdir(path):
             open_path(path)
@@ -89,11 +107,11 @@ class SavePcMixin:
         self._save_cancel = True
         return self._stop_transfer()
 
-    def save_tracks(self, index, numbers, folder, fmt='flac', keep_atrac=False, mp3_quality='v0', use_exploit=False):
+    def save_tracks(self, index, numbers, folder, fmt='flac', keep_atrac=False, mp3_quality='v0', use_exploit=False, cover=''):
         """Saves the tracks to `folder` as FLAC, WAV or MP3. An MP3 track already on a Hi-MD disc is saved as it is when MP3 is
         chosen (never re-encoded). With keep_atrac, Hi-MD ATRAC tracks keep their original ATRAC data as .oma. With use_exploit, tracks
         on a standard disc that have no saved copy are read from a recorder that cannot send audio back (MZ-NH700) with the experimental
-        firmware-patch download. Reads the disc only. Returns what was saved and what could not be."""
+        firmware-patch download. With `cover` (a data: address of the disc's picture) FLAC and MP3 files carry it inside and the folder gets a cover.jpg. Reads the disc only. Returns what was saved and what could not be."""
         fmt = fmt if fmt in ('flac', 'wav', 'mp3') else 'flac'
         if not folder or not os.path.isdir(folder):
             return {'error': 'Choose a folder to save into.'}
@@ -106,6 +124,7 @@ class SavePcMixin:
         saved, failed = [], []
         used_exploit = False
         tmp = tempfile.mkdtemp(prefix='mdm-save-')
+        cover_file = self._save_cover_file(cover, tmp)
 
         def tell(**msg):
             if self._window:
@@ -178,12 +197,29 @@ class SavePcMixin:
                             codec = ['-c:a', 'pcm_s16le']
                         else:                                            # MP3: VBR V0 (about 245 kbps) or constant 320 kbps
                             codec = ['-c:a', 'libmp3lame'] + (['-b:a', '320k'] if mp3_quality == '320' else ['-q:a', '0']) + ['-id3v2_version', '3']
-                        self._ffmpeg(['-i', src, '-vn', '-map_metadata', '-1'] + tags + codec + [dest])
+                        done = False
+                        if cover_file and final_ext in ('flac', 'mp3'):              # the picture goes inside the file; if that fails the track is still written without it
+                            pic = ['-c:v', 'copy', '-disposition:v:0', 'attached_pic'] + (['-metadata:s:v', 'title=Album cover', '-metadata:s:v', 'comment=Cover (front)'] if final_ext == 'mp3' else [])
+                            try:
+                                self._ffmpeg(['-i', src, '-i', cover_file, '-map', '0:a', '-map', '1:v', '-map_metadata', '-1'] + tags + codec + pic + [dest])
+                                done = True
+                            except RuntimeError:
+                                if os.path.exists(dest):
+                                    os.remove(dest)
+                        if not done:
+                            self._ffmpeg(['-i', src, '-vn', '-map_metadata', '-1'] + tags + codec + [dest])
                     saved.append({'number': t['number'], 'file': dest})
                 except (RuntimeError, OSError) as exc:
                     if self._save_cancel:
                         break                                            # stopped on request: not a failure
                     failed.append({'number': t['number'], 'title': label, 'error': str(exc)})
         finally:
+            if cover_file and saved:                                      # the picture also sits in the folder, for players that read a folder picture
+                try:
+                    pic_dest = os.path.join(folder, 'cover.jpg')
+                    if not os.path.exists(pic_dest):
+                        shutil.copyfile(cover_file, pic_dest)
+                except OSError:
+                    pass
             shutil.rmtree(tmp, ignore_errors=True)
         return {'saved': saved, 'failed': failed, 'cancelled': bool(self._save_cancel), 'folder': folder, 'exploitUsed': used_exploit}

@@ -15,6 +15,7 @@ AUDIO = {'.flac', '.wav', '.mp3', '.m4a', '.mp4', '.aac', '.wma', '.ogg', '.dsf'
 SKIPPED_HINT = {'.oma': 'Sony ATRAC (.oma) files can be copy-protected and cannot be read here'}
 IGNORE_DIRS = {'system volume information', '$recycle.bin', 'found.000', '.trashes', '.spotlight-v100', '.fseventsd', 'recycler'}
 MUSIC_NAMES = ('music',)                                                       # the folder a player keeps its music in (any capitalisation)
+ART_STEMS = ('cover', 'folder', 'front', 'album', 'albumart', 'artwork')           # picture files an album folder usually has (any capitalisation)
 _custom = {}                                                                   # folders chosen by hand this run: path -> player dict
 
 
@@ -123,6 +124,16 @@ def _music_root(p):
     return p['music'] or (os.path.join(p['root'], 'MUSIC') if p['sony'] else p['root'])
 
 
+def _pick_art(here, files):
+    """The album picture in a folder: a file named like cover / folder / front, else the only picture there is. '' when none."""
+    imgs = [fn for fn in files if os.path.splitext(fn)[1].lower() in ('.jpg', '.jpeg', '.png') and not fn.startswith('.')]
+    for stem in ART_STEMS:
+        for fn in sorted(imgs):
+            if os.path.splitext(fn)[0].lower() == stem:
+                return os.path.join(here, fn)
+    return os.path.join(here, imgs[0]) if len(imgs) == 1 else ''
+
+
 def list_music(p):
     """Every folder in the player's music folder that has audio files: [{rel, name, tracks: [{path, name, bytes}]}], plus how many files were skipped."""
     music = _music_root(p)
@@ -148,7 +159,8 @@ def list_music(p):
         if tracks:
             tracks.sort(key=lambda t: _natural(t['name']))
             rel = os.path.relpath(here, music)
-            groups.append({'rel': '' if rel == '.' else rel.replace('\\', '/'), 'name': os.path.basename(here) if rel != '.' else os.path.basename(music.rstrip('/\\')) or 'Music', 'tracks': tracks})
+            art = _pick_art(here, files)
+            groups.append({'art': art, 'rel': '' if rel == '.' else rel.replace('\\', '/'), 'name': os.path.basename(here) if rel != '.' else os.path.basename(music.rstrip('/\\')) or 'Music', 'tracks': tracks})
     groups.sort(key=lambda g: _natural(g['rel']))
     return {'groups': groups, 'skipped': [{'ext': k, 'count': v, 'why': SKIPPED_HINT[k]} for k, v in skipped.items()]}
 
@@ -156,6 +168,11 @@ def list_music(p):
 def _clean(name, fallback):
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', (name or '').strip()).strip(' .')
     return (name or fallback)[:80].rstrip(' .')
+
+
+def _stem_key(stem):
+    """A file name without its extension and its leading track number, lower case: 'Track 01 - Heart' and '1. heart' match."""
+    return re.sub(r'^\d+\s*[-._ ]\s*', '', (stem or '').strip()).strip().lower()
 
 
 class WalkmanMixin:
@@ -194,6 +211,85 @@ class WalkmanMixin:
         except Exception as exc:
             self.log('walkman_list failed: %r' % (exc,))
             return {'error': 'Could not read the player: %s' % exc}
+
+    def walkman_check(self, root, artist, album, index, numbers):
+        """Before copying: which of these disc tracks are already in MUSIC/<artist>/<album> on the player (same title, any audio format), and whether
+        an album folder with the same name already exists under another artist (a mis-filed earlier copy). Creates and changes nothing."""
+        try:
+            p = _player(root)
+            if not p:
+                return {'error': 'That player is no longer connected.'}
+            music = _music_root(p)
+            artist_dir, album_dir = _clean(artist, 'Unknown Artist'), _clean(album, 'Unknown Album')
+            folder = os.path.join(music, artist_dir, album_dir)
+            have = {}
+            if os.path.isdir(folder):
+                for fn in os.listdir(folder):
+                    if os.path.splitext(fn)[1].lower() in AUDIO and not fn.startswith('.'):
+                        have[_stem_key(os.path.splitext(fn)[0])] = fn
+            wanted = {int(n) for n in numbers}
+            dupes = []
+            for t in self._tracks:
+                if t['number'] in wanted:
+                    key = _stem_key(self._file_stem(t['number'], t['title']))
+                    if key and key in have:
+                        dupes.append(t['number'])
+            elsewhere = []
+            if os.path.isdir(music):
+                for a in sorted(os.listdir(music)):
+                    ap = os.path.join(music, a)
+                    if a.lower() == artist_dir.lower() or not os.path.isdir(ap) or a.startswith('.'):
+                        continue
+                    try:
+                        if any(d.lower() == album_dir.lower() and os.path.isdir(os.path.join(ap, d)) for d in os.listdir(ap)):
+                            elsewhere.append(a + '/' + album_dir)
+                    except OSError:
+                        continue
+                    if len(elsewhere) >= 3:
+                        break
+            return {'folder': folder, 'rel': artist_dir + '/' + album_dir, 'exists': os.path.isdir(folder), 'existing': len(have),
+                    'dupes': dupes, 'elsewhere': elsewhere}
+        except Exception as exc:
+            self.log('walkman_check failed: %r' % (exc,))
+            return {'error': 'Could not look in the player: %s' % exc}
+
+    def walkman_apply_art(self, index, path):
+        """Uses a picture file from a Walkman folder as the disc's picture: stored on a Hi-MD disc (a small write of COVER.JPG), kept on this PC for
+        a standard disc. Only pictures that are inside a player's music folder are accepted."""
+        try:
+            real = os.path.abspath(path or '')
+            inside = False
+            for p in find_walkmen():
+                music = os.path.abspath(_music_root(p))
+                try:
+                    if os.path.commonpath([real, music]) == music:
+                        inside = True
+                except ValueError:                                         # another drive
+                    continue
+            if not os.path.isfile(real) or not inside:
+                return {'error': 'That picture is no longer available.'}
+            if os.path.getsize(real) > 20 * 1000 * 1000:
+                return {'error': 'That picture is too large (over 20 MB).'}
+            if self._is_netmd(index):
+                import cover_search
+                import disc_lookup
+                with open(real, 'rb') as f:
+                    data = f.read()
+                key = self._netmd_disc_key(self._tracks)
+                if not key or not cover_search._is_image(data):
+                    return {'error': 'That picture could not be used.'}
+                disc_lookup.save_cover(key, data)
+                return {'ok': True, 'where': 'pc'}
+            prep = self.cover_prepare(real)
+            if 'error' in prep:
+                return prep
+            r = self.cover_set(index, prep['tmp'])
+            if 'error' in r:
+                return r
+            return {'ok': True, 'where': 'disc'}
+        except Exception as exc:
+            self.log('walkman_apply_art failed: %r' % (exc,))
+            return {'error': 'That picture could not be used: %s' % exc}
 
     def walkman_target(self, root, artist, album):
         """The folder <music folder>/<artist>/<album> on that player, made if it is not there yet. Returns its path and the free space."""

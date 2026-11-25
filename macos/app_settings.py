@@ -19,6 +19,7 @@ DEFAULTS = {
     'allowPatch': True,                  # a Hi-MD recorder in standard-disc mode (MZ-NH700...) may be given the temporary firmware patch that lets it send a track back (playback, save, identify, clone...); off: never, it is played by remote control
     'rememberLayout': True,              # the card places, sizes and hidden cards are kept between runs; off: the app always opens in the stock layout
     'checkUpdates': True,                # once a day (and on Help > Check for updates) the program asks the project's GitHub page whether a newer version exists and shows a notice
+    'suggestPopout': True,               # while a track plays the Pop out button pulses and a note offers the pop-out window (stops once it has been used)
     'askMissing': True,                  # a disc with details missing (artist, album, picture, lyrics) shows the "missing some details" prompt
 }
 

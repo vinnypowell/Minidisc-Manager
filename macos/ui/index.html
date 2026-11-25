@@ -58,9 +58,10 @@
     display: flex; flex-direction: column; overflow: hidden;
   }
   header {
-    display: flex; align-items: center; gap: 14px; padding: 16px 28px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 16px 28px;
     border-bottom: 1px solid var(--line);
   }
+  header button, header .pill { white-space: nowrap; }                    /* in a narrow window whole buttons move to a second row instead of squeezing their text onto two lines */
   .logo { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: .2px; }
   .logo .ver { font-size: 12px; font-weight: 500; color: var(--muted); padding: 2px 8px; border-radius: 99px; background: var(--chip); letter-spacing: 0; }
   .logo i {
@@ -313,6 +314,27 @@
   .deck-grid b svg.dg .on { fill: var(--deck-ink); }
   .deck-grid b svg.dg .off { fill: var(--deck-ink); opacity: .09; }
   .deck-grid .na b { color: var(--muted); text-shadow: none; opacity: .6; }
+  body.popped section.card[data-card="lyrics"] { display: none; }                                /* the lyrics are in the pop-out window: the space goes to the other cards */
+  #vizPopHold { position: fixed; left: -20000px; top: 0; pointer-events: none; }                /* while the pop-out is open the Visualiser canvas is kept here, drawn but not seen */
+  #vizPop { margin-left: auto; }
+  /* the Pop out button in the player bar: always in view while a track plays, and it glows a few times until it has been used once */
+  #popTop { flex: none; border-color: var(--accent); color: var(--accent); font-weight: 650; white-space: nowrap; }
+  #popTop { margin-left: 6px; }
+  #popTop .pt-short { display: none; }                                  /* the full wording needs about 1540 px of window; narrower, the short label keeps the top bar on one row */
+  @media (max-width: 1540px) { #popTop .pt-long { display: none; } #popTop .pt-short { display: inline; } }
+  #popTop.on { background: var(--accent); color: #fff; }
+  #popTop.attn { background: var(--accent); color: #fff; animation: popPulse 1.3s ease-out infinite; }          /* pulses while a track plays and the pop-out is closed (unless the suggestion is switched off in Settings) */
+  @keyframes popPulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 75%, transparent); } 70% { transform: scale(1.07); box-shadow: 0 0 0 11px color-mix(in srgb, var(--accent) 0%, transparent); } 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); } }
+  @media (prefers-reduced-motion: reduce) { #popTop.attn { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent); } }
+  /* the little note that points at the button a moment after the sound starts */
+  #popHint { position: fixed; z-index: 60; width: 320px; max-width: calc(100vw - 16px); padding: 12px 14px 12px; border-radius: 14px; background: var(--panel); color: var(--text); border: 2px solid var(--accent); box-shadow: 0 10px 34px rgba(0, 0, 0, .5); display: grid; gap: 8px; --ax: 50%; }
+  #popHint.hidden { display: none; }
+  #popHint::after { content: ''; position: absolute; bottom: -9px; left: var(--ax); width: 14px; height: 14px; margin-left: -7px; background: var(--panel); border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(45deg); }
+  #popHint.below::after { top: -9px; bottom: auto; border: 0; border-left: 2px solid var(--accent); border-top: 2px solid var(--accent); }          /* the note hangs under the top-bar button, its arrow pointing up */
+  #popHint b { font-size: 14px; color: var(--accent); }
+  #popHint .ph-text { font-size: 13px; line-height: 1.45; color: var(--muted); }
+  #popHint .ph-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  #popHint .ph-row button { padding: 4px 11px; font-size: 12px; }
   #vizCanvas.tall { height: 250px; }
   #vizCanvas.xtall { height: 278px; border: none; box-shadow: none; background: transparent; }          /* the surround channels display: a wide room needs the height too */          /* the round VU dials get more room, so they come out larger */
   /* the "screen" of the visualiser and of the deck time display under it: the same dark glass, so they read as one retro machine display */
@@ -541,6 +563,7 @@
     <text x="7" y="21.5" font-size="21" font-weight="800" fill="#fff" textLength="30" lengthAdjust="spacingAndGlyphs">MD</text>
     <text x="7" y="32" font-size="9" font-weight="600" fill="#fff" fill-opacity=".92" textLength="30" lengthAdjust="spacingAndGlyphs">manager</text>
   </svg></i> MiniDisc Manager <span id="appVersion" class="ver"></span></div>
+  <button id="popTop" class="hidden" title="Open the Visualiser, the Track time display and the lyrics in a window of their own (the other cards use the space)">⧉ Pop Out Playing Disc Information</button>
   <div class="spacer"></div>
   <button id="undoTop" class="hidden" title="Undo last change: restore the disc's track index as it was before the last rename, move, group or similar change (not available after a delete)">↶ Undo last change</button>
   <button id="settingsBtn" title="Settings: switch the automatic disc lookup and the missing-details prompt on or off">⚙ Settings</button>
@@ -574,6 +597,7 @@
               <label>Sensitivity <input type="range" id="vizGain" min="40" max="300" value="100" title="How strongly the display reacts"></label>
               <label><input type="checkbox" id="vizPeaks"> Peak marks</label>
             </span>
+            <button id="vizPop" class="primary" title="Open the Visualiser and the track that is playing in a window of their own (the other cards use the space)">⧉ Pop Out Playing Disc Information</button>
           </div>
           <canvas id="vizCanvas"></canvas>
         </div>
@@ -1245,7 +1269,7 @@ async function load(noSync) {
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
 // App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
-let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true };
+let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true, suggestPopout: true };
 async function appSettingsLoad() {
   try {
     let s = await api().get_app_settings();
@@ -1256,7 +1280,7 @@ async function appSettingsLoad() {
 }
 async function appSettingSet(key, value) {
   const r = await api().set_app_setting(key, value);
-  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'rememberLayout') layoutRememberChanged(); if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); if (key === 'spatialBinaural') svRefresh(); if (key === 'allowPatch' && netmd) { toast('Rescanning the recorder to apply this.'); scan(); } return true; }
+  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'rememberLayout') layoutRememberChanged(); if (key === 'suggestPopout') { popBtnRefresh(); popHintHide(false); } if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); if (key === 'spatialBinaural') svRefresh(); if (key === 'allowPatch' && netmd) { toast('Rescanning the recorder to apply this.'); scan(); } return true; }
   toast((r && r.error) || 'The setting could not be saved'); return false;
 }
 async function tidySpatial() {
@@ -1283,6 +1307,7 @@ function openSettings() {
     ['allowPatch', 'Allow the experimental firmware patch (MZ-NH700 and similar recorders)', 'Lets a Hi-MD recorder that holds a standard disc send its audio back to this PC, so tracks can play here, be saved, identified, split, combined or cloned. The patch is a small temporary change in the recorder’s memory (nothing is written to the disc or the recorder’s permanent memory) and unplugging the recorder clears it. Switched off: the patch is never used, and tracks without a saved copy can only be played on the recorder by remote control.'],
     ['checkUpdates', 'Tell me when a new version is available', 'Once a day the program asks this project’s page on GitHub which version is the newest, and shows a small notice if yours is older. Nothing about you or your computer is sent, and nothing is downloaded or installed by itself. Help > Check for updates asks straight away.'],
     ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, or has no name, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
+    ['suggestPopout', 'Suggest the pop-out window while a track plays', 'While a track plays, the Pop out button in the player bar pulses and a small note offers to show the Visualiser, the Track time display and the lyrics in a window of their own. Switched off: no pulse and no note; the button stays in the player bar.'],
     ['askConvert', 'Suggest converting a standard disc to Hi-MD', 'When a standard (SP / LP) disc with audio is inserted in a recorder that also uses Hi-MD, a note under the Recorder card offers to convert it. Switched off: no note; Convert SP Disc to Hi-MD stays in the Disc Conversion card.'],
   ].map(([key, title, text]) => {
     const cb = el('input', { type: 'checkbox', checked: appSettings[key] !== false, onchange: async () => { const want = cb.checked; if (!(await appSettingSet(key, want))) cb.checked = !want; } });
@@ -1975,6 +2000,7 @@ audio.addEventListener('loadedmetadata', () => { $('ttot').textContent = clock(a
 // play", and the disc's total playing time). Shown under the visualiser while a track plays here, or on the recorder / a speaker / a TV.
 // Retro seven-segment digits for the deck time display, drawn as small SVGs (no font needed). Unlit segments stay faintly visible, like a real LCD / VFD.
 // Set DECK_SEG to false to go back to plain digits.
+const popOut = { on: false, ch: null, w: 640, h: 300, dpr: 1, last: 0, coverKey: '', lyrKey: '', noBitmap: false };          // the pop-out window (see "Pop out" below)
 const DECK_SEG = true;
 const SEG_ON = { 0: 'abcdef', 1: 'bc', 2: 'abdeg', 3: 'abcdg', 4: 'bcfg', 5: 'acdfg', 6: 'acdefg', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g' };
 const SEG_P = { a: '2,1 12,1 10,3.6 4,3.6', b: '13,1.8 13,11.4 10.6,10.2 10.6,4.2', c: '13,12.6 13,22.2 10.6,19.8 10.6,13.8', d: '2,23 12,23 10,20.4 4,20.4',
@@ -1995,9 +2021,17 @@ function deckSet(id, text) {                                             // only
   if (DECK_SEG) e.innerHTML = segHtml(text); else e.textContent = text;
 }
 const DECK_INK = { oled: '#3fa2ff', fire: '#ff9a3d', ice: '#7ad7ff', classic: '#4cdf6a', white: '#f2f2f2' };           // the visualiser's colour choice colours the digits (Accent / Rainbow: the theme's accent)
+// The Track time card only appears once a track has really started playing (here, or on a speaker / TV / the recorder), not while it is still being read
+// from the disc, and then stays while playback carries on from track to track; it goes when playback is stopped.
+let deckStarted = false;
+function deckLive() {
+  if (!nowNum) { deckStarted = false; return false; }
+  if (!deckStarted && (playingRemote ? (remote.state === 'playing' || remote.state === 'paused') : !!audio.getAttribute('src'))) deckStarted = true;
+  return deckStarted;
+}
 function deckTimes() {
-  const box = $('deckTimes'), t = nowNum && trackMap.get(nowNum);
-  box.classList.toggle('hidden', !t);
+  const box = $('deckTimes'), t = deckLive() && trackMap.get(nowNum);
+  box.classList.toggle('hidden', !t || popOut.on);                      // hidden here while the pop-out window shows it
   if (!t) return;
   box.style.setProperty('--deck-ink', DECK_INK[vizSet.color] || 'var(--accent)');
   const cur = Math.max(0, playingRemote ? remoteNow() : audio.currentTime || 0), trackLen = t.seconds || (isFinite(audio.duration) ? audio.duration : 0);
@@ -2878,11 +2912,12 @@ function drawLabel(cv, o) {
 }
 function openLabel() {
   const d = curDisc; if (!d) return;
+  const dCover = d.cover || d.pcCover || '';                          // a standard disc keeps its album art on this PC (pcCover), not on the disc
   const g = coverGuess(), field = 'font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0;flex:1';
   const title = el('input', { type: 'text', value: (groupsOf().length ? (d.title || '').trim() : '') || g.album || d.title || '', placeholder: 'Album', style: field });
   const sameArtist = () => { const s = new Set((d.tracks || []).map(t => (t.artist || '').trim())); return s.size === 1 ? [...s][0] : ''; };   // a disc with groups: only an artist all the tracks share
   const artist = el('input', { type: 'text', value: groupsOf().length ? sameArtist() : g.artist, placeholder: 'Artist', style: field });
-  const useImg = el('input', { type: 'checkbox', checked: !!d.cover, disabled: !d.cover }), useList = el('input', { type: 'checkbox', checked: true }), useTime = el('input', { type: 'checkbox', checked: true }), useName = el('input', { type: 'checkbox', checked: true });
+  const useImg = el('input', { type: 'checkbox', checked: !!dCover, disabled: !dCover }), useList = el('input', { type: 'checkbox', checked: true }), useTime = el('input', { type: 'checkbox', checked: true }), useName = el('input', { type: 'checkbox', checked: true });
   let wide = false; try { wide = localStorage.getItem('labelWide') === '1'; } catch (e) { /* no storage */ }
   const cv = el('canvas', { style: 'border:1px solid var(--line);border-radius:4px;background:#fff;flex:none' });
   const orient = el('select', { style: field, title: 'Portrait is 2 x 3 inches (like the Sprocket sticker); landscape is 3 x 2 inches with the track list on the right' },
@@ -2900,7 +2935,7 @@ function openLabel() {
     el('option', { value: 'all', textContent: 'Whole disc' }), el('option', { value: 'groups', textContent: 'Groups only (names and pictures)' }), ...groups.map(gr => el('option', { value: String(gr.index), textContent: 'Group: ' + groupLabel(gr) })));
   const useHeads = el('input', { type: 'checkbox', checked: true }), renum = el('input', { type: 'checkbox', checked: true });
   const curGroup = () => groups.find(gr => String(gr.index) === scope.value) || null;
-  const groupPic = gr => (gr && gaArt(gr.title)) || d.cover || '';
+  const groupPic = gr => (gr && gaArt(gr.title)) || dCover || '';
   const rowsFor = gr => {
     const mk = (t, i) => ({ n: gr && renum.checked ? i + 1 : t.number, title: (t.title === '(untitled)' ? 'Untitled' : t.title), time: useTime.checked ? lt(t.seconds) : '' });
     if (gr) return groupTracks(gr).map(mk);
@@ -2941,7 +2976,7 @@ function openLabel() {
       if (r.error) toast(r.error, true); else if (r.saved) toast('Saved ' + r.count + (r.count === 1 ? ' label' : ' labels') + ' in ' + r.saved);
     } finally { saveAll.disabled = false; saveAll.textContent = was; }
   } });
-  if (d.cover) { img = new Image(); img.onload = redraw; img.src = d.cover; }
+  if (dCover) { img = new Image(); img.onload = redraw; img.src = dCover; }
   orient.addEventListener('change', () => { wide = orient.value === 'l'; try { localStorage.setItem('labelWide', wide ? '1' : '0'); } catch (e) { /* no storage */ } sizeCv(); redraw(); });
   [title, artist].forEach(i => i.addEventListener('input', redraw)); [useImg, useList, useTime].forEach(i => i.addEventListener('change', redraw));
   useList.addEventListener('change', () => { useTime.disabled = !useList.checked; });
@@ -3133,6 +3168,7 @@ async function jcardPrint(items, paper) {
 }
 function openJCards() {
   const d = curDisc; if (!d) return;
+  const dCover = d.cover || d.pcCover || '';                          // a standard disc keeps its album art on this PC (pcCover), not on the disc
   const g = coverGuess(), groups = groupsOf(), field = 'font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0;flex:1';
   const sameArtist = () => { const s = new Set((d.tracks || []).map(t => (t.artist || '').trim())); return s.size === 1 ? [...s][0] : ''; };
   const title = el('input', { type: 'text', value: (groups.length ? (d.title || '').trim() : '') || g.album || d.title || '', placeholder: 'Album', style: field });
@@ -3141,11 +3177,11 @@ function openJCards() {
   const now = new Date(), dateIn = el('input', { type: 'text', value: String(now.getDate()).padStart(2, '0') + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + now.getFullYear(), style: field, title: 'Date printed on the disc sticker (leave empty for none)' });
   const sel = (opts, v) => { const s = el('select', { style: field }, ...opts.map(([k, t]) => el('option', { value: k, textContent: t }))); s.value = v; return s; };
   const theme = sel([['cover', 'Colour taken from the cover'], ['dark', 'Dark blue'], ['light', 'White (saves ink)']], 'cover');
-  const textOnFront = el('input', { type: 'checkbox', checked: !d.cover });
+  const textOnFront = el('input', { type: 'checkbox', checked: !dCover });
   const paper = sel([['a4', 'Paper: A4'], ['letter', 'Paper: Letter']], 'a4'); try { const p = localStorage.getItem('jcPaper'); if (p) paper.value = p; } catch (e) { /* no storage */ }
   const stickW = el('input', { type: 'number', min: 20, max: 90, step: 1, value: 45, style: field + ';max-width:90px' });
   const useF = el('input', { type: 'checkbox', checked: true }), useExt = el('input', { type: 'checkbox', checked: true }), useS = el('input', { type: 'checkbox', checked: true });
-  const useImg = el('input', { type: 'checkbox', checked: !!d.cover, disabled: !d.cover }), useTime = el('input', { type: 'checkbox', checked: true }), useHeads = el('input', { type: 'checkbox', checked: true });
+  const useImg = el('input', { type: 'checkbox', checked: !!dCover, disabled: !dCover }), useTime = el('input', { type: 'checkbox', checked: true }), useHeads = el('input', { type: 'checkbox', checked: true });
   const opt = (box, text) => el('label', { style: 'display:flex;gap:7px;align-items:center;cursor:pointer' }, box, el('span', { textContent: text }));
   const cvF = el('canvas'), cvS = el('canvas'); [cvF, cvS].forEach(c => { c.style.cssText = 'border:1px solid var(--line);background:#fff;max-width:100%;height:auto;flex:none'; });
   let img = null;
@@ -3223,7 +3259,7 @@ function openJCards() {
   floatSheet(true);
   [title, artist, footer, dateIn, stickW].forEach(i => i.addEventListener('input', redraw));
   [theme, textOnFront, useF, useExt, useS, useImg, useTime, useHeads].forEach(i => i.addEventListener('change', redraw));
-  redraw(); loadImg(d.cover).then(im => { img = im; if (!im) { useImg.checked = false; useImg.disabled = true; } redraw(); });
+  redraw(); loadImg(dCover).then(im => { img = im; if (!im) { useImg.checked = false; useImg.disabled = true; } redraw(); });
 }
 $('printJCard').addEventListener('click', openJCards);
 // ---- Saving tracks to the PC -------------------------------------------------
@@ -3297,7 +3333,7 @@ $('save').addEventListener('click', async () => {
   refresh();
   openSheet(...parts);
 });
-async function runSave(numbers, folder, fmt, keep, mp3q, useExploit, dest) {           // dest: 'Walkman' when the folder is on a Walkman (wording only)
+async function runSave(numbers, folder, fmt, keep, mp3q, useExploit, dest, cover) {           // dest: 'Walkman' when the folder is on a Walkman (wording only)
   uploading = true; stopPlayer();
   const bar = el('div'), status = el('div', { className: 'sub', textContent: 'Starting…' });
   const cancel = el('button', { textContent: 'Cancel', onclick: () => { cancel.disabled = true; status.textContent = 'Stopping…'; api().save_cancel(); } });
@@ -3308,7 +3344,7 @@ async function runSave(numbers, folder, fmt, keep, mp3q, useExploit, dest) {    
     const frac = m.phase === 'writing' ? 1 : (m.total ? m.done / m.total : 0);
     bar.style.width = Math.min(100, 100 * (m.n + frac) / m.count).toFixed(1) + '%';
   };
-  const r = await api().save_tracks(current, numbers, folder, fmt, keep, mp3q, !!useExploit);
+  const r = await api().save_tracks(current, numbers, folder, fmt, keep, mp3q, !!useExploit, cover || '');
   uploading = false; window.onSaveProgress = null;
   if (r.error) {
     openSheet(el('h2', { textContent: dest ? 'Copying failed' : 'Saving failed' }), el('div', { className: 'notice warn', textContent: r.error }), el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
@@ -6062,9 +6098,14 @@ async function startAdd(paths, meta, opts) {                                  //
   nameText.addEventListener('input', () => { nameEdited = true; nameBox.checked = !!nameText.value.trim(); });
   const hasPic = !!(curDisc && (curDisc.cover || curDisc.pcCover));
   const noArt = !!(opts && opts.noArt);
-  const artBox = el('input', { type: 'checkbox', checked: !hasPic && !noArt });
+  const folderArt = (opts && opts.art) || '';                                            // a picture file in the Walkman album folder (cover.jpg, folder.jpg ...)
+  let folderArtBox = null;
+  const artBox = el('input', { type: 'checkbox', checked: !hasPic && !noArt && !folderArt, onchange: () => { if (artBox.checked && folderArtBox) folderArtBox.checked = false; } });
   const artRow = el('label', { className: 'meta', style: 'display:flex;gap:8px;align-items:center;cursor:pointer', title: 'Looks the album up on MusicBrainz and Discogs (only an album that matches most of the tracks is used)' }, artBox,
     el('span', { textContent: 'Look up the album art online (MusicBrainz, Discogs) and ' + (p.netmd ? 'keep it on this PC' : 'store it as the disc picture') + (hasPic ? ' (replaces the current picture)' : '') }));
+  folderArtBox = folderArt ? el('input', { type: 'checkbox', checked: !hasPic, onchange: () => { if (folderArtBox.checked) artBox.checked = false; } }) : null;
+  const folderArtRow = folderArt ? el('label', { className: 'meta', style: 'display:flex;gap:8px;align-items:center;cursor:pointer', title: folderArt }, folderArtBox,
+    el('span', { textContent: 'Use the album picture from the Walkman folder (' + folderArt.split(/[\\/]/).pop() + ') and ' + (p.netmd ? 'keep it on this PC' : 'store it as the disc picture') + (hasPic ? ' (replaces the current picture)' : '') })) : '';
   const detailsChanged = () => {
     const alb = albumBox.value.trim();
     if (!nameEdited) {                                                              // the disc name follows the album (and, on a standard disc, the artist) until it is typed in by hand
@@ -6081,8 +6122,8 @@ async function startAdd(paths, meta, opts) {                                  //
     el('div', { className: 'sub', textContent: 'Filled in from the files when they have tags. Type here to set them for every track you add; leave a box empty to keep what each file has. Nothing is stored on the disc until you press Add.' }),
     inRow('Artist', artistAll), inRow('Album', albumBox),
     el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;cursor:pointer' }, el('span', { style: 'display:flex;gap:6px;align-items:center' }, nameBox, el('span', { className: 'meta', textContent: hasName ? 'Rename the disc' : 'Name the disc' })), nameText),
-    artRow);
-  go.onclick = () => runUpload(picked(), chosen, kbps, { spatial: spOn() ? { info: spInfo, layouts: spLayout, codec: spCodec, quality: spQuality } : null, group: gc && gc.get(), artistInTitle: p.netmd && artistBox.checked, discTitle: nameBox.checked ? nameText.value.trim() : '', wantArt: !!albumBox.value.trim() && artBox.checked, albumAll: albumBox.value.trim() });
+    artRow, folderArtRow);
+  go.onclick = () => runUpload(picked(), chosen, kbps, { spatial: spOn() ? { info: spInfo, layouts: spLayout, codec: spCodec, quality: spQuality } : null, group: gc && gc.get(), artistInTitle: p.netmd && artistBox.checked, discTitle: nameBox.checked ? nameText.value.trim() : '', wantArt: !!albumBox.value.trim() && artBox.checked, folderArt: folderArtBox && folderArtBox.checked ? folderArt : '', albumAll: albumBox.value.trim() });
   let psInfo = null;                                                                  // one file: it might be a whole album in one piece
   if (good.length === 1) { try { const q = await api().presplit_probe(good[0].path); if (q && !q.error && q.seconds > 60) psInfo = q; } catch (e) { /* the option is simply not offered */ } }
   const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like, and untick any file you do not want to add. Nothing has been written yet.' }), list, ...(psInfo ? [splitFirstRow(good[0].path, psInfo)] : [])];
@@ -6129,7 +6170,7 @@ async function startAdd(paths, meta, opts) {                                  //
   parts.push(nameRow, ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, speedHint, longWarn, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
-}async function runUpload(rows, format, kbps, { spatial, group, artistInTitle, discTitle, wantArt, albumAll } = {}) {
+}async function runUpload(rows, format, kbps, { spatial, group, artistInTitle, discTitle, wantArt, albumAll, folderArt } = {}) {
   uploading = true; stopPlayer();
   const prog = liveProgress('Starting…', 6, true);
   openFloat(el('h2', { textContent: 'Writing to the disc' }), prog.what, prog.bar, prog.stallBox,
@@ -6184,7 +6225,7 @@ async function startAdd(paths, meta, opts) {                                  //
   }
   const gn = await groupNew(before, albumAll || commonAlbum(rows.map(x => x.f.album)), group);
   let named = '', art = '', nameWarn = false;
-  if (discTitle || wantArt) {
+  if (discTitle || wantArt || folderArt) {
     uploading = true;
     try {
       if (discTitle) {                                                          // name the disc after the files' album (the tick box in the Add window)
@@ -6199,6 +6240,14 @@ async function startAdd(paths, meta, opts) {                                  //
           art = a.error ? ' Album art: ' + a.error : !a.found ? ' No matching album was found online, so no album art.' : /^(failed|none)/.test(a.cover || '') ? ' Album art: ' + (a.cover || 'not stored') + '.'
             : ' Album art found (“' + a.album + '”) and ' + (netmd ? 'kept on this PC.' : 'stored on the disc.');
         } catch (e) { art = ' The album art lookup failed.'; }
+      }
+      if (folderArt) {                                                          // the picture file of the Walkman album folder becomes the disc picture
+        try {
+          await load();                                                         // the app needs the new track list (a standard disc keeps the picture per disc)
+          const a = await api().walkman_apply_art(current, folderArt);
+          art += a.error ? ' Album picture: ' + a.error : ' The album picture from the Walkman folder was ' + (a.where === 'pc' ? 'kept on this PC.' : 'stored on the disc.');
+          if (!a.error) await load();
+        } catch (e) { art += ' The album picture could not be stored.'; }
       }
     } finally { uploading = false; }
   }
@@ -6577,12 +6626,26 @@ async function openWalkman(startMode) {                    // 'toDisc': add trac
       const sel = ticked(); if (!sel.length) return;
       const folders = [...new Set(sel.map(s => s.x))];
       const album = folders.length === 1 ? (folders[0].g.name === 'MUSIC' ? '' : folders[0].g.name) : '';
+      const art = folders.length === 1 ? (folders[0].g.art || '') : '';                  // the album folder's picture file, offered as the disc picture
       closeSheet();
-      startAdd(sel.map(s => s.path), null, { album });
+      startAdd(sel.map(s => s.path), null, { album, art });
     };
     body.append(filt, list, el('div', { className: 'row' }, go));
     upd();
   };
+  // Asks what to do when the folder already holds some of the tracks (or the same album sits under another artist). Resolves 'skip', 'all' or null.
+  const askAlready = (c, total, p) => new Promise(resolve => {
+    const done = v => { closeSheet(); resolve(v); };
+    const parts = [el('h2', { textContent: p.sony ? 'Already on the Walkman' : 'Already on the player' })];
+    if (c.dupes.length) parts.push(el('div', { className: 'notice warn', textContent: 'Tracks already in the folder ' + c.rel + ': ' + c.dupes.length + ' of ' + total + '.' }));
+    if (c.elsewhere.length) parts.push(el('div', { className: 'notice warn', textContent: 'A folder with this album name also exists under another artist: ' + c.elsewhere.join(', ') }));
+    if (c.dupes.length) parts.push(el('div', { className: 'sub', textContent: 'Copies already there are kept; the new ones get (2) after their names.' }));
+    const row = el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: () => done(null) }));
+    if (c.dupes.length) row.append(el('button', { textContent: 'Copy them all anyway', onclick: () => done('all') }), el('button', { className: 'primary', textContent: 'Skip the tracks already there', onclick: () => done('skip') }));
+    else row.append(el('button', { className: 'primary', textContent: 'Copy here anyway', onclick: () => done('all') }));
+    parts.push(row);
+    openFloat(...parts);
+  });
   // ---- disc -> Walkman
   const showToWalkman = p => {
     status.textContent = '';
@@ -6623,10 +6686,14 @@ async function openWalkman(startMode) {                    // 'toDisc': add trac
       note.className = 'notice' + (bytes > p.free ? ' warn' : '');
       go.disabled = !ok.length || bytes > p.free;
     };
+    const discPic = curDisc.cover || curDisc.pcCover || '';                          // the disc's picture (a data: address)
+    const coverBox = el('input', { type: 'checkbox', checked: true, style: 'width:auto' });
+    const coverRow = discPic ? el('label', { className: 'meta', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, coverBox,
+      el('span', { textContent: "Add the disc's picture (inside each FLAC or MP3 file, and as cover.jpg in the folder)" })) : '';
     body.append(what, titlesBox, el('div', { className: 'sub', textContent: 'The tracks go into a new folder on the Walkman, named below, with their titles and artist as tags. The disc is only read.' }),
       el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center' }, el('span', { className: 'meta', textContent: 'Artist folder' }), artist),
       el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center' }, el('span', { className: 'meta', textContent: 'Album folder' }), album),
-      el('div', { className: 'notice', style: 'display:grid;gap:6px' }, el('b', { textContent: 'Copy as' }), fmtSel, mp3row), note,
+      el('div', { className: 'notice', style: 'display:grid;gap:6px' }, el('b', { textContent: 'Copy as' }), fmtSel, mp3row), coverRow, note,
       el('div', { className: 'row' }, go));
     // Says plainly what is being copied: the whole disc, or only the ticked tracks (with a choice when some are ticked). Each track can be un-ticked here.
     // Which artist and album folder to use. The artist is the one on most of the tracks; failing that, the part of the disc title that names a track
@@ -6697,10 +6764,20 @@ async function openWalkman(startMode) {                    // 'toDisc': add trac
     artist.setAttribute('list', 'wm-artists'); album.setAttribute('list', 'wm-albums'); body.append(dlA, dlB);
     plan();
     go.onclick = async () => {
+      const wanted = ok.map(t => t.number);
+      let use = wanted;
+      const c = await api().walkman_check(p.root, artist.value, album.value, current, wanted);        // nothing is created or changed by the check
+      if (c.error) { toast(c.error, true); return; }
+      if (c.dupes.length || c.elsewhere.length) {
+        const choice = await askAlready(c, wanted.length, p);
+        if (!choice) return;
+        if (choice === 'skip') use = wanted.filter(n => !c.dupes.includes(n));
+      }
+      if (!use.length) { toast('Every track is already in that folder, so nothing was copied.', true); return; }
       const r = await api().walkman_target(p.root, artist.value, album.value);
       if (r.error) { toast(r.error, true); return; }
       closeSheet();
-      runSave(ok.map(t => t.number), r.folder, fmt, false, mp3q, false, p.sony ? 'Walkman' : 'player');
+      runSave(use, r.folder, fmt, false, mp3q, false, p.sony ? 'Walkman' : 'player', coverBox.checked ? discPic : '');
     };
   };
   start();
@@ -8295,7 +8372,7 @@ function drawSurround(g, W, H, dpr, bars) {
 }
 function vizDraw() {
   viz.raf = 0;
-  const dpr = window.devicePixelRatio || 1, W = Math.round(vizCv.clientWidth * dpr), H = Math.round(vizCv.clientHeight * dpr);
+  const dpr = popOut.on ? popOut.dpr : (window.devicePixelRatio || 1), W = Math.round(vizCv.clientWidth * dpr), H = Math.round(vizCv.clientHeight * dpr);
   if (!W || !H || !viz.ctx || vizSet.style === 'off') return;
   if (vizCv.width !== W || vizCv.height !== H) { vizCv.width = W; vizCv.height = H; viz.clear = true; }
   const g = vizG, style = vizSet.style;
@@ -8392,22 +8469,164 @@ function vizDraw() {
   }
   // Keep going while the music plays; after a pause the display settles for a moment, then rests.
   const still = viz.lv[0] + viz.lv[1] > 0.01 || viz.bars.some(b => b > 0.01) || viz.rb.some(r => r.some(b => b > 0.01));
-  if (vizPlaying() || still) viz.raf = requestAnimationFrame(vizDraw);
+  if (popOut.on) popFrame();
+  if (vizPlaying() || still) viz.raf = popOut.on && document.hidden ? setTimeout(vizDraw, 33) : requestAnimationFrame(vizDraw);          // a hidden or minimised main window gets no screen refresh, but the pop-out still needs pictures
 }
 // Shows or hides the display, and starts it. Runs every quarter of a second and whenever a choice changes.
 function vizSync() {
   vizShTick();
-  const show = !!nowNum && (playingRemote ? (!!castTarget && vizSh.on) : !!audio.getAttribute('src'));      // the Visualiser card is only there while a track is playing or being cast (it used to show whenever a disc was loaded)
+  const live = !!nowNum && (playingRemote ? (!!castTarget && vizSh.on) : !!audio.getAttribute('src'));      // the Visualiser card is only there while a track is playing or being cast (it used to show whenever a disc was loaded)
+  const show = live && !popOut.on;                                   // the card is hidden while the Visualiser is in its own window
   $('viz').classList.toggle('hidden', !show);
   const off = vizSet.style === 'off';
   vizCv.classList.toggle('tall', /^(r(cream|amber)|surround[23]?)$/.test(vizSet.style)); vizCv.classList.toggle('xtall', /^surround[23]?$/.test(vizSet.style));
   vizCv.style.display = off ? 'none' : ''; $('vizMore').style.display = off ? 'none' : 'contents';
   $('vizColor').parentElement.style.display = $('vizGain').parentElement.style.display = $('vizPeaks').parentElement.style.display = off ? 'none' : '';
-  if (!show || off || !viz.ok) return;
+  if (!live || off || !viz.ok) return;
   if (vizPlaying()) vizInit();
   if (viz.ctx && viz.ctx.state === 'suspended' && vizPlaying()) viz.ctx.resume().catch(() => {});      // the sound goes through the analysers, so it must be running
   if (viz.ctx && !viz.raf && (vizPlaying() || viz.clear)) viz.raf = requestAnimationFrame(vizDraw);
 }
+// ---- Pop out: the Visualiser and the track that is playing, in a window of their own ---------------------------------------------------------
+// While the window is open the canvas lives off-screen (so the Visualiser card leaves the main window and the other cards use its space). It is drawn
+// as usual, at the size of the pop-out, and each picture is sent across a BroadcastChannel together with the track, the times and the theme colours.
+// popout.html shows them and sends back what was pressed (previous / play / next, the seek bar, the display choices, Dock back).
+const popHold = el('div', { id: 'vizPopHold' });
+const t_ = s => (window.I18N ? I18N.t(s) : s);
+function popLabels() {
+  const t = t_;
+  return { display: t('Display'), colour: t('Colour'), sens: t('Sensitivity'), peaks: t('Peak marks'), dock: t('Dock back'), prev: t('Previous track'), pp: t('Play / pause'), next: t('Next track'),
+    waiting: t('Waiting for the main window…'), idle: t('Nothing is playing'), title: t('Visualiser and track playing'),
+    volume: t('Volume'), lyrics: t('Lyrics'), elapsed: t('Elapsed'), remaining: t('Remaining'), trackLength: t('Track length'), discElapsed: t('Disc elapsed'), discRemaining: t('Disc remaining'), discTotal: t('Disc total') };
+}
+function popVars() {
+  const cs = getComputedStyle(document.documentElement), o = {};
+  ['--bg', '--panel', '--panel-2', '--line', '--text', '--muted', '--accent', '--accent-2', '--screen', '--screen-edge'].forEach(k => { o[k] = cs.getPropertyValue(k).trim(); });
+  return o;
+}
+function popState(full) {
+  const t = nowNum ? trackMap.get(nowNum) : null, ok = !!(nowNum && t);
+  const pic = $('coverImg'), cover = ok && !pic.classList.contains('hidden') ? (pic.getAttribute('src') || '') : '';
+  const key = cover.length + ':' + cover.slice(-48);
+  const m = { t: 'state', ok, title: ok ? ($('npTitle').textContent || (t.title && t.title !== '(untitled)' ? t.title : 'Track ' + nowNum)) : '', artist: ok ? (t.artist || '') : '', album: ok ? (t.album || '') : '',
+    status: ok ? ($('npStatus').textContent || '') : '', playing: ok && isPlaying(), tcur: $('tcur').textContent, ttot: $('ttot').textContent, seek: Number($('seek').value) || 0,
+    vol: $('vol').style.display === 'none' ? null : Number($('vol').value),
+    prevOk: !$('prevT').disabled, nextOk: !$('nextT').disabled,
+    deck: ok && deckLive() ? { track: $('dkTrack').textContent, mode: $('dkMode').textContent, title: $('dkTitle').textContent, who: $('dkArtist').textContent, el: $('dkEl').dataset.v || '', rem: $('dkRem').dataset.v || '', len: $('dkLen').dataset.v || '',
+      dEl: $('dkDEl').dataset.v || '', dRem: $('dkDRem').dataset.v || '', dTot: $('dkDTot').dataset.v || '', dRemNa: $('dkDRemBox').classList.contains('na'), ink: $('deckTimes').style.getPropertyValue('--deck-ink') } : null,
+    viz: { style: vizSet.style, color: vizSet.color, gain: vizSet.gain, peaks: vizSet.peaks }, styles: VIZ_STYLES, colors: VIZ_COLORS, labels: popLabels(), vars: popVars(),
+    scheme: getComputedStyle(document.documentElement).colorScheme || '' };
+  if (full || key !== popOut.coverKey) { m.cover = cover; popOut.coverKey = key; }                // the picture can be large: only sent when it changes
+  const lk = ok && lyr.data && lyr.num === nowNum && !lyr.hidden ? lyr.num + ':' + lyr.data.lines.length + ':' + (lyr.data.synced ? 1 : 0) + ':' + (lyr.data.source || '') : '';
+  if (full || lk !== popOut.lyrKey) {                                                           // the lines are sent when the track or its lyrics change
+    m.lyrics = lk ? { synced: !!lyr.data.synced, source: lyr.data.source === 'whisper' ? t_('made by listening, may contain mistakes') : '', lines: lyr.data.lines.map(l => l[1] || (lyr.data.synced ? '♪' : '')) } : null;
+    popOut.lyrKey = lk;
+  }
+  m.lyrCur = lk ? lyr.cur : -2;                                                                 // which line is lit now (-1: before the first)
+  return m;
+}
+function popPush(full) { if (popOut.on && popOut.ch) { try { popOut.ch.postMessage(popState(full)); } catch (e) { /* the channel is closing */ } } }
+function popFrame() {                                              // one picture of the Visualiser, at most about 30 a second
+  const now = performance.now();
+  if (!popOut.ch || now - popOut.last < 30) return;
+  popOut.last = now;
+  const ch = popOut.ch;
+  const viaFile = () => vizCv.toBlob(b => { if (b && popOut.ch === ch) { try { ch.postMessage({ t: 'fb', blob: b }); } catch (e) { /* closing */ } } }, 'image/png');
+  if (popOut.noBitmap) { viaFile(); return; }
+  try {
+    createImageBitmap(vizCv).then(b => { try { if (popOut.ch === ch) ch.postMessage({ t: 'f', b }); else b.close(); } catch (e) { popOut.noBitmap = true; b.close(); } }).catch(() => { popOut.noBitmap = true; });
+  } catch (e) { popOut.noBitmap = true; }
+}
+function popSizeCanvas() {
+  vizCv.style.width = popOut.w + 'px'; vizCv.style.height = popOut.h + 'px'; popHold.style.width = popOut.w + 'px';
+  viz.clear = true; if (viz.ctx && !viz.raf) viz.raf = requestAnimationFrame(vizDraw);
+}
+function popMessage(ev) {
+  const m = ev.data;
+  if (!m || !popOut.on) return;
+  if (m.t === 'hello') popPush(true);
+  else if (m.t === 'size') { popOut.w = Math.max(40, m.w | 0); popOut.h = Math.max(40, m.h | 0); popOut.dpr = Math.max(1, Math.min(3, Number(m.dpr) || 1)); popSizeCanvas(); }
+  else if (m.t === 'cmd') { const id = { prev: 'prevT', pp: 'pp', next: 'nextT' }[m.c]; if (id && !$(id).disabled) $(id).click(); }
+  else if (m.t === 'vol') { $('vol').value = Math.max(0, Math.min(100, Number(m.v) || 0)); $('vol').dispatchEvent(new Event('input')); }
+  else if (m.t === 'seek') { $('seek').value = Math.max(0, Math.min(1000, Number(m.v) || 0)); $('seek').dispatchEvent(new Event('change')); }
+  else if (m.t === 'viz') {
+    if (VIZ_STYLES.some(s => s[0] === m.style)) $('vizStyle').value = m.style;
+    if (VIZ_COLORS.some(s => s[0] === m.color)) $('vizColor').value = m.color;
+    $('vizGain').value = Math.round(Math.max(0.4, Math.min(3, Number(m.gain) || 1)) * 100); $('vizPeaks').checked = !!m.peaks;
+    vizSave(); popPush();
+  }
+  else if (m.t === 'geom') { try { localStorage.setItem('mdm.popSize', JSON.stringify({ w: m.w, h: m.h })); } catch (e) { /* not kept */ } }
+  else if (m.t === 'dock' || m.t === 'bye') popDock();
+}
+async function popOpen() {
+  if (popOut.on) { api().popout_open(); return; }                  // already open: bring it forward
+  if (typeof BroadcastChannel === 'undefined') { toast('This program cannot open the pop-out window here.', true); return; }
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem('mdm.popSize')) || {}; } catch (e) { /* none */ }
+  popOut.ch = new BroadcastChannel('mdm-popout'); popOut.ch.onmessage = popMessage;
+  popOut.on = true; popOut.w = 640; popOut.h = 300; popOut.dpr = 1; popOut.coverKey = ''; popOut.lyrKey = ''; document.body.classList.add('popped'); popBtnRefresh();
+  document.body.append(popHold); popHold.append(vizCv); popSizeCanvas();
+  vizSync(); deckTimes();                                          // the Visualiser and Track time cards leave the main window
+  const r = await api().popout_open(window.I18N ? I18N.t('Visualiser and track playing') : 'Visualiser and track playing', Number(saved.w) || 1000, Number(saved.h) || 640);
+  if (r && r.error) { popDock(); toast(r.error, true); }
+}
+function popDock() {                                               // the Visualiser goes back into its card
+  if (!popOut.on) return;
+  popOut.on = false; document.body.classList.remove('popped'); popBtnRefresh();
+  try { popOut.ch.close(); } catch (e) { /* already closed */ }
+  popOut.ch = null;
+  vizCv.style.width = vizCv.style.height = ''; $('viz').append(vizCv); popHold.remove();
+  viz.clear = true; vizSync(); deckTimes();
+  api().popout_close();
+}
+window.popoutClosed = () => popDock();                             // the pop-out window was closed (called from the program)
+$('vizPop').addEventListener('click', popOpen);
+// Making the pop-out easy to find: the player bar's button pulses while a track plays and the pop-out is closed, and a note points at it a moment after the sound
+// starts (once per run). The note's "Don't ask again" (or Settings > Suggest the pop-out window) switches the pulse and the note off.
+let popHintDone = false, popHintAt = 0, popHintShownAt = 0;
+function popHintWanted() { return appSettings.suggestPopout !== false && !popOut.on; }
+function popBtnRefresh() {                                         // the buttons: "Pop out" while the Visualiser etc. are in this window, "Dock back" while they are in their own
+  const t = $('popTop'); if (!t) return;
+  const playing = deckLive(), attn = popHintWanted() && playing, k = (popOut.on ? '1' : '0') + (attn ? '1' : '0') + (playing ? '1' : '0');
+  if (t.dataset.k === k) return;                                   // nothing changed (this runs several times a second)
+  t.dataset.k = k;
+  const label = popOut.on ? '⧉ Dock back' : '⧉ Pop out', labelTop = popOut.on ? '⧉ Dock Back Playing Disc Information' : '⧉ Pop Out Playing Disc Information';
+  const tip = popOut.on ? 'Bring the Visualiser, the Track time display and the lyrics back into this window' : 'Open the Visualiser, the Track time display and the lyrics in a window of their own (the other cards use the space)';
+  t.textContent = ''; t.append(el('span', { className: 'pt-long', textContent: labelTop }), el('span', { className: 'pt-short', textContent: label })); t.title = tip; t.classList.toggle('on', popOut.on);
+  t.classList.toggle('hidden', !(playing || popOut.on));           // next to the name and version, only while there is something to pop out
+  t.classList.toggle('attn', attn);
+}
+const popHint = el('div', { id: 'popHint', className: 'hidden', role: 'dialog' },
+  el('b', { textContent: 'Pop Out Playing Disc Information' }),
+  el('div', { className: 'ph-text', textContent: 'See the Visualiser, the Track time display and the lyrics in a window of their own (on another screen if you like), and give this window the space back.' }),
+  el('div', { className: 'ph-row' },
+    el('button', { className: 'primary', textContent: 'Pop out', onclick: () => { popHintHide(true); popOpen(); } }),
+    el('button', { textContent: 'Not now', onclick: () => popHintHide(true) }),
+    el('button', { textContent: 'Don’t ask again', onclick: async () => { popHintHide(true); if (await appSettingSet('suggestPopout', false)) toast('Switched off. You can turn the suggestion back on in Settings.'); } })));
+document.body.append(popHint);
+function popHintHide(done) { popHint.classList.add('hidden'); if (done) popHintDone = true; }
+function popHintCheck() {
+  popBtnRefresh();
+  const want = popHintWanted() && deckLive();
+  if (!want) { if (!popHint.classList.contains('hidden')) popHintHide(false); popHintAt = 0; return; }
+  if (popHintDone || !deckLive()) return;                          // once per run, and only after a track has really started
+  const now = Date.now();
+  if (popHint.classList.contains('hidden')) {
+    if (!popHintAt) popHintAt = now;
+    if (now - popHintAt < 1500) return;                            // a moment after the sound starts
+    popHint.classList.remove('hidden'); popHintShownAt = now;
+  }
+  if (now - popHintShownAt > 25000) { popHintHide(true); return; } // it fades by itself after a while; the button goes on pulsing
+  const top = $('popTop'); if (top.classList.contains('hidden')) return;
+  const r = top.getBoundingClientRect(), w = popHint.offsetWidth || 320;                    // under the top-bar button, its arrow pointing up
+  const left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+  popHint.classList.add('below');
+  popHint.style.left = left + 'px'; popHint.style.top = Math.round(r.bottom + 14) + 'px'; popHint.style.bottom = 'auto';
+  popHint.style.setProperty('--ax', Math.round(r.left + r.width / 2 - left) + 'px');
+}
+setInterval(popHintCheck, 400);
+$('popTop').addEventListener('click', () => { if (popOut.on) popDock(); else popOpen(); });
+setInterval(() => popPush(false), 250);
+popBtnRefresh();
 setInterval(vizSync, 250);
 ['play', 'playing'].forEach(ev => audio.addEventListener(ev, vizSync));
 
