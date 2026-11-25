@@ -230,6 +230,31 @@ Podcasts and audiobooks (Add tracks from Podcasts... / Add tracks from Audiobook
 - The Visualiser card now only appears while a track is playing or being cast.
 - Only download what you are free to keep: public-domain books and podcasts that offer their episodes for download.
 
+Walkman and other audio players (Add tracks from Walkman (Audio Player)... / Save tracks to Walkman (Audio Player)...)
+- Two buttons side by side under Recording, like the Yoto pair. They are for a Sony Walkman, or another audio player, that shows up as
+  a drive when it is plugged in with its USB cable (set to Mass storage or File transfer mode if it asks). Players that only connect
+  over MTP (most newer Android-based Walkmans) show no drive and are not found.
+- Finding the player (walkman.py): a Sony Walkman is recognised by the default-capability.xml file in the top folder of its drive, and
+  its music is in the MUSIC folder; a Walkman with a memory card shows the card and its own memory as two entries. Another brand's
+  player is found when it is a removable drive (Windows) or a volume with a Music folder. Choose folder... picks any folder by hand,
+  for a player that is not found by itself (new albums are then added inside that folder). Look again searches again.
+- Add tracks from Walkman: lists the player's music folder album by album, with a filter box. Tick whole albums or single tracks (the
+  arrow opens an album) and press Add to the disc: the usual Add to disc window opens, where you choose the recording format. The
+  files are read where they are; nothing is copied to this PC first. A whole album gives its folder name as the disc name when its
+  files carry no album tag. Copy-protected Sony .oma files are skipped (the window says how many).
+- Save tracks to Walkman: copies the ticked tracks of the open disc, or the whole disc when none are ticked. The heading says which
+  ("Copying the whole disc: all 12 tracks" or "Copying only 4 of the 6 ticked tracks"), when some are ticked you can choose the whole
+  disc instead, and every track has a tick box so any track can be left out. Choose FLAC, MP3 (high quality, about 245 kbps, or
+  320 kbps) or WAV; the choice is remembered. Titles, artist and track number are written as tags. A progress window shows the copy
+  ("Copying to the Walkman") and lists any track that could not be copied. It refuses when the player does not have the free space.
+- Where the tracks go: a new folder MUSIC / Artist / Album on the player. The artist is the one on most of the disc's tracks; failing
+  that, the part of the disc title that names a track's artist ("Album: Artist" or "Artist - Album"); "Various Artists" only when the
+  tracks really have several. The album is the disc title without the artist's name. Both can be typed over or picked from the list.
+  Files already on the player are never changed or deleted.
+- Before unplugging the player, use Safely Remove Hardware (Eject on the Mac), especially for a memory card formatted exFAT.
+- Not every player plays every format: FLAC, MP3 and WAV are the safest, so check yours. Tried with a Sony NW-A30 on Windows; on
+  the Mac this is new and has not yet been tried with a real player.
+
 Recording internet radio (Add tracks from Internet Radio...)
 - No browser window: the program reads the station's stream itself (radio.py) and uses runtime\ffmpeg.exe to turn each song into a
   WAV. Nothing else the PC plays is involved, and the PC's speakers are not used.
@@ -732,6 +757,7 @@ Playing to a Sonos speaker
 - How it works: the speaker fetches each track from a small web server the app runs on this PC's home-network address, behind a
   random secret in the address, and only while you are playing to a room. The speaker and this PC must be on the same network.
   The first time, Windows may ask whether to let the app on your network: choose Allow for private networks.
+- 0.39.0: NEW: Add tracks from Walkman (Audio Player)... and Save tracks to Walkman (Audio Player)...: add the music of a Sony Walkman (or another audio player that shows up as a drive, or any folder you choose) to the disc, and copy the whole disc or just the ticked tracks to the player as FLAC, MP3 or WAV in a new Artist / Album folder, with tick boxes to leave tracks out and a clear heading saying whether the whole disc or only some tracks are copied. The artist and album folder names are worked out from the tracks and the disc title and can be changed. French, German, Dutch and Spanish texts are included.
 - 0.38.0: NEW: Add tracks from Podcasts... and Add tracks from Audiobooks... (LibriVox, found through the Internet Archive): browse by genre or subject, or search by name, subject or episode title; episodes show their length; no album art lookup for them. Add to disc shows an encoding time estimate for the ATRAC3+ formats and a warning for files over 30 minutes on a standard disc. The Visualiser card is hidden unless a track is playing. FIX: some Spanish texts appeared in the French language.
 - 0.37.0: NEW: ATRAC3+ 48 kbps recording option for Hi-MD discs, mainly for podcasts and audio books (speech): about 0.36 MB a minute, about 45 hours on an empty 1 GB disc. It is offered wherever you pick a recording format (Add to disc, Rip CD and the other Add windows). Unlike the other formats it is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (nothing else is, and no other option does this); long tracks are sent in ten-minute pieces. If the service cannot be reached the program says so and suggests Hi-LP 64 kbps, which is encoded on this PC. Music at 48 kbps sounds thin. French, German, Dutch and Spanish texts are included. Also FIX: the cards above the track list can no longer be stretched by a saved height (a dragged Lyrics or Recorder card, or the splitter), which left a large empty gap and pushed the Tracks list to the bottom of the window.
 - 0.36.1: NEW: Update now. When the new-version notice appears in the installed Windows copy it has an Update now button: the program downloads the new Setup, checks it against the checksum published for that file, closes, installs it and starts again by itself. It does not start while a disc operation is running. The portable zip (and the Mac version) keep the Open download page link.

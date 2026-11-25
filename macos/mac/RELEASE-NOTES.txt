@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.38.0 (BETA)
+MiniDisc Manager for Mac - version 0.39.0 (BETA)
 ====================================================================
 
-New: Add tracks from Podcasts... and Add tracks from Audiobooks... (LibriVox): browse by genre or subject or search, pick episodes or chapters, and they are added in the usual Add to disc window (the 48 kbps format suits them). Episodes show their length. Add to disc shows an encoding time estimate for the ATRAC3+ formats and warns about files over 30 minutes on a standard disc. The Visualiser card is hidden unless a track is playing. Fix: some Spanish texts appeared in the French language.
+New: Add tracks from Walkman (Audio Player)... and Save tracks to Walkman (Audio Player)...: for a Sony Walkman (or another audio player that shows up as a drive, or any folder you choose). Add its music to the disc, or copy the whole disc or just the ticked tracks to it as FLAC, MP3 or WAV in a new Artist / Album folder (tick boxes to leave tracks out; the artist and album folder names are worked out for you and can be changed). Written for the Mac too, but not yet tried here with a real player: the Walkman should appear under /Volumes; use Eject before unplugging.
+
+Since 0.38.0 - New: Add tracks from Podcasts... and Add tracks from Audiobooks... (LibriVox): browse by genre or subject or search, pick episodes or chapters, and they are added in the usual Add to disc window (the 48 kbps format suits them). Episodes show their length. Add to disc shows an encoding time estimate for the ATRAC3+ formats and warns about files over 30 minutes on a standard disc. The Visualiser card is hidden unless a track is playing. Fix: some Spanish texts appeared in the French language.
 
 Since 0.37.0 - New: ATRAC3+ 48 kbps recording for Hi-MD discs, mainly for podcasts and audio books (speech): about 0.36 MB a minute. It is encoded by the free online ATRAC encoder at atrac.minidisc.wiki, so the audio of those tracks is sent over the internet to that service (no other option does this). Fix: a saved card height can no longer stretch the cards above the track list and leave a large gap.
 

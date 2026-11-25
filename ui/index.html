@@ -520,6 +520,8 @@
 <script src="lang_es_p14.js"></script>
 <script src="lang_p15.js"></script>
 <script src="lang_es_p15.js"></script>
+<script src="lang_p16.js"></script>
+<script src="lang_es_p16.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -620,7 +622,7 @@
       <section class="card record-card" id="recordCard" data-card="record">
         <h2 class="card-title">Recording</h2>
         <div class="tool-group g-add rec-tools">
-          <div class="tool-buttons"><button id="add" class="primary" title="Add music files from this PC: ordinary stereo files, and also surround (multichannel) files, 5.1 / 7.1 and larger, which can keep their spatial version on a Hi-MD disc.">Add tracks from PC…<span class="mc-badge">also 5.1 · 7.1</span></button><button id="rip" title="Copy an audio CD from this PC’s CD drive onto the disc">Rip CD…</button><div class="yoto-pair"><button id="yt" title="Copy the card that is in your Yoto player onto the disc">Rip Yoto Card…</button><button id="yts" title="Copy the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, ready to link to a blank MYO card">Send to Yoto Card…</button></div><button id="bc" title="Play music on Bandcamp and record it onto the disc as it plays">Add tracks from Bandcamp…</button><button id="sc" title="Play music on SoundCloud and record it onto the disc as it plays">Add tracks from SoundCloud…</button><button id="rd" title="Record an internet radio station, song by song, onto the disc">Add tracks from Internet Radio…</button><button id="pod" title="Find a podcast, pick episodes and add them to the disc (works well with the 48 kbps format)">Add tracks from Podcasts…</button><button id="lv" title="Find a free public-domain audiobook (LibriVox), pick chapters and add them to the disc (works well with the 48 kbps format)">Add tracks from Audiobooks…</button></div>
+          <div class="tool-buttons"><button id="add" class="primary" title="Add music files from this PC: ordinary stereo files, and also surround (multichannel) files, 5.1 / 7.1 and larger, which can keep their spatial version on a Hi-MD disc.">Add tracks from PC…<span class="mc-badge">also 5.1 · 7.1</span></button><button id="rip" title="Copy an audio CD from this PC’s CD drive onto the disc">Rip CD…</button><div class="yoto-pair"><button id="yt" title="Copy the card that is in your Yoto player onto the disc">Rip Yoto Card…</button><button id="yts" title="Copy the ticked tracks (or every track) from the disc to a new playlist in your Yoto account, ready to link to a blank MYO card">Send to Yoto Card…</button></div><button id="bc" title="Play music on Bandcamp and record it onto the disc as it plays">Add tracks from Bandcamp…</button><button id="sc" title="Play music on SoundCloud and record it onto the disc as it plays">Add tracks from SoundCloud…</button><button id="rd" title="Record an internet radio station, song by song, onto the disc">Add tracks from Internet Radio…</button><button id="pod" title="Find a podcast, pick episodes and add them to the disc (works well with the 48 kbps format)">Add tracks from Podcasts…</button><button id="lv" title="Find a free public-domain audiobook (LibriVox), pick chapters and add them to the disc (works well with the 48 kbps format)">Add tracks from Audiobooks…</button><div class="yoto-pair"><button id="wm" title="Pick music on a Sony Walkman or another audio player that is plugged into this computer and add it to the disc">Add tracks from Walkman (Audio Player)…</button><button id="wms" title="Copy the ticked tracks (or every track) of this disc to a Sony Walkman or another audio player that is plugged into this computer">Save tracks to Walkman (Audio Player)…</button></div></div>
           <label id="grpNewRow" class="tool-text" style="display:flex;gap:7px;align-items:center;cursor:pointer" title="Hi-MD discs: after files, a CD, a Yoto card or an online recording have been added, the new tracks are put in one new group named after their album (a single new track is left ungrouped)"><input type="checkbox" id="grpNew"> Put each batch of added tracks in a new group</label>
           <div class="tool-text">Put music on the disc from files, CDs, Yoto cards or online recordings. Bandcamp, SoundCloud and radio are recorded in real time. <span class="mc-note">Surround (multichannel) files, 5.1 / 7.1 and larger, can also be added, and keep their spatial version on a Hi-MD disc.</span> <a href="#" class="help-link" data-help="add">ⓘ How it works…</a></div>
         </div>
@@ -3217,11 +3219,11 @@ $('save').addEventListener('click', async () => {
   refresh();
   openSheet(...parts);
 });
-async function runSave(numbers, folder, fmt, keep, mp3q, useExploit) {
+async function runSave(numbers, folder, fmt, keep, mp3q, useExploit, dest) {           // dest: 'Walkman' when the folder is on a Walkman (wording only)
   uploading = true; stopPlayer();
   const bar = el('div'), status = el('div', { className: 'sub', textContent: 'Starting…' });
   const cancel = el('button', { textContent: 'Cancel', onclick: () => { cancel.disabled = true; status.textContent = 'Stopping…'; api().save_cancel(); } });
-  openSheet(el('h2', { textContent: 'Saving to your PC' }), status, el('div', { className: 'progress' }, bar), el('div', { className: 'row' }, cancel));
+  openSheet(el('h2', { textContent: dest ? 'Copying to the ' + dest : 'Saving to your PC' }), status, el('div', { className: 'progress' }, bar), el('div', { className: 'row' }, cancel));
   window.onSaveProgress = m => {
     const what = m.phase === 'writing' ? 'writing the file' : 'reading from the recorder';
     status.textContent = 'Track ' + (m.n + 1) + ' of ' + m.count + ': ' + m.name + ' — ' + what + '…';
@@ -3231,15 +3233,15 @@ async function runSave(numbers, folder, fmt, keep, mp3q, useExploit) {
   const r = await api().save_tracks(current, numbers, folder, fmt, keep, mp3q, !!useExploit);
   uploading = false; window.onSaveProgress = null;
   if (r.error) {
-    openSheet(el('h2', { textContent: 'Saving failed' }), el('div', { className: 'notice warn', textContent: r.error }), el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
+    openSheet(el('h2', { textContent: dest ? 'Copying failed' : 'Saving failed' }), el('div', { className: 'notice warn', textContent: r.error }), el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
     return;
   }
-  const parts = [el('h2', { textContent: r.cancelled ? 'Saving stopped' : 'Saved' }),
-    el('div', { className: 'notice', textContent: r.saved.length + (r.saved.length === 1 ? ' track' : ' tracks') + ' saved to ' + r.folder + '.' })];
+  const parts = [el('h2', { textContent: dest ? (r.cancelled ? 'Copying stopped' : 'Copied to the ' + dest) : (r.cancelled ? 'Saving stopped' : 'Saved') }),
+    el('div', { className: 'notice', textContent: r.saved.length + (r.saved.length === 1 ? ' track' : ' tracks') + (dest ? ' copied to the ' + dest + ': ' : ' saved to ') + r.folder + '.' })];
   if (r.failed.length) {
     const lst = el('div', { className: 'filelist' });
     for (const f of r.failed) lst.append(el('div', { className: 'file bad' }, el('span', { className: 'chip', textContent: '#' + f.number }), el('span', { textContent: f.title + ' — ' + f.error })));
-    parts.push(el('div', { className: 'notice warn', textContent: r.failed.length + (r.failed.length === 1 ? ' track was' : ' tracks were') + ' not saved:' }), lst);
+    parts.push(el('div', { className: 'notice warn', textContent: r.failed.length + (r.failed.length === 1 ? ' track was' : ' tracks were') + (dest ? ' not copied:' : ' not saved:') }), lst);
   }
   if (r.exploitUsed) parts.push(el('div', { className: 'notice warn', textContent: 'The recorder was patched in memory for this. Unplug it and plug it back in to clear that before you use it for anything else.' }));
   parts.push(el('div', { className: 'row' }, el('button', { textContent: 'Open folder', onclick: () => api().open_folder(r.folder) }), el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
@@ -6088,7 +6090,7 @@ async function startAdd(paths, meta, opts) {                                  //
     el('span', { textContent: 'Put the artist in front of each title (“Artist - Title”), because a standard disc cannot store an artist. Uses up more of the disc’s limited title space.' })) : '';
   // Disc details: the artist and album for every added track and the disc's name. They start from what the files' tags say (the disc is named after
   // the album when the files share one) and can be typed or changed here; an empty box keeps what each file has.
-  const albumOf = commonAlbum(good.map(f => f.album));
+  const albumOf = commonAlbum(good.map(f => f.album)) || (opts && opts.album) || '';           // opts.album: a whole Walkman album folder sent to the disc; its folder name is used when the files carry no common album tag
   const oneArtist = (() => { const a = [...new Set(good.map(f => (f.artist || '').trim()).filter(Boolean))]; return a.length === 1 ? a[0] : ''; })();
   const inRow = (label, input) => el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center' }, el('span', { className: 'meta', textContent: label }), input);
   const wide = 'width:100%;box-sizing:border-box';
@@ -6779,6 +6781,210 @@ async function openPodcasts(kind = 'podcast') {                     // also the 
     el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, el('span', { className: 'meta', textContent: 'Browse:' }), genreSel, LV ? '' : countrySel),
     status, shows, tickAll, filt, eplist,
     el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+}
+// ---- Sony Walkman (a player plugged in as a drive): its music onto the disc, and the disc's tracks onto it ------------------------------------------
+// Walkman -> disc reads the player's files where they are (no copy kept on the PC) and uses the normal "Add tracks" check and write.
+// Disc -> Walkman uses the normal "Save to PC" with the player's MUSIC/Artist/Album folder as the destination.
+$('wm').addEventListener('click', () => openWalkman('toDisc'));
+$('wms').addEventListener('click', () => openWalkman('toWalkman'));
+async function openWalkman(startMode) {                    // 'toDisc': add tracks from the Walkman; 'toWalkman': save the disc's tracks to it
+  if (uploading) return;
+  const get = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+  const put = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* no storage */ } };
+  const status = el('div', { className: 'sub', textContent: 'Looking for a Walkman…' });
+  const body = el('div', {});
+  const storSel = el('select', { onchange: () => showStorage() });
+  let players = [], mode = startMode === 'toWalkman' ? 'toWalkman' : 'toDisc';
+  const tabTo = el('button', { textContent: 'Walkman → disc', onclick: () => { mode = 'toDisc'; put('walkmanMode', mode); showStorage(); } });
+  const tabFrom = el('button', { textContent: 'Disc → Walkman', onclick: () => { mode = 'toWalkman'; put('walkmanMode', mode); showStorage(); } });
+  const refresh = el('button', { textContent: 'Look again', onclick: () => start() });
+  const choose = el('button', { textContent: 'Choose folder…', title: 'Pick the music folder of a player (or any folder) by hand, for a player that is not found by itself', onclick: async () => { const r = await api().walkman_pick_folder(); if (r.error) { toast(r.error, true); return; } if (r.root) start(r.root); } });
+  const head = el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, storSel, refresh, choose);                          // one job per button, so no tabs
+  openFloat(el('h2', { textContent: mode === 'toWalkman' ? 'Save tracks to Walkman (Audio Player)' : 'Add tracks from Walkman (Audio Player)' }),
+    el('div', { className: 'sub', textContent: 'For a Sony Walkman or another audio player that shows up as a drive when it is plugged in (or any folder you choose). Nothing is changed on the player unless you copy tracks to it, and tracks are only added to it in a new folder (Music / Artist / Album). Copy-protected files cannot be used.' }),
+    head, status, body, el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
+  const start = async want => {                                  // want: a folder just chosen by hand, to show first
+    status.textContent = 'Looking for a Walkman…'; body.textContent = ''; storSel.textContent = '';
+    const r = await api().walkman_find();
+    if (r.error) { status.textContent = r.error; return; }
+    players = r.players || [];
+    if (!players.length) { status.textContent = 'No Walkman or audio player found. Plug it in with its USB cable (set to Mass storage or File transfer mode if it asks), wait a few seconds, then press Look again. For a player that is not found by itself, press Choose folder and pick its music folder.'; tabTo.style.display = tabFrom.style.display = 'none'; storSel.style.display = 'none'; return; }
+    tabTo.style.display = tabFrom.style.display = ''; storSel.style.display = '';
+    players.forEach((p, i) => storSel.append(el('option', { value: i, textContent: p.name + ' — ' + (p.label || p.root) + ' (' + p.root + ', ' + fmtSize(p.free) + ' free of ' + fmtSize(p.total) + ')' })));
+    if (want) { const k = players.findIndex(x => x.root === want); if (k >= 0) storSel.value = k; }
+    showStorage();
+  };
+  const showStorage = async () => {
+    const p = players[Number(storSel.value) || 0]; if (!p) return;
+    tabTo.className = mode === 'toDisc' ? 'primary' : ''; tabFrom.className = mode === 'toWalkman' ? 'primary' : '';
+    body.textContent = '';
+    if (!p.sony) body.append(el('div', { className: 'notice', textContent: (p.custom ? 'A folder you chose: ' : 'This is not a Sony Walkman: ') + 'copying works the same way, but check which audio formats your player can play (FLAC, MP3 and WAV are the safest). ' + (p.custom ? 'New albums are added inside this folder.' : '') }));
+    if (mode === 'toDisc') await showToDisc(p); else showToWalkman(p);
+  };
+  // ---- Walkman -> disc
+  const showToDisc = async p => {
+    if (!curDisc) { status.textContent = 'Load a disc first, then choose what to add from the Walkman.'; return; }
+    status.textContent = 'Reading the Walkman’s music list…';
+    const r = await api().walkman_list(p.root);
+    if (r.error) { status.textContent = r.error; return; }
+    const groups = r.groups.map(g => ({ g, albumCb: el('input', { type: 'checkbox', style: 'width:auto' }), tracks: [], open: false, row: null }));
+    const total = r.groups.reduce((a, g) => a + g.tracks.length, 0);
+    status.textContent = groups.length + ' folders, ' + total + ' tracks. Tick tracks or whole albums, then add them to the disc. A whole album takes its folder name as the disc name when its files carry no album tag.' +
+      (r.skipped.length ? ' Skipped: ' + r.skipped.map(s => s.count + ' ' + s.ext + ' file' + (s.count === 1 ? '' : 's') + ' (' + s.why + ')').join('; ') + '.' : '');
+    const go = el('button', { className: 'primary', textContent: 'Add to the disc…', disabled: true });
+    const ticked = () => { const out = []; for (const x of groups) { if (x.tracks.length) { x.tracks.forEach((t, i) => { if (t.cb.checked) out.push({ x, path: x.g.tracks[i].path }); }); } else if (x.albumCb.checked) x.g.tracks.forEach(t => out.push({ x, path: t.path })); } return out; };
+    const upd = () => { const n = ticked().length; go.disabled = !n; go.textContent = n ? 'Add ' + n + (n === 1 ? ' track' : ' tracks') + ' to the disc…' : 'Add to the disc…'; };
+    const filt = el('input', { placeholder: 'Filter by artist, album or folder name', style: 'width:100%;box-sizing:border-box', oninput: () => { const w = filt.value.trim().toLowerCase(); for (const x of groups) x.row.style.display = !w || x.g.rel.toLowerCase().includes(w) ? '' : 'none'; } });
+    const list = el('div', { className: 'filelist', style: 'max-height:340px;overflow:auto' });
+    for (const x of groups) {
+      const tl = el('div', { style: 'display:none;padding-left:26px' });
+      x.albumCb.onchange = () => { x.tracks.forEach(t => { t.cb.checked = x.albumCb.checked; }); upd(); };
+      const arrow = el('span', { textContent: '▸', style: 'cursor:pointer;width:1em;display:inline-block' });
+      const fill = () => {
+        if (x.tracks.length) return;
+        x.g.tracks.forEach(t => {
+          const cb = el('input', { type: 'checkbox', style: 'width:auto', checked: x.albumCb.checked, onchange: () => { x.albumCb.checked = x.tracks.every(y => y.cb.checked); upd(); } });
+          tl.append(el('label', { className: 'file', style: 'grid-template-columns:auto 1fr auto;cursor:pointer' }, cb, el('span', { textContent: t.name }), el('span', { className: 'meta', textContent: fmtSize(t.bytes) })));
+          x.tracks.push({ cb });
+        });
+      };
+      const toggle = () => { x.open = !x.open; if (x.open) fill(); tl.style.display = x.open ? '' : 'none'; arrow.textContent = x.open ? '▾' : '▸'; };
+      arrow.onclick = toggle;
+      x.row = el('div', {}, el('div', { className: 'file', style: 'grid-template-columns:auto auto 1fr auto' }, arrow, x.albumCb,
+        el('span', { textContent: x.g.rel || x.g.name, style: 'cursor:pointer', onclick: toggle }), el('span', { className: 'meta', textContent: x.g.tracks.length + (x.g.tracks.length === 1 ? ' track' : ' tracks') })), tl);
+      list.append(x.row);
+    }
+    go.onclick = () => {
+      const sel = ticked(); if (!sel.length) return;
+      const folders = [...new Set(sel.map(s => s.x))];
+      const album = folders.length === 1 ? (folders[0].g.name === 'MUSIC' ? '' : folders[0].g.name) : '';
+      closeSheet();
+      startAdd(sel.map(s => s.path), null, { album });
+    };
+    body.append(filt, list, el('div', { className: 'row' }, go));
+    upd();
+  };
+  // ---- disc -> Walkman
+  const showToWalkman = p => {
+    status.textContent = '';
+    if (!curDisc) { status.textContent = 'Load a disc first, then choose which of its tracks to copy to the Walkman.'; return; }
+    const allNums = [...trackMap.keys()].sort((a, b) => a - b), tickedNums = [...selected].sort((a, b) => a - b);
+    if (!allNums.length) { status.textContent = 'This disc has no tracks.'; return; }
+    let whole = !tickedNums.length;                                                  // nothing ticked: the whole disc; otherwise the ticked tracks unless the user chooses the whole disc
+    const off = new Set();                                                           // tracks the user un-ticked in the list below
+    const baseNums = () => whole ? allNums : tickedNums;
+    const numsNow = () => baseNums().filter(n => !off.has(n));
+    let planToken = 0;
+    const artsOf = ns => [...new Set(ns.map(n => ((trackMap.get(n) || {}).artist || '').trim()).filter(Boolean))];
+    const arts = artsOf(allNums);
+    const artist = el('input', { value: '', maxLength: 80, placeholder: 'Artist folder', style: 'width:100%;box-sizing:border-box' });
+    const album = el('input', { value: '', maxLength: 80, placeholder: 'Album folder', style: 'width:100%;box-sizing:border-box' });
+    const what = el('div', { className: 'notice', style: 'display:grid;gap:6px' });
+    const titlesBox = el('div', { className: 'filelist', style: 'max-height:150px;overflow:auto' });
+    let fmt = ['flac', 'mp3', 'wav'].includes(get('walkmanFmt', 'flac')) ? get('walkmanFmt', 'flac') : 'flac';
+    let mp3q = get('walkmanMp3q', 'v0') === '320' ? '320' : 'v0';
+    const fmtSel = el('select', { onchange: () => { fmt = fmtSel.value; put('walkmanFmt', fmt); mp3row.style.display = fmt === 'mp3' ? '' : 'none'; est(); } },
+      el('option', { value: 'flac', textContent: 'FLAC (lossless; the best quality the Walkman plays)' }), el('option', { value: 'mp3', textContent: 'MP3 (smaller files)' }), el('option', { value: 'wav', textContent: 'WAV (lossless, uncompressed, largest)' }));
+    fmtSel.value = fmt;
+    const q = el('select', { onchange: () => { mp3q = q.value; put('walkmanMp3q', mp3q); est(); } }, el('option', { value: 'v0', textContent: 'High quality (variable, about 245 kbps)' }), el('option', { value: '320', textContent: 'Maximum (320 kbps)' }));
+    q.value = mp3q;
+    const mp3row = el('div', { style: 'display:' + (fmt === 'mp3' ? '' : 'none') }, el('span', { textContent: 'MP3 quality: ' }), q);
+    const note = el('div', { className: 'notice' });
+    const go = el('button', { className: 'primary', textContent: 'Copy to the Walkman', disabled: true });
+    let ok = [], bad = 0;
+    const est = () => {
+      const secs = ok.reduce((a, t) => a + (t.seconds || 0), 0);
+      const bytes = secs * ({ flac: 700000, wav: 176400, mp3: mp3q === '320' ? 40000 : 31000 }[fmt]);          // rough bytes per second of audio
+      note.textContent = '';                                                       // one line per sentence, so each is translated on its own
+      const line = t => note.append(el('div', { textContent: t }));
+      line(ok.length + (ok.length === 1 ? ' track' : ' tracks') + ' (' + len(secs) + ') will be copied, about ' + fmtSize(bytes) + ' as ' + fmt.toUpperCase() + '.');
+      line((p.sony ? 'The Walkman has ' : 'The player has ') + fmtSize(p.free) + ' free.');
+      if (bytes > p.free) line('That is more than the free space.');
+      if (bad) line(bad + (bad === 1 ? ' track cannot' : ' tracks cannot') + ' be read from this disc and will be skipped.');
+      note.className = 'notice' + (bytes > p.free ? ' warn' : '');
+      go.disabled = !ok.length || bytes > p.free;
+    };
+    body.append(what, titlesBox, el('div', { className: 'sub', textContent: 'The tracks go into a new folder on the Walkman, named below, with their titles and artist as tags. The disc is only read.' }),
+      el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center' }, el('span', { className: 'meta', textContent: 'Artist folder' }), artist),
+      el('label', { style: 'display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center' }, el('span', { className: 'meta', textContent: 'Album folder' }), album),
+      el('div', { className: 'notice', style: 'display:grid;gap:6px' }, el('b', { textContent: 'Copy as' }), fmtSel, mp3row), note,
+      el('div', { className: 'row' }, go));
+    // Says plainly what is being copied: the whole disc, or only the ticked tracks (with a choice when some are ticked). Each track can be un-ticked here.
+    // Which artist and album folder to use. The artist is the one on most of the tracks; failing that, the part of the disc title that names a track
+    // artist ("Album: Artist" or "Artist - Album" both work); only when the tracks really have several artists is it "Various Artists". The album folder
+    // is the disc title without the artist's name. Both can be changed, and the lists offer the likely names.
+    const guess = ns => {
+      const title = (curDisc.title || '').trim();
+      const cnt = new Map(); let withArtist = 0;
+      ns.forEach(n => { const a = ((trackMap.get(n) || {}).artist || '').trim(); if (a) { cnt.set(a, (cnt.get(a) || 0) + 1); withArtist++; } });
+      const parts = title.split(/\s*[-–—:]\s+|\s{2,}/).map(s => s.trim()).filter(Boolean);
+      const same = (x, y) => { x = x.toLowerCase(); y = y.toLowerCase(); return x === y || (Math.min(x.length, y.length) >= 4 && (x.includes(y) || y.includes(x))); };     // short names only match exactly (an artist called A is not inside every title)
+      const top = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0];
+      let artist = '';
+      if (top && top[1] / withArtist >= 0.6) artist = top[0];
+      else {
+        const named = parts.map(p => [...cnt.keys()].find(k => same(p, k))).find(Boolean);
+        artist = named || (cnt.size > 1 ? 'Various Artists' : '');
+      }
+      let album = title;
+      if (parts.length === 2 && artist && artist !== 'Various Artists') {
+        const hit = parts.findIndex(p => same(p, artist));
+        if (hit >= 0) album = parts[1 - hit];
+      }
+      return { artist, album, artists: [...cnt.keys()], parts, title };
+    };
+    const dlA = el('datalist', { id: 'wm-artists' }), dlB = el('datalist', { id: 'wm-albums' });
+    const hint = el('div', { className: 'meta' });
+    const headLine = el('b');
+    const sel = () => {
+      const ns = numsNow(), base = baseNums(), left = base.length - ns.length;
+      headLine.textContent = !ns.length ? 'No tracks chosen: tick at least one below'
+        : whole ? (left ? 'Copying ' + ns.length + ' of the disc' + Q + 's ' + allNums.length + ' tracks (' + left + ' left out)' : 'Copying the whole disc: all ' + allNums.length + (allNums.length === 1 ? ' track' : ' tracks'))
+        : 'Copying only ' + (left ? ns.length + ' of the ' + base.length + ' ticked tracks (' + left + ' left out)' : 'the ' + ns.length + ' ticked ' + (ns.length === 1 ? 'track' : 'tracks')) + ' (not the whole disc)';
+      const g = guess(ns);
+      if (!artistEdited) artist.value = g.artist;
+      if (!albumEdited) album.value = g.album;
+      dlA.textContent = ''; dlB.textContent = '';
+      [...new Set([...g.artists, ...g.parts, 'Various Artists'])].forEach(v => dlA.append(el('option', { value: v })));
+      [...new Set([g.title, ...g.parts])].filter(Boolean).forEach(v => dlB.append(el('option', { value: v })));
+      hint.textContent = g.artists.length > 1 ? 'The tracks name ' + g.artists.length + ' different artists (' + g.artists.slice(0, 4).join(', ') + (g.artists.length > 4 ? ', ...' : '') + '). Change the artist folder below if the guess is wrong.' : '';
+      ok = []; bad = 0; go.disabled = true; est();
+      const tok = ++planToken;
+      if (ns.length) api().save_plan(current, ns).then(pl => { if (tok !== planToken) return; ok = pl.tracks.filter(t => t.ok); bad = pl.tracks.length - ok.length; est(); });
+    };
+    const plan = () => {
+      const base = baseNums();
+      what.textContent = '';
+      what.append(headLine, hint);
+      if (tickedNums.length && tickedNums.length < allNums.length) {
+        for (const [isWhole, text] of [[false, 'Only the ' + tickedNums.length + ' ticked ' + (tickedNums.length === 1 ? 'track' : 'tracks')], [true, 'The whole disc (' + allNums.length + ' tracks)']])
+          what.append(el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, el('input', { type: 'radio', name: 'wmscope', checked: whole === isWhole, style: 'width:auto', onchange: () => { whole = isWhole; plan(); } }), el('span', { textContent: text })));
+      }
+      const rows = [];
+      const setAll = on => { rows.forEach(r => { r.cb.checked = on; if (on) off.delete(r.n); else off.add(r.n); }); sel(); };
+      what.append(el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, el('button', { textContent: 'Tick all', onclick: () => setAll(true) }), el('button', { textContent: 'Untick all', onclick: () => setAll(false) }),
+        el('span', { className: 'meta', textContent: 'Untick any track you do not want to copy.' })));
+      titlesBox.textContent = '';
+      base.forEach(n => {
+        const t = trackMap.get(n) || {};
+        const cb = el('input', { type: 'checkbox', checked: !off.has(n), style: 'width:auto', onchange: () => { if (cb.checked) off.delete(n); else off.add(n); sel(); } });
+        rows.push({ n, cb });
+        titlesBox.append(el('label', { className: 'file', style: 'grid-template-columns:auto 1fr auto;cursor:pointer' }, cb,
+          el('span', { textContent: '#' + n + '  ' + (t.title && t.title !== '(untitled)' ? t.title : 'Track ' + n) }), el('span', { className: 'meta', textContent: t.seconds ? len(t.seconds) : '' })));
+      });
+      sel();
+    };
+    let artistEdited = false, albumEdited = false; artist.addEventListener('input', () => { artistEdited = true; }); album.addEventListener('input', () => { albumEdited = true; });
+    artist.setAttribute('list', 'wm-artists'); album.setAttribute('list', 'wm-albums'); body.append(dlA, dlB);
+    plan();
+    go.onclick = async () => {
+      const r = await api().walkman_target(p.root, artist.value, album.value);
+      if (r.error) { toast(r.error, true); return; }
+      closeSheet();
+      runSave(ok.map(t => t.number), r.folder, fmt, false, mp3q, false, p.sony ? 'Walkman' : 'player');
+    };
+  };
+  start();
 }
 async function openBandcamp(site = 'bandcamp') {
   const NM = { soundcloud: 'SoundCloud', radio: 'Internet radio' }[site] || 'Bandcamp';
