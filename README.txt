@@ -726,7 +726,7 @@ Spatial audio (HMSA): keeping the surround version of a track on a Hi-MD disc
 - Listening: on the recorder the stereo track plays. On this PC, pressing play on a track whose Codec column reads HMSA (the stereo format is shown beside it) plays a headphone
   surround mix made from the spatial version (an approximation made for headphones; switch it off in Settings to play the stereo
   track). On a Google TV, "Play on" asks how the TV should play: Picture and lyrics (stereo, the default), 5.1 surround sound (a
-  soundbar or receiver then plays real 5.1, and the TV shows a still picture of the track instead of the lyric video) or Sound only. A Sonos room always gets the stereo
+  soundbar or receiver then plays real 5.1, and the TV shows the track's timed lyrics, or a still picture when it has none) or Sound only. A Sonos room always gets the stereo
   track.
 - Other equipment: nothing but this program can read the hidden file. "Save spatial version..." (Disc Extras, Copy out) saves the
   surround of the ticked tracks as FLAC 5.1 / 7.1 (lossless; heights are folded into 7.1), as Dolby Digital Plus 5.1 (.mp4) or as every
@@ -757,6 +757,7 @@ Playing to a Sonos speaker
 - How it works: the speaker fetches each track from a small web server the app runs on this PC's home-network address, behind a
   random secret in the address, and only while you are playing to a room. The speaker and this PC must be on the same network.
   The first time, Windows may ask whether to let the app on your network: choose Allow for private networks.
+- 0.41.2: NEW: lyrics on a Google TV during 5.1 surround. A spatial track that plays as 5.1 surround on a TV now shows its cover, title, artist, album and the timed lyrics (the line being sung lit) on the TV, with the same 5.1 sound, instead of a still picture; a track without timed lyrics keeps the still picture. Switch it in Settings (Show the lyrics on a Google TV during 5.1 surround) or with the Lyrics button in the player bar, which restarts the playing track on the TV from the same place. NEW: Font on the TV lyric screens (Settings): nine typefaces for the stereo lyric video and the 5.1 screen. The Pop Out window now has a TV lyrics tick box, a TV font list and a Lyrics timing control (- / + in 0.05 s steps: a TV's sound can lag the position it reports, so the best value differs from TV to TV and from track to track). The 5.1 screen says "5.1 surround - Dolby Digital Plus" with the track's codec under it. FIX: a long track title no longer runs over the album line on the TV (it shrinks, or wraps onto a second line). French, German, Dutch and Spanish texts are included.
 - 0.41.1: Fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead to the last lines while the track is still being read from the disc.
 - 0.41.0: Fix: the lyrics in the Pop Out window now keep time with the music even when the main window is behind it or minimised (they were a little fast, then a little slow). The player bar at the bottom no longer clips its right-hand buttons in a narrow window: Play on, Repeat, EQ, Surround, the play-on room and the volume drop to a second row instead.
 - 0.40.0: NEW: Pop Out Playing Disc Information: a button next to the name and version at the top (it appears once a track is really playing, and pulses until you try it) opens the Visualiser, the Track time display, the cover, the play / previous / next buttons, the seek bar, a volume slider and the lyrics in a window of their own, on another screen if you like; the other cards in the main window take the space back. Dock Back brings everything home. It can be switched off in Settings (Suggest the pop-out window while a track plays). FIX: Disc Stickers and Disc J-Cards now use the album picture kept on this PC for a standard (SP) disc. Also: Add tracks from Walkman uses the folder's album picture and checks for duplicates. French, German, Dutch and Spanish texts are included.
@@ -797,9 +798,13 @@ Playing to a Google TV (Chromecast built in)
   the artist largest. A track with no timed lyrics shows just the cover, title and artist.
 - When you pick a Google TV in "Play on", a boxed question asks how it should play: "Picture and lyrics" (the lyric video, stereo, the
   default), "5.1 surround sound" (for tracks that have a spatial version: Dolby Digital Plus 5.1 sound for a soundbar or receiver;
-  the TV shows a still picture of the track instead of the lyric video, because a Philips Google TV drops the picture otherwise) or "Sound only"
-  (stereo, no picture, the quickest start). The same switch for surround is in Settings. Tracks without a spatial version always get the
-  choice of picture or sound only. See the Spatial audio chapter.
+  the TV shows the track's cover, title, artist, album and timed lyrics with the same 5.1 sound, or a still picture when the track has no
+  timed lyrics; the visualiser and the track time are not drawn on that screen) or "Sound only"
+  (stereo, no picture, the quickest start). The same switch for surround is in Settings, and so is "Show the lyrics on a Google TV during
+  5.1 surround" (also the Lyrics button in the player bar: it restarts the playing track on the TV from the same place) and "Font on the
+  TV lyric screens" (nine typefaces, for the stereo lyric video and the 5.1 screen). The Pop Out window has a "TV lyrics" tick box and a
+  "TV font" list for the same two choices. Tracks without a spatial version always get the choice of picture or sound only. See the
+  Spatial audio chapter.
 - The lyric offset you set for a track (in the lyrics panel) is used for the video as well. Skipping ahead inside a track on the TV may
   not work while the video is still being made.
 - If the video cannot be made, the TV gets the audio only and the reason is written to app.log (lines starting "lyric video").

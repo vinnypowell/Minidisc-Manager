@@ -206,7 +206,7 @@ class Device:
         finally:
             c.close()
 
-    def play_url(self, url, title, mime, artist=None, album=None, video=False, source=None, _retry=True, image=None, confirm=False):
+    def play_url(self, url, title, mime, artist=None, album=None, video=False, source=None, _retry=True, image=None, confirm=False, start=0.0):
         """Starts the track on the TV and checks that it really is playing; a TV player that stays stuck on "buffering" at 0 seconds (it happens after a
         read was cancelled or a stream was replaced) is reset and tried once more."""
         c = self._open()
@@ -236,7 +236,7 @@ class Device:
             media = {'contentId': url, 'contentType': mime, 'streamType': 'BUFFERED', 'metadata': meta}
             if video and 'mpegurl' in (mime or '').lower():      # these two fields describe an HLS stream; on a plain MP4 they can make the TV drop the picture
                 media.update({'hlsSegmentFormat': 'ts', 'hlsVideoSegmentFormat': 'mpeg2_ts'})
-            j = c.ask(NS_MEDIA, transport, {'type': 'LOAD', 'autoplay': True, 'currentTime': 0, 'media': media}, timeout=20)
+            j = c.ask(NS_MEDIA, transport, {'type': 'LOAD', 'autoplay': True, 'currentTime': max(0.0, float(start or 0)), 'media': media}, timeout=20)
             if j.get('type') in ('LOAD_FAILED', 'LOAD_CANCELLED', 'INVALID_REQUEST'):
                 raise CastError('The device could not play that track (%s).' % j.get('reason', j.get('type')))
             end, playing = time.time() + 15, False
@@ -259,7 +259,7 @@ class Device:
             if not _retry:
                 raise CastError('The TV did not start playing. Switch it off and on again, then try again.')
             self._reset_player()
-            self.play_url(url, title, mime, artist, album, video, source, _retry=False, image=image, confirm=confirm)
+            self.play_url(url, title, mime, artist, album, video, source, _retry=False, image=image, confirm=confirm, start=start)
 
     def control(self, action, seconds=0):
         c = self._open()

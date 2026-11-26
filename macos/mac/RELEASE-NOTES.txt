@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.41.1 (BETA)
+MiniDisc Manager for Mac - version 0.41.2 (BETA)
 ====================================================================
 
-Fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead while it is still being read.
+New: lyrics on a Google TV during 5.1 surround. A spatial track that plays as 5.1 surround on a TV now shows its cover, title, artist, album and the timed lyrics on the TV, with the same 5.1 sound, instead of a still picture (a track without timed lyrics keeps the still picture). Switch it in Settings or with the Lyrics button in the player bar. New: Font on the TV lyric screens (Settings), nine typefaces. The Pop Out window now has a TV lyrics tick box, a TV font list and a Lyrics timing control. Fix: a long track title no longer runs over the album line on the TV. Not yet tried on a Mac with a real TV.
+
+Since 0.41.1 - Fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead while it is still being read.
 
 Since 0.41.0 - Fix: the lyrics in the Pop Out window keep time with the music; the player bar no longer clips its right-hand buttons in a narrow window (they wrap to a second row).
 

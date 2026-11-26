@@ -507,6 +507,8 @@ class SpatialMixin:
             pic = self._surround_splash(track)
             if sound and pic:
                 self._surround_video(sound, pic)
+            if sound:
+                self._surround_lyric_video(sound, track)       # the lyric screen version (only made when the track has timed lyrics and the setting is on)
             self.log('spatial read-ahead: track %d ready after %.1f s' % (track['number'], time.time() - t0))
         except Exception as exc:
             self.log('spatial read-ahead of track %d failed: %s' % (track['number'], exc))

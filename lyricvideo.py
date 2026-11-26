@@ -37,28 +37,87 @@ def _esc(text):
     return re.sub(r'\s+', ' ', text.replace('\\', '/').replace('{', '(').replace('}', ')')).strip()
 
 
-def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album='', compact=False, note=''):
-    """ASS subtitle text. lines: [(seconds, text)] (timed lyrics) or []. offset: the lyric timing correction kept by the app."""
+TV_FONTS = ('Segoe UI', 'Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Comic Sans MS', 'Courier New')      # the choices of the Settings font list
+
+
+_FONT_FILES = {'Segoe UI': ('segoeui', 'segoeuib'), 'Arial': ('arial', 'arialbd'), 'Verdana': ('verdana', 'verdanab'), 'Tahoma': ('tahoma', 'tahomabd'),
+               'Trebuchet MS': ('trebuc', 'trebucbd'), 'Georgia': ('georgia', 'georgiab'), 'Times New Roman': ('times', 'timesbd'),
+               'Comic Sans MS': ('comic', 'comicbd'), 'Courier New': ('cour', 'courbd')}                          # Windows file names in C:\Windows\Fonts
+
+
+def _measure(text, font, size, bold):
+    """The width in pixels of `text` in `font` at `size`, measured with the real font file when it can be found, else a cautious estimate."""
+    try:
+        from PIL import ImageFont
+        reg, bld = _FONT_FILES.get(font, _FONT_FILES['Segoe UI'])
+        path = 'C:/Windows/Fonts/%s.ttf' % (bld if bold else reg)
+        if os.path.exists(path):
+            return ImageFont.truetype(path, size).getlength(text)
+    except Exception:
+        pass
+    return len(text) * size * (0.62 if bold else 0.56)
+
+
+def _fit(text, font, bold, sizes, avail, spacing=0, max_lines=1):
+    """Fits `text` into `avail` pixels: the first size of `sizes` (big to small) that holds it on one line; else the smallest size over up to `max_lines`
+    lines (words moved down, the last line cut with an ellipsis). Returns (lines, size)."""
+    width = lambda s, z: _measure(s, font, z, bold) + spacing * len(s)
+    for z in sizes:
+        if width(text, z) <= avail:
+            return [text], z
+    z, rows, cur = sizes[-1], [], ''
+    for w in text.split():
+        trial = (cur + ' ' + w).strip()
+        if width(trial, z) <= avail or not cur:
+            cur = trial
+        else:
+            rows.append(cur)
+            cur = w
+    rows.append(cur)
+    if len(rows) > max_lines:
+        rows = rows[:max_lines]
+        last = rows[-1]
+        while last and width(last + '…', z) > avail:
+            last = last[:-1]
+        rows[-1] = last.rstrip() + '…'
+    return rows, z
+
+
+def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album='', compact=False, note='', font=None, note_bottom=False):
+    """ASS subtitle text. lines: [(seconds, text)] (timed lyrics) or []. offset: the lyric timing correction kept by the app.
+    font: the typeface (one of TV_FONTS; None = the default). note_bottom: the note goes small at the bottom left (the 5.1 screen has room there; at the top right
+    a long codec line ran over the artist's name)."""
+    font = font if font in TV_FONTS else FONT
     x0 = 520 if has_cover else 110
     ahead = 2 if compact else 3                          # how many coming lyric lines show under the one being sung (compact: the deck panel sits below)
     head = ['[Script Info]', 'ScriptType: v4.00+', 'PlayResX: %d' % W, 'PlayResY: %d' % H, 'WrapStyle: 0', 'ScaledBorderAndShadow: yes', '',
             '[V4+ Styles]',
             'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, '
             'ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
-            'Style: Default,%s,40,%s,%s,&H000000&,&H000000&,0,0,0,0,100,100,0,0,1,0,0,7,%d,60,0,1' % (FONT, BRIGHT, BRIGHT, x0),
+            'Style: Default,%s,40,%s,%s,&H000000&,&H000000&,0,0,0,0,100,100,0,0,1,0,0,7,%d,60,0,1' % (font, BRIGHT, BRIGHT, x0),
             '', '[Events]', 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text']
     end_all = _ts(duration + 30)
     # Heading, top down, each in its own look so they read apart: the ARTIST small, amber, capitals, spaced out; the TRACK TITLE big, bold, white;
     # the album dim grey and light; a thin rule; then the lyrics in light blue (the line being sung bold). Missing ones are skipped and the rest move up.
     ev, y = [], 44                                       # the artist's capitals start level with the top of the cover
-    for text, size, style, gap in ((artist.upper() if artist else '', 32, '\\b1\\fsp4\\c' + ACCENT, 8), (title or 'Track', 58, '\\b1\\fsp0\\c' + BRIGHT, 4),
-                                   (album, 32, '\\b0\\fsp1\\c' + DIM, 0)):
+    avail = (W - 60 - x0) * 0.94                         # the width of the heading; every line is measured so a long title shrinks or wraps instead of running over the lines below it
+    for text, sizes, bold, style, gap, space, most in ((artist.upper() if artist else '', (32, 28, 24), True, '\\b1\\fsp4\\c' + ACCENT, 8, 4, 1),
+                                                       (title or 'Track', (58, 50, 44, 38), True, '\\b1\\fsp0\\c' + BRIGHT, 4, 0, 2),
+                                                       (album, (32, 28, 24), False, '\\b0\\fsp1\\c' + DIM, 0, 1, 1)):
         if text:
-            ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)\\fs%d%s}%s' % (_ts(0), end_all, x0, y, size, style, _esc(text)))
-            y += int(size * 1.25) + gap
+            rows, size = _fit(_esc(text), font, bold, sizes, avail, space, most)
+            ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)\\fs%d%s}%s' % (_ts(0), end_all, x0, y, size, style, '\\N'.join(rows)))
+            y += int(size * 1.25) * len(rows) + gap
+            if len(rows) > 1:
+                ahead = max(1, ahead - 1)                # a two-line title pushes the lyrics down: one less coming line so they still fit
     ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)\\p1\\bord0\\shad0\\c&H5A5A5A&}m 0 0 l 700 0 l 700 2 l 0 2{\\p0}' % (_ts(0), end_all, x0, y + 16))
     ly = y + 38                                          # where the lyrics start
-    if note:                                             # the spatial information, under the recorder's line: amber, so it stands out
+    if note and note_bottom:                             # the 5.1 screen: along the bottom, clear of the artist's name; "first line|second line": the first in amber (what the sound is), the second dim (the codec)
+        first, _, second = note.partition('|')
+        if second.strip():
+            ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an1\\pos(60,%d)\\fs26\\c%s}%s' % (_ts(0), end_all, H - 16, DIM, _esc(second)))
+        ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an1\\pos(60,%d)\\fs30\\b1\\c%s}%s' % (_ts(0), end_all, H - (52 if second.strip() else 16), ACCENT, _esc(first)))
+    elif note:                                           # the spatial information, under the recorder's line: amber, so it stands out
         ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an9\\pos(%d,42)\\fs26\\c%s}%s' % (_ts(0), end_all, W - 60, ACCENT, _esc(note)))
     if caption:                                          # the connected recorder, small and dim in the top right corner of the screen
         ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an9\\pos(%d,8)\\fs26\\c%s}%s' % (_ts(0), end_all, W - 60, DIM, _esc(caption)))
@@ -165,11 +224,47 @@ def _rgb(c):
     return (n >> 16) & 255, (n >> 8) & 255, n & 255
 
 
+def make_surround_mp4(ffmpeg, sound_path, out_path, title, artist, lines, offset, duration, cover_bytes=None, caption='', album='', note='', log=None, font=None):
+    """The lyric picture for a 5.1 surround track: the same screen as the stereo lyric video (cover on the left, title / artist / album and the timed lyrics on
+    the right) as an ordinary MP4 whose sound is the 5.1 file COPIED unchanged, so the surround is exactly as before. No visualizer or deck display (those
+    are drawn frame by frame in Python); ffmpeg draws the lyrics from an ASS file, so a 4 minute track is done in well under its own length.
+    Returns True when out_path was written."""
+    work = out_path + '.work'
+    try:
+        shutil.rmtree(work, ignore_errors=True)
+        os.makedirs(work, exist_ok=True)
+        with open(os.path.join(work, 'lyrics.ass'), 'w', encoding='utf-8-sig') as f:
+            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes), caption, album, compact=False, note=note, font=font, note_bottom=True))
+        cmd = [ffmpeg, '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=%s:s=%dx%d:r=%d' % (BG, W, H, FPS)]
+        if cover_bytes:
+            with open(os.path.join(work, 'cover.img'), 'wb') as f:
+                f.write(cover_bytes)
+            cmd += ['-loop', '1', '-framerate', str(FPS), '-i', 'cover.img']
+            graph = '[1:v]scale=%d:%d:force_original_aspect_ratio=decrease[c];[0:v][c]overlay=%d:%d:shortest=1[b]' % (COVER, COVER, 60, TOP)
+            ai = 2
+        else:
+            graph, ai = '[0:v]null[b]', 1
+        graph += ";[b]subtitles=lyrics.ass:fontsdir='%s',format=yuv420p[v]" % FONTS_DIR
+        tmp = os.path.abspath(out_path + '.part')
+        cmd += ['-i', os.path.abspath(sound_path), '-filter_complex', graph, '-map', '[v]', '-map', '%d:a' % ai, '-shortest',
+                '-c:v', 'libopenh264', '-r', str(FPS), '-b:v', '1200k', '-g', str(FPS * 2), '-bf', '0', '-allow_skip_frames', '0', '-c:a', 'copy',
+                '-f', 'mp4', '-movflags', '+faststart', tmp]
+        r = subprocess.run(cmd, cwd=work, capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if r.returncode or not os.path.exists(tmp):
+            if log:
+                log('surround lyric video ffmpeg failed: ' + (r.stderr or '').strip()[-400:])
+            return False
+        os.replace(tmp, out_path)
+        return True
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 class Job:
     """One running ffmpeg making the stream for one track into `out_dir` (index.m3u8 + seg00000.ts ...)."""
 
-    def __init__(self, ffmpeg, audio_src, out_dir, title, artist, lines, offset, duration, cover_bytes=None, log=None, growing=False, caption='', album='', viz=None, start=0.0, deck=None, note=''):
-        """note: the line about spatial audio shown under the caption.
+    def __init__(self, ffmpeg, audio_src, out_dir, title, artist, lines, offset, duration, cover_bytes=None, log=None, growing=False, caption='', album='', viz=None, start=0.0, deck=None, note='', font=None):
+        """note: the line about spatial audio shown under the caption. font: the typeface of the Settings font list (None = the default).
         deck: {'pos', 'count', 'length'} to draw the deck's track number / time display (see vizrender.DeckPainter), or None.
         audio_src: the audio FILE (reading it from the app's own web address made ffmpeg stall). growing: the file is still being
         written from the disc, so ffmpeg keeps reading at its end instead of stopping."""
@@ -200,7 +295,7 @@ class Job:
             box = (bx0, by0, max(p[0] + p[2] for p in parts) - bx0, max(p[1] + p[3] for p in parts) - by0)
         self.feeder = None
         with open(os.path.join(out_dir, 'lyrics.ass'), 'w', encoding='utf-8-sig') as f:
-            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes) or bool(vf) or py_viz, caption, album, compact=py_deck, note=note))
+            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes) or bool(vf) or py_viz, caption, album, compact=py_deck, note=note, font=font))
         # A file still being read from the disc: the end of the track is its known length (-t below), not a pause in the data (a read from the recorder
         # can stall for ten seconds or more and then carry on; treating that as the end stopped the TV halfway). The long time-out is only the safety net
         # for a read that has really died; with no known length the old 10 s rule stays.

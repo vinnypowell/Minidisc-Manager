@@ -278,6 +278,46 @@ class CastMixin:
             self.log('surround picture video failed: %s' % exc)
             return None
 
+    def _surround_lyric_video(self, sound, track):
+        """Like _surround_video, but the picture is the lyric screen (cover, title, artist, album and the timed lyrics, the line being sung lit) instead of a
+        still. The 5.1 sound is copied unchanged and the lyrics are part of the file, so the TV keeps them in step with the sound itself. Only for a track with
+        timed lyrics, and only while the 'spatialTvLyrics' setting is on; returns the stream entry, or None (the caller then uses the still picture)."""
+        try:
+            if not sound or not self._app_setting('spatialTvLyrics') or not track.get('number'):
+                return None
+            ly = self.lyrics_get(track.get('number'))
+            lines = [(s, x) for s, x in ly.get('lines', []) if s is not None] if ly.get('synced') else []
+            if not lines:
+                return None
+            import hashlib
+            import lyrics
+            cover = None
+            if getattr(self, '_loaded_netmd', False):
+                import disc_lookup
+                cover = disc_lookup.cover_bytes(self._netmd_disc_key(self._tracks))
+            else:
+                url = self._ga_for_track(track.get('number')) or self._cover_url
+                if url and url.startswith('data:'):
+                    cover = base64.b64decode(url.split(',', 1)[1])
+            title, artist = lyrics._split_title(track)
+            album, caption = track.get('album') or '', self._caption()
+            note = '5.1 surround  ·  Dolby Digital Plus|' + (self._codec_line(track) or '')            # as on the still picture; the codec line goes under it
+            offset = float(ly.get('offset') or 0)
+            font = self._app_setting('tvFont')
+            name = 'surroundlyr-%s.mp4' % hashlib.sha1(repr((sound['name'], title, artist, album, caption, note, offset, lines, len(cover or b''), font, 'layout2')).encode('utf-8')).hexdigest()[:14]      # 'layout2': bump when the screen's look changes, so old cached files are not reused
+            path = os.path.join(PLAY_DIR, name)
+            if not (os.path.exists(path) and os.path.getsize(path) > 1000):
+                if not lyricvideo.make_surround_mp4(FFMPEG_EXE, sound['path'], path, title or 'Track', artist or '', lines, offset,
+                                                    float(track.get('seconds') or 0), cover, caption, album, note, self.log, font):
+                    return None
+            st = {'key': 'surround-' + name, 'name': name, 'format': 'mp4', 'path': path, 'total': os.path.getsize(path), 'mime': 'video/mp4', 'done': True,
+                  'failed': False, 'cancelled': False, 'announced': True, 'error': ''}
+            self._streams[name] = st
+            return st
+        except Exception as exc:
+            self.log('surround lyric video failed: %s' % exc)
+            return None
+
     def _caption(self):
         """The small line at the bottom of the TV picture: the recorder and the kind of disc, e.g. 'MZ-NH700 - Playing an SP disc'."""
         name = self._recorder_name or ''
@@ -319,7 +359,7 @@ class CastMixin:
             job = lyricvideo.Job(FFMPEG_EXE, stream['path'], os.path.join(PLAY_DIR, 'lyricvideo-' + vid),
                                  title or 'Track', artist or '', lines, float(ly.get('offset') or 0), float(track.get('seconds') or 0),
                                  cover, self.log, growing=not stream.get('done'), caption=self._caption(), album=track.get('album') or '',
-                                 viz=getattr(self, '_cast_viz', None), start=start, deck=deck, note=note)
+                                 viz=getattr(self, '_cast_viz', None), start=start, deck=deck, note=note, font=self._app_setting('tvFont'))
             self._lv = {'id': vid, 'job': job, 'start': start, 'ctx': {'stream': stream, 'track': track, 'lan': lan, 'ip': ip}}
             ready = job.wait_ready()
             if not ready:
@@ -357,7 +397,8 @@ class CastMixin:
                                 te = time.time()
                                 s_ = self._surround_audio(tr_e)
                                 p_ = self._surround_splash(tr_e) if s_ else None
-                                early.update(sound=s_, pic=p_, vid=self._surround_video(s_, p_) if s_ and p_ else None, secs=time.time() - te)
+                                v_ = self._surround_lyric_video(s_, tr_e) if s_ else None              # the lyric screen when the track has timed lyrics (and the setting is on)
+                                early.update(sound=s_, pic=p_, vid=v_ or (self._surround_video(s_, p_) if s_ and p_ else None), lyr=bool(v_), secs=time.time() - te)
                             except Exception as exc:
                                 self.log('spatial surround (early) failed: %s' % exc)
                         early['thread'] = threading.Thread(target=work, daemon=True)
@@ -389,12 +430,12 @@ class CastMixin:
                         track['album'] = dt
                 url, mime = 'http://%s:%d/%s' % (lan, self._cast_port, path), st['mime'] if st else 'audio/wav'
                 self._lv_stop()
-                sur_st, pic, vid = None, None, None
-                if surround:                                                        # sound only: a Google TV shows no picture while it passes surround on, so no lyric video is made
+                sur_st, pic, vid, lyr_vid = None, None, None, False
+                if surround:                                                        # the sound is 5.1; the picture is the lyric screen (timed lyrics) or a still, never the stereo lyric video
                     try:
                         if early.get('thread'):                                     # already being made since the disc read finished
                             early['thread'].join()
-                            sur_st, pic, vid = early.get('sound'), early.get('pic'), early.get('vid')
+                            sur_st, pic, vid, lyr_vid = early.get('sound'), early.get('pic'), early.get('vid'), bool(early.get('lyr'))
                             if early.get('secs') is not None:
                                 self.log('cast: TV surround files made in %.1fs' % early['secs'])
                         if not sur_st:
@@ -405,14 +446,17 @@ class CastMixin:
                     if not pic:
                         pic = self._surround_splash(track)
                     if not vid:
+                        vid = self._surround_lyric_video(sur_st, track)
+                        lyr_vid = bool(vid)
+                    if not vid:
                         vid = self._surround_video(sur_st, pic) if pic else None        # sound + still picture as a video: the TV's player then comes to the front
                     fu, fm = ((vid['name'], 'video/mp4') if vid else (sur_st['name'], 'audio/mp4'))
                     album = ((track.get('album') or '') + '  ·  ' if track.get('album') else '') + 'Spatial 5.1 (Dolby Digital Plus)'
                     tq = time.time()
                     dev.play_url('http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, fu), track.get('title'), fm, track.get('artist'), album,
-                                 video=bool(vid), source=self._recorder_name or None, confirm=True)
+                                 video=bool(vid), source=self._recorder_name or None, confirm=True, start=float(seconds or 0))      # start: a restart of the same track (lyrics / font switched) carries on from where it was
                     self.log('cast: the TV took %.1fs to start playing' % (time.time() - tq))
-                    kind = 'surround video with splash picture' if vid else 'surround audio (no picture)'
+                    kind = ('surround video with lyrics' if lyr_vid else 'surround video with splash picture') if vid else 'surround audio (no picture)'
                 else:
                     if self._cast_video:
                         vurl = self._lyric_video(st, track, lan, ip)               # None when it could not be made: the TV then just gets the audio

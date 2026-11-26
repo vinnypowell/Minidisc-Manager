@@ -90,6 +90,9 @@
     <label id="wGain"><span id="lSens">Sensitivity</span> <input type="range" id="gain" min="40" max="300" value="100"></label>
     <label id="wPeaks"><input type="checkbox" id="peaks"> <span id="lPeaks">Peak marks</span></label>
     <label id="wLyr" style="display:none"><input type="checkbox" id="lyrOn"> <span id="lLyr">Lyrics</span></label>
+    <label id="wTvl" style="display:none" title="While a spatial track plays as 5.1 surround on the TV: show its lyrics on the TV screen (on) or the still picture (off). The playing track restarts on the TV from the same place."><input type="checkbox" id="tvlOn"> <span id="lTvl">TV lyrics</span></label>
+    <label id="wTvf" style="display:none" title="The typeface of the lyric screen on the TV (the same choice as in Settings). A 5.1 track that is playing restarts on the TV from the same place; otherwise it applies from the next track."><span id="lTvf">TV font</span> <select id="tvFont"></select></label>
+    <span id="wLyrT" style="display:none" title="Lyrics timing: if the lit line comes too early, press − (later); too late, press + (earlier)"><button id="lyrMinus" type="button">−</button> <span id="lyrOffV">0.00 s</span> <button id="lyrPlus" type="button">+</button></span>
     <span class="grow"></span>
     <button id="dock">Dock back</button>
   </div>
@@ -157,7 +160,18 @@
   let lyrRows = [], haveLyr = false, lyrOn = true, lastCur = -3;
   try { lyrOn = localStorage.getItem('mdm.popLyrics') !== '0'; } catch (e) { /* not kept */ }
   $('lyrOn').checked = lyrOn;
-  function showLyr() { $('lyrBox').hidden = !(ok && haveLyr && lyrOn); $('wLyr').style.display = haveLyr ? '' : 'none'; }
+  function showLyr() { $('lyrBox').hidden = !(ok && haveLyr && lyrOn); $('wLyr').style.display = haveLyr ? '' : 'none'; $('wLyrT').style.display = haveLyr ? '' : 'none'; }
+  // the typeface of the lyric screen ON THE TV (not of this window): the same choice as Settings > Font on the TV lyric screens; the main window saves it
+  const TV_FONTS = ['Segoe UI', 'Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Comic Sans MS', 'Courier New'];
+  for (const f of TV_FONTS) { const o = Object.assign(document.createElement('option'), { value: f, textContent: f }); o.style.fontFamily = '"' + f + '"'; $('tvFont').append(o); }
+  let tvfHold = 0;                                                   // just after a choice the list keeps it (the answer from the main window arrives a moment later)
+  $('tvFont').addEventListener('change', () => { tvfHold = Date.now() + 2500; $('tvFont').style.fontFamily = '"' + $('tvFont').value + '"'; post({ t: 'tvFont', v: $('tvFont').value }); });
+  let tvlHold = 0;                                                   // just after a click the box keeps what was chosen (the answer from the main window arrives a moment later)
+  $('tvlOn').addEventListener('change', () => { tvlHold = Date.now() + 2500; post({ t: 'tvl', v: $('tvlOn').checked }); });  let lyrOff = 0;                                                    // seconds the lit line is shown early (+) or late (-); kept, and sent to the main window
+  try { lyrOff = Number(localStorage.getItem('mdm.popLyrOff')) || 0; } catch (e) { /* not kept */ }
+  function lyrOffSend() { $('lyrOffV').textContent = (lyrOff > 0 ? '+' : '') + lyrOff.toFixed(2) + ' s'; post({ t: 'lyrOff', v: lyrOff }); }
+  function lyrOffStep(d) { lyrOff = Math.max(-1.5, Math.min(1.5, Math.round((lyrOff + d) * 100) / 100)); try { localStorage.setItem('mdm.popLyrOff', String(lyrOff)); } catch (e) { /* not kept */ } lyrOffSend(); }
+  $('lyrMinus').addEventListener('click', () => lyrOffStep(-0.05)); $('lyrPlus').addEventListener('click', () => lyrOffStep(0.05));
   $('lyrOn').addEventListener('change', () => { lyrOn = $('lyrOn').checked; try { localStorage.setItem('mdm.popLyrics', lyrOn ? '1' : '0'); } catch (e) { /* not kept */ } showLyr(); });
   function setLyrics(l) {
     const box = $('lyrLines');
@@ -194,7 +208,10 @@
     if (!L) return;
     const set = (id, k) => { if (L[k] != null) $(id).textContent = L[k]; };
     set('lDisplay', 'display'); set('lColour', 'colour'); set('lSens', 'sens'); set('lPeaks', 'peaks'); set('dock', 'dock');
-    set('lLyr', 'lyrics'); set('lEl', 'elapsed'); set('lRem', 'remaining'); set('lLen', 'trackLength'); set('lDEl', 'discElapsed'); set('lDRem', 'discRemaining'); set('lDTot', 'discTotal');
+    set('lLyr', 'lyrics'); set('lTvl', 'tvLyrics'); set('lTvf', 'tvFont'); set('lEl', 'elapsed');
+    if (L.tvLyricsTip) $('wTvl').title = L.tvLyricsTip;
+    if (L.tvFontTip) $('wTvf').title = L.tvFontTip;
+    if (L.lyrTimingTip) $('wLyrT').title = L.lyrTimingTip; set('lRem', 'remaining'); set('lLen', 'trackLength'); set('lDEl', 'discElapsed'); set('lDRem', 'discRemaining'); set('lDTot', 'discTotal');
     if (L.volume) { $('vol').title = L.volume; $('volIcon').title = L.volume; }
     $('prev').title = L.prev || $('prev').title; $('pp').title = L.pp || $('pp').title; $('next').title = L.next || $('next').title;
     if (L.waiting) waitingText = L.waiting;
@@ -249,6 +266,10 @@
     $('seek').disabled = !m.ok;
     $('volBox').hidden = !m.ok || m.vol === null || m.vol === undefined;
     if (!volDrag && m.vol !== null && m.vol !== undefined) $('vol').value = m.vol;
+    $('wTvl').style.display = m.tvl === 0 || m.tvl === 1 ? '' : 'none';                          // only while a 5.1 spatial track is playing to a TV
+    if (Date.now() > tvlHold) $('tvlOn').checked = m.tvl === 1;
+    $('wTvf').style.display = m.tvf ? '' : 'none';                                               // whenever a Google TV is the chosen player
+    if (m.tvf && Date.now() > tvfHold) { $('tvFont').value = m.tvf; $('tvFont').style.fontFamily = '"' + m.tvf + '"'; }
     const idle = $('idle');
     if (!ok) { idle.textContent = idleText; idle.hidden = false; g.clearRect(0, 0, cv.width, cv.height); }
     else idle.hidden = true;
@@ -275,7 +296,7 @@
 
   // connect, and say where the window is so that the main window can open it in the same size next time
   let geom = '';
-  function hello() { sizeCanvas(); post({ t: 'hello' }); }
+  function hello() { sizeCanvas(); post({ t: 'hello' }); lyrOffSend(); }
   hello();
   setInterval(() => {
     if (!connected) { $('idle').textContent = waitingText; $('idle').hidden = false; hello(); }

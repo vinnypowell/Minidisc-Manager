@@ -546,6 +546,8 @@
 <script src="lang_es_p15.js"></script>
 <script src="lang_p16.js"></script>
 <script src="lang_es_p16.js"></script>
+<script src="lang_p17.js"></script>
+<script src="lang_es_p17.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -896,6 +898,7 @@
   <button id="lyrBtn"title="Show or hide the lyrics of this track (opens the Lyrics sheet when it has none)">♪</button>
   <button id="eqBtn" title="Open the equalizer (it opens in its own window)">EQ</button>
   <button id="svBtn" class="hidden" title="">🎧 Surround</button>
+  <button id="tvlBtn" class="hidden" title="">📺 Lyrics</button>
   <button id="castBtn" title="Choose where to play: this PC or a Sonos room">🔊 This PC</button>
   <input type="range" id="vol" min="0" max="100" value="80" title="Volume">
   <audio id="audio" preload="auto"></audio>
@@ -1272,7 +1275,7 @@ async function load(noSync) {
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
 // App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
-let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true, suggestPopout: true };
+let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, spatialTvLyrics: true, tvFont: 'Arial', autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true, suggestPopout: true };
 async function appSettingsLoad() {
   try {
     let s = await api().get_app_settings();
@@ -1283,7 +1286,7 @@ async function appSettingsLoad() {
 }
 async function appSettingSet(key, value) {
   const r = await api().set_app_setting(key, value);
-  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'rememberLayout') layoutRememberChanged(); if (key === 'suggestPopout') { popBtnRefresh(); popHintHide(false); } if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); if (key === 'spatialBinaural') svRefresh(); if (key === 'allowPatch' && netmd) { toast('Rescanning the recorder to apply this.'); scan(); } return true; }
+  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'rememberLayout') layoutRememberChanged(); if (key === 'suggestPopout') { popBtnRefresh(); popHintHide(false); } if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); if (key === 'spatialBinaural') svRefresh(); if (key === 'spatialTvSurround' || key === 'spatialTvLyrics') tvlRefresh(); if (key === 'allowPatch' && netmd) { toast('Rescanning the recorder to apply this.'); scan(); } return true; }
   toast((r && r.error) || 'The setting could not be saved'); return false;
 }
 async function tidySpatial() {
@@ -1306,7 +1309,8 @@ function openSettings() {
     ['fillArtist', 'Fill in a missing artist from the lyrics match', 'When lyrics are found and confidently matched for a track that has no artist, the artist the lyrics record names is filled in. A Hi-MD disc stores it on the disc (one change, which Undo can take back); a standard disc keeps it on this PC.'],
     ['rememberLayout', 'Remember the card layout', 'When you move, resize or hide the cards, or fold them, change tabs or zoom, the program keeps that and opens the same way next time. Switched off: it always starts in the standard layout (Reset layout in the Cards menu still puts everything back).'],
     ['spatialBinaural', 'Play the spatial version of a track with headphone surround', 'A track that was added with a spatial (multichannel) version plays that version in this window, mixed down for headphones. The recorder and the Sonos rooms always play the normal stereo track. Switched off: the stereo track plays here too.'],
-    ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows a still picture of the track (cover, title, artist), not the lyric video. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
+    ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows the track’s timed lyrics (see the next setting), or a still picture of the track (cover, title, artist) when it has none. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
+    ['spatialTvLyrics', 'Show the lyrics on a Google TV during 5.1 surround', 'While a spatial track plays as 5.1 surround on a Google TV, the TV shows the track’s cover, title and timed lyrics, with the same 5.1 sound. It needs timed lyrics for the track; without them the TV shows the still picture. Switched off: always the still picture. The Lyrics button in the player bar switches this too, and restarts the playing track on the TV from the same place. (The surround display and the track time are not drawn on this screen.)'],
     ['allowPatch', 'Allow the experimental firmware patch (MZ-NH700 and similar recorders)', 'Lets a Hi-MD recorder that holds a standard disc send its audio back to this PC, so tracks can play here, be saved, identified, split, combined or cloned. The patch is a small temporary change in the recorder’s memory (nothing is written to the disc or the recorder’s permanent memory) and unplugging the recorder clears it. Switched off: the patch is never used, and tracks without a saved copy can only be played on the recorder by remote control.'],
     ['checkUpdates', 'Tell me when a new version is available', 'Once a day the program asks this project’s page on GitHub which version is the newest, and shows a small notice if yours is older. Nothing about you or your computer is sent, and nothing is downloaded or installed by itself. Help > Check for updates asks straight away.'],
     ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, or has no name, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
@@ -1317,9 +1321,15 @@ function openSettings() {
     return el('label', { className: 'file', style: 'grid-template-columns:auto 1fr;gap:10px;align-items:start;cursor:pointer' }, cb,
       el('span', {}, el('b', { textContent: title }), el('div', { className: 'meta', style: 'white-space:normal', textContent: text })));
   });
+  const fonts = ['Segoe UI', 'Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Comic Sans MS', 'Courier New'];      // the same list as lyricvideo.TV_FONTS
+  const fontSel = el('select', { onchange: async () => { if (!(await appSettingSet('tvFont', fontSel.value))) fontSel.value = appSettings.tvFont; else fontSel.style.fontFamily = '"' + fontSel.value + '"'; } },
+    ...fonts.map(f => el('option', { value: f, textContent: f, selected: f === appSettings.tvFont, style: 'font-family:"' + f + '"' })));
+  fontSel.style.fontFamily = '"' + (appSettings.tvFont || fonts[0]) + '"';
+  const fontRow = el('label', { className: 'file', style: 'grid-template-columns:auto 1fr;gap:10px;align-items:start' }, fontSel,
+    el('span', {}, el('b', { textContent: 'Font on the TV lyric screens' }), el('div', { className: 'meta', style: 'white-space:normal', textContent: 'The typeface of the title, artist and lyrics on a Google TV, for the stereo lyric video and for the 5.1 surround screen. It applies from the next track you start; the TV font list in the pop-out window applies it at once to a 5.1 track that is playing. (Fonts that are not on this computer are replaced by a similar one.)' })));
   openFloat(el('h2', { textContent: 'Settings' }),
     el('div', { className: 'sub', textContent: 'Changes apply straight away and are kept on this PC (and in a backup).' }),
-    el('div', { className: 'filelist' }, ...rows),
+    el('div', { className: 'filelist' }, ...rows, fontRow),
     el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
 }
 $('settingsBtn').addEventListener('click', openSettings);
@@ -1784,7 +1794,7 @@ const audio = $('audio');
 let nowNum = 0, playToken = 0, broken = false;
 const clock = s => isFinite(s) ? len(Math.floor(s)) : '0:00';
 function markNow() {
-  try { svRefresh(); } catch (e) { /* page still starting */ }
+  try { svRefresh(); tvlRefresh(); } catch (e) { /* page still starting */ }
   document.querySelectorAll('#rows tr').forEach(r => {
     const on = Number(r.dataset.num) === nowNum, b = r.querySelector('button.pp');
     r.classList.toggle('now', on);
@@ -1884,8 +1894,8 @@ function remoteStartPolling() {
   remote.timer = setInterval(() => { if (!remote.busy && nowNum && !uploading) remoteCall('status', 0, 0); }, 3000);
   remote.tick = setInterval(remoteDraw, 250);
 }
-async function remotePlay(t) {
-  if (nowNum === t.number && (remote.state === 'playing' || remote.state === 'paused')) {           // same track: pause / resume
+async function remotePlay(t, startAt = 0) {                                       // startAt: seconds into the track to begin at (a Google TV only; a restart of the same track after a lyrics / font switch)
+  if (!startAt && nowNum === t.number && (remote.state === 'playing' || remote.state === 'paused')) {           // same track: pause / resume
     await remoteCall(remote.state === 'playing' ? 'pause' : 'resume', 0, 0); return;
   }
   if (!playingRemote) localVol = $('vol').value;
@@ -1896,10 +1906,10 @@ async function remotePlay(t) {
   const cold = netmd && !t.hasCopy && canExploitDev && !canFetchDev;          // read from the recorder first: a track that has not been read yet takes a while to start
   const sur = !!(castTarget && castTarget.kind === 'cast' && t.spatial && !netmd && appSettings.spatialTvSurround === true);
   setStatus(sur ? 'Preparing 5.1 surround for the TV, it can take a few seconds to start…' : cold ? 'Reading this track from the recorder, it can take 15–20 seconds to start…' : 'Telling the recorder to play…', true);
-  remote.state = 'ready'; remote.base = 0; remote.lastTrack = 0; markNow();
-  await remoteCall('play', t.number - 1, 0);
+  remote.state = 'ready'; remote.base = startAt; remote.lastTrack = 0; markNow();
+  await remoteCall('play', t.number - 1, startAt);
   if (remote.state === 'playing') remoteStartPolling();
-  if (sur && remote.state === 'playing') toast('Playing as 5.1 surround on the TV, with a still picture of the track instead of the lyric video.', false, 7000);
+  if (sur && remote.state === 'playing' && !sessionStorage.getItem('tvSurNote')) { try { sessionStorage.setItem('tvSurNote', '1'); } catch (e) { /* not kept */ } toast('Playing as 5.1 surround on the TV. It shows the timed lyrics when the track has them (the Lyrics button in the player bar switches that), otherwise a still picture.', false, 7000); }
   if (castTarget) { const v = await api().cast_volume(castTarget.ip); if (v.volume !== undefined) $('vol').value = v.volume; }
 }
 const playHint = t => t.hasCopy ? 'Play the copy the app saved when it added this track'
@@ -1973,6 +1983,40 @@ $('svBtn').addEventListener('click', async () => {
     toast(want ? 'Switched to the spatial version.' : 'Switched to the stereo track.');
   } else toast(want ? 'The next track you play will use its spatial version.' : 'The next track you play will use the normal stereo track.');
 });
+// ---- Lyrics on a Google TV during 5.1 surround (player bar): the same switch as in Settings ----------------------------------------------------
+function tvlRefresh() {
+  const b = $('tvlBtn'); if (!b) return;
+  const has = !!castTarget && castTarget.kind === 'cast' && appSettings.spatialTvSurround === true && !netmd && [...trackMap.values()].some(t => t.spatial);
+  b.classList.toggle('hidden', !has);
+  const on = appSettings.spatialTvLyrics !== false;
+  b.textContent = on ? '📺 Lyrics: On' : '📺 Lyrics: Off';
+  b.title = on ? 'While a spatial track plays as 5.1 surround on the TV, the TV shows its timed lyrics. Click to show the still picture instead (a track that is playing restarts on the TV from the same place, with a short pause).'
+               : 'While a spatial track plays as 5.1 surround on the TV, the TV shows a still picture. Click to show the timed lyrics instead (a track that is playing restarts on the TV from the same place, with a short pause).';
+}
+$('tvlBtn').addEventListener('click', () => tvlSet(appSettings.spatialTvLyrics === false));          // true: switch the lyrics on
+function tvRestartable() {                                                         // the spatial track that is playing as 5.1 on the TV now (or null)
+  const t = nowNum ? trackMap.get(nowNum) : null;
+  return t && t.spatial && !netmd && castTarget && castTarget.kind === 'cast' && appSettings.spatialTvSurround === true && playingRemote && (remote.state === 'playing' || remote.state === 'paused') ? t : null;
+}
+async function tvRestartHere(t) {                                                  // the TV plays another file: start it again and move to where it was
+  const pos = Math.floor(remoteNow()), paused = remote.state === 'paused';
+  remoteStopPolling(); remote.state = 'ready';
+  await remotePlay(t, pos > 2 ? pos : 0);                                          // the TV starts the new file at that second itself: no seeking afterwards (that made it stall again)
+  if (paused && nowNum === t.number && remote.state === 'playing') await remoteCall('pause', 0, 0);
+}
+async function tvlSet(want) {                                                      // the player-bar button and the pop-out's "TV lyrics" tick box both come here
+  if (!(await appSettingSet('spatialTvLyrics', want))) return;
+  tvlRefresh();
+  const t = tvRestartable();
+  if (t) { await tvRestartHere(t); toast(want ? 'Lyrics are on the TV now.' : 'The TV shows the still picture now.'); }
+  else toast(want ? 'The next 5.1 track you play will show its lyrics on the TV.' : 'The next 5.1 track you play will show the still picture on the TV.');
+}
+async function tvFontSet(font) {                                                   // the pop-out's "TV font" list: the same setting as Settings > Font on the TV lyric screens
+  if (!(await appSettingSet('tvFont', font))) return;
+  const t = tvRestartable();
+  if (t && appSettings.spatialTvLyrics !== false && t.lyrics === 'sync') { await tvRestartHere(t); toast('The TV now uses ' + font + '.'); }      // the lyric screen is on the TV: remake it with the new font
+  else toast('The TV will use ' + font + ' from the next track you start.');
+}
 // ---- Whole-window size: Shift and + / - (Shift + 0 for normal), remembered ------------------------------------
 let uiZoom = 1;
 function applyZoom(z, remember) {
@@ -2220,7 +2264,7 @@ $('stopT').addEventListener('click', () => { if (nowNum) stopPlayer(); });      
 
 // ---- Where to play: this PC, or a Sonos room ------------------------------------
 // The speaker plays straight from this PC over the home network; it needs to be on the same network.
-function castLabel() { $('castBtn').textContent = $('castBtnTop').textContent = '🔊 ' + (castTarget ? castTarget.name : 'This PC'); }
+function castLabel() { $('castBtn').textContent = $('castBtnTop').textContent = '🔊 ' + (castTarget ? castTarget.name : 'This PC'); try { tvlRefresh(); } catch (e) { /* page still starting */ } }
 $('castBtnTop').addEventListener('click', () => $('castBtn').click());       // the same chooser, from the header, so the place can be set before any track is played
 $('castBtn').addEventListener('click', async () => {
   const rows = el('div', { style: 'display:grid;gap:6px' });
@@ -2274,7 +2318,7 @@ $('castBtn').addEventListener('click', async () => {
     const hasSp = !!curDisc && [...trackMap.values()].some(t => t.spatial);
     const opts = [
       ['picture', 'Picture and lyrics', 'Stereo sound. The TV shows the cover, the title and the timed lyrics.'],
-      ['surround', '5.1 surround sound', 'For a soundbar or receiver on the TV. Used for tracks that have a spatial version; the TV shows a still picture of the track instead of the lyric video.' + (hasSp ? '' : ' (No track on the disc now has a spatial version.)')],
+      ['surround', '5.1 surround sound', 'For a soundbar or receiver on the TV. Used for tracks that have a spatial version; the TV shows the timed lyrics (or a still picture of the track when it has none).' + (hasSp ? '' : ' (No track on the disc now has a spatial version.)')],
       ['sound', 'Sound only', 'Stereo sound, no picture. The quickest to start.']];
     const box = el('div', { className: 'notice tv-opts', style: 'display:grid;gap:10px' }, el('b', { textContent: 'How should ' + castTarget.name + ' play?' }));
     for (const [k, name, text] of opts) {
@@ -8500,6 +8544,9 @@ function popLabels() {
   const t = t_;
   return { display: t('Display'), colour: t('Colour'), sens: t('Sensitivity'), peaks: t('Peak marks'), dock: t('Dock back'), prev: t('Previous track'), pp: t('Play / pause'), next: t('Next track'),
     waiting: t('Waiting for the main window…'), idle: t('Nothing is playing'), title: t('Visualiser and track playing'),
+    tvLyrics: t('TV lyrics'), tvLyricsTip: t('While a spatial track plays as 5.1 surround on the TV: show its lyrics on the TV screen (on) or the still picture (off). The playing track restarts on the TV from the same place.'),
+    tvFont: t('TV font'), tvFontTip: t('The typeface of the lyric screen on the TV (the same choice as in Settings). A 5.1 track that is playing restarts on the TV from the same place; otherwise it applies from the next track.'),
+    lyrTimingTip: t('Lyrics timing: if the lit line comes too early, press − (later); too late, press + (earlier)'),
     volume: t('Volume'), lyrics: t('Lyrics'), elapsed: t('Elapsed'), remaining: t('Remaining'), trackLength: t('Track length'), discElapsed: t('Disc elapsed'), discRemaining: t('Disc remaining'), discTotal: t('Disc total') };
 }
 function popVars() {
@@ -8514,6 +8561,8 @@ function popState(full) {
   const m = { t: 'state', ok, title: ok ? ($('npTitle').textContent || (t.title && t.title !== '(untitled)' ? t.title : 'Track ' + nowNum)) : '', artist: ok ? (t.artist || '') : '', album: ok ? (t.album || '') : '',
     status: ok ? ($('npStatus').textContent || '') : '', playing: ok && isPlaying(), tcur: $('tcur').textContent, ttot: $('ttot').textContent, seek: Number($('seek').value) || 0,
     vol: $('vol').style.display === 'none' ? null : Number($('vol').value),
+    tvl: $('tvlBtn').classList.contains('hidden') ? -1 : (appSettings.spatialTvLyrics !== false ? 1 : 0),          // lyrics on a TV during 5.1: -1 not available, 0 off, 1 on
+    tvf: castTarget && castTarget.kind === 'cast' ? (appSettings.tvFont || 'Arial') : '',                          // the TV's lyric font (empty: no Google TV is the player)
     prevOk: !$('prevT').disabled, nextOk: !$('nextT').disabled,
     deck: ok && deckLive() ? { track: $('dkTrack').textContent, mode: $('dkMode').textContent, title: $('dkTitle').textContent, who: $('dkArtist').textContent, el: $('dkEl').dataset.v || '', rem: $('dkRem').dataset.v || '', len: $('dkLen').dataset.v || '',
       dEl: $('dkDEl').dataset.v || '', dRem: $('dkDRem').dataset.v || '', dTot: $('dkDTot').dataset.v || '', dRemNa: $('dkDRemBox').classList.contains('na'), ink: $('deckTimes').style.getPropertyValue('--deck-ink') } : null,
@@ -8525,7 +8574,7 @@ function popState(full) {
     m.lyrics = lk ? { synced: !!lyr.data.synced, source: lyr.data.source === 'whisper' ? t_('made by listening, may contain mistakes') : '', lines: lyr.data.lines.map(l => l[1] || (lyr.data.synced ? '♪' : '')) } : null;
     popOut.lyrKey = lk;
   }
-  m.lyrCur = lk ? lyr.cur : -2;                                                                 // which line is lit now (-1: before the first)
+  m.lyrCur = lk ? (lyr.popCur !== undefined && lyr.popCur > -2 ? lyr.popCur : lyr.cur) : -2;                                                                 // which line is lit now (-1: before the first)
   return m;
 }
 function popPush(full) { if (popOut.on && popOut.ch) { try { popOut.ch.postMessage(popState(full)); } catch (e) { /* the channel is closing */ } } }
@@ -8559,6 +8608,9 @@ function popMessage(ev) {
     vizSave(); popPush();
   }
   else if (m.t === 'geom') { try { localStorage.setItem('mdm.popSize', JSON.stringify({ w: m.w, h: m.h })); } catch (e) { /* not kept */ } }
+  else if (m.t === 'lyrOff') popOut.lead = Number(m.v) || 0;
+  else if (m.t === 'tvl') tvlSet(!!m.v);
+  else if (m.t === 'tvFont') tvFontSet(String(m.v || ''));
   else if (m.t === 'dock' || m.t === 'bye') popDock();
 }
 async function popOpen() {
@@ -8797,7 +8849,7 @@ const lyr = { num: -1, data: null, cur: -2, hidden: localStorage.getItem('lyrics
 function lyrPos() { return playingRemote ? remoteNow() : (audio.getAttribute('src') ? audio.currentTime : 0); }      // no sound source yet (the next track is still being read): the clock of the previous track must not count
 function lyrShow() { $('lyrics').classList.toggle('hidden', !(lyr.data && !lyr.hidden && nowNum)); }
 async function lyrLoad(num) {
-  lyr.num = num; lyr.data = null; lyr.cur = -2; lyr.rows = []; $('lyrTrack').replaceChildren(); $('lyrTrack').style.transform = ''; $('lyrSrc').textContent = '';
+  lyr.num = num; lyr.data = null; lyr.cur = -2; lyr.popCur = -2; lyr.rows = []; $('lyrTrack').replaceChildren(); $('lyrTrack').style.transform = ''; $('lyrSrc').textContent = '';
   const t = trackMap.get(num);
   if (t && t.lyrics) {
     const d = await api().lyrics_get(num);
@@ -8813,11 +8865,14 @@ async function lyrLoad(num) {
 }
 function lyrTick() {
   if (!lyr.data || !lyr.data.synced || $('lyrics').classList.contains('hidden')) return;
-  const p = lyrPos() - lyr.data.offset + (popOut.on ? 0.12 : 0), L = lyr.data.lines;
+  const p = lyrPos() - lyr.data.offset, L = lyr.data.lines;
+  if (popOut.on) {                                                                // the pop-out is told a moment early (its message and scroll take time); this window's own lyrics are not
+    const q = p + (popOut.lead || 0); let k = -1; while (k + 1 < L.length && L[k + 1][0] <= q) k++;
+    if (k !== lyr.popCur) { lyr.popCur = k; popPush(false); }
+  }
   let i = -1; while (i + 1 < L.length && L[i + 1][0] <= p) i++;
   if (i === lyr.cur) return;
-  lyr.cur = i;
-  if (popOut.on) popPush(false);                                                  // the pop-out lights the new line at once (not up to 250 ms later)
+  lyr.cur = i;                                                  // the pop-out lights the new line at once (not up to 250 ms later)
   lyr.rows.forEach((r, k) => { r.classList.toggle('cur', k === i); r.classList.toggle('past', k < i); });
   const r = lyr.rows[Math.max(i, 0)], box = $('lyrLines');
   if (r) $('lyrTrack').style.transform = 'translateY(' + Math.min(0, Math.round(box.clientHeight / 2 - (r.offsetTop + r.offsetHeight / 2))) + 'px)';      // the current line goes to the middle (the first ones stay at the top)

@@ -16,12 +16,22 @@ DEFAULTS = {
     'fillArtist': True,                  # a track whose lyrics were found and matched, and that has no artist, takes the artist the lyrics record names
     'spatialBinaural': True,             # a track with a spatial version on the disc plays that version here, rendered for headphones; off: the stereo track plays
     'spatialTvSurround': False,          # a spatial track played on a Google TV goes there as Dolby Digital Plus 5.1 SOUND (a soundbar then plays real surround, but that TV shows no picture); off: the stereo lyric video
-    'allowPatch': True,                  # a Hi-MD recorder in standard-disc mode (MZ-NH700...) may be given the temporary firmware patch that lets it send a track back (playback, save, identify, clone...); off: never, it is played by remote control
+    'spatialTvLyrics': True,             # with 5.1 surround on a Google TV, a track that has timed lyrics shows the lyric screen (the sound is the same 5.1); off: the still picture
+    'tvFont':'Segoe UI',                # the typeface of the lyric screens on a Google TV (one of lyricvideo.TV_FONTS); the only setting that is a name, not on / off
+    'allowPatch': True,                # a Hi-MD recorder in standard-disc mode (MZ-NH700...) may be given the temporary firmware patch that lets it send a track back (playback, save, identify, clone...); off: never, it is played by remote control
     'rememberLayout': True,              # the card places, sizes and hidden cards are kept between runs; off: the app always opens in the stock layout
     'checkUpdates': True,                # once a day (and on Help > Check for updates) the program asks the project's GitHub page whether a newer version exists and shows a notice
     'suggestPopout': True,               # while a track plays the Pop out button pulses and a note offers the pop-out window (stops once it has been used)
     'askMissing': True,                  # a disc with details missing (artist, album, picture, lyrics) shows the "missing some details" prompt
 }
+
+
+def _choices(key):
+    """The allowed values of a setting that is a name (not on / off)."""
+    if key == 'tvFont':
+        import lyricvideo
+        return lyricvideo.TV_FONTS
+    return ()
 
 
 class AppSettingsMixin:
@@ -32,7 +42,10 @@ class AppSettingsMixin:
                 saved = json.load(f)
             if isinstance(saved, dict):
                 for k in DEFAULTS:
-                    if isinstance(saved.get(k), bool):
+                    if isinstance(DEFAULTS[k], str):
+                        if saved.get(k) in _choices(k):
+                            out[k] = saved[k]
+                    elif isinstance(saved.get(k), bool):
                         out[k] = saved[k]
         except (OSError, ValueError):
             pass
@@ -48,7 +61,12 @@ class AppSettingsMixin:
         if key not in DEFAULTS:
             return {'error': 'Unknown setting.'}
         cur = self._app_settings_read()
-        cur[key] = bool(value)
+        if isinstance(DEFAULTS[key], str):
+            if value not in _choices(key):
+                return {'error': 'That is not one of the choices.'}
+            cur[key] = value
+        else:
+            cur[key] = bool(value)
         try:
             os.makedirs(USER_DIR, exist_ok=True)
             tmp = SETTINGS_FILE + '.tmp'
