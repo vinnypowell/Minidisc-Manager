@@ -360,7 +360,7 @@ class DiscToolsMixin:
                 return res
             say('Switching the recorder to Hi-MD mode…')              # it disconnects and comes back as a Hi-MD device
             self._release_devices()
-            deadline, back = time.time() + 90, False
+            deadline, back = time.time() + 30, False
             while time.time() < deadline and not back:
                 time.sleep(2)
                 try:
@@ -368,8 +368,9 @@ class DiscToolsMixin:
                 except Exception:
                     back = False
             if not back:
-                return {'error': 'The disc was erased and the recorder was switched to Hi-MD mode, but it did not reappear. Unplug and reconnect it, press rescan, '
-                                 'and use Format again to finish setting up the disc.', 'unfinished': True}
+                return {'error': 'The disc was erased, but the recorder did not switch to Hi-MD mode (some recorders sometimes ignore the switch). Take the battery out of the '
+                                 'recorder for a few seconds so it is completely off, put it back, reconnect the USB cable, press rescan and use Format again '
+                                 'to finish setting up the disc. The disc is already erased, so nothing is lost.', 'unfinished': True}
             time.sleep(3)
             say('Setting up the Hi-MD disc…')
             res = self._run_helper('format', {})

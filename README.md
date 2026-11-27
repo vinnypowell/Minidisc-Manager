@@ -2,12 +2,13 @@
 
 A software utility for Windows, and as a beta for Macs with Apple silicon, to manage Hi-MD and standard MiniDisc recorders over USB: see what is on a disc, add, move, split, combine, rename and delete tracks, group them, copy a disc, save tracks to the PC or to a Walkman, and play a disc on the PC, a Sonos speaker or a Google TV while the disc is read.
 
-Version 0.41.2 (Windows) · 0.41.2 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+Version 0.42.0 (Windows) · 0.42.0 (beta) (macOS) · Copyright (c) 2026 Vinny Powell · see `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
 
 ## What it does
 
 - Reads and edits Hi-MD discs (PCM, ATRAC3 LP2/LP4, ATRAC3plus, MP3) and NetMD / standard MiniDisc discs.
 - Adds tracks from files, audio CDs, Bandcamp, SoundCloud, internet radio, podcasts, audiobooks, Yoto cards and a Sony Walkman (or another audio player that shows up as a drive), and copies a disc to such a player.
+- **0.42.0:** new: a smaller sticker size in **Disc Stickers**, "J-card disc sticker (7:12, 35 × 60 mm)", the same shape as the Disc J-Cards sticker (now 35 mm wide by default); it can be sent to the HP Sprocket and the Polaroid Hi-Print, centred at its true size on the 2 × 3 inch paper, with a tick box for a thin cut line around the 35 × 60 mm area. New: a disc with HMSA spatial audio tracks (for example HMSA Opus 5.1) can show an **HMSA badge** on its stickers and J-cards. With the track list switched off, the album name and artist are set larger to fill the sticker. French, German, Dutch and Spanish texts are included.
 - **0.41.2:** new: **lyrics on a Google TV during 5.1 surround**: a spatial track that plays as 5.1 surround on a TV now shows its cover, title, artist, album and the timed lyrics (the line being sung lit) on the TV, with the same 5.1 sound, instead of a still picture (a track without timed lyrics keeps the still picture). Switch it in Settings or with the Lyrics button in the player bar. New: **Font on the TV lyric screens** (Settings), nine typefaces for the stereo lyric video and the 5.1 screen. The Pop Out window now has a TV lyrics tick box, a TV font list and a Lyrics timing control. Fix: a long track title no longer runs over the album line on the TV. French, German, Dutch and Spanish texts are included.
 - **0.41.1:** fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead to the last lines while the track is still being read from the disc.
 - **0.41.0:** fix: the lyrics in the Pop Out window now keep time with the music even when the main window is behind it or minimised. The player bar at the bottom no longer clips its right-hand buttons (Play on, Repeat, EQ, Surround, room, volume) in a narrow window: they drop to a second row.

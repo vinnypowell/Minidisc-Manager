@@ -1,7 +1,9 @@
-MiniDisc Manager for Mac - version 0.41.2 (BETA)
+MiniDisc Manager for Mac - version 0.42.0 (BETA)
 ====================================================================
 
-New: lyrics on a Google TV during 5.1 surround. A spatial track that plays as 5.1 surround on a TV now shows its cover, title, artist, album and the timed lyrics on the TV, with the same 5.1 sound, instead of a still picture (a track without timed lyrics keeps the still picture). Switch it in Settings or with the Lyrics button in the player bar. New: Font on the TV lyric screens (Settings), nine typefaces. The Pop Out window now has a TV lyrics tick box, a TV font list and a Lyrics timing control. Fix: a long track title no longer runs over the album line on the TV. Not yet tried on a Mac with a real TV.
+New: a smaller sticker size in Disc Stickers, "J-card disc sticker (7:12, 35 x 60 mm)", the same shape as the Disc J-Cards sticker (now 35 mm wide by default). It can be sent to the HP Sprocket and the Polaroid Hi-Print, centred at its true size on the 2 x 3 inch paper, with a tick box for a thin cut line around the 35 x 60 mm area. New: a disc with HMSA spatial audio tracks (for example HMSA Opus 5.1) can show an HMSA badge on its stickers and J-cards. With the track list switched off, the album name and artist are set larger to fill the sticker.
+
+Since 0.41.2 - New: lyrics on a Google TV during 5.1 surround. A spatial track that plays as 5.1 surround on a TV now shows its cover, title, artist, album and the timed lyrics on the TV, with the same 5.1 sound, instead of a still picture (a track without timed lyrics keeps the still picture). Switch it in Settings or with the Lyrics button in the player bar. New: Font on the TV lyric screens (Settings), nine typefaces. The Pop Out window now has a TV lyrics tick box, a TV font list and a Lyrics timing control. Fix: a long track title no longer runs over the album line on the TV. Not yet tried on a Mac with a real TV.
 
 Since 0.41.1 - Fix: when an album plays on from one track to the next, the lyrics of the new track no longer jump ahead while it is still being read.
 

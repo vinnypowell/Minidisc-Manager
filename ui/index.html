@@ -549,6 +549,8 @@
 <script src="lang_es_p16.js"></script>
 <script src="lang_p17.js"></script>
 <script src="lang_es_p17.js"></script>
+<script src="lang_p18.js"></script>
+<script src="lang_es_p18.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -2722,9 +2724,25 @@ $('coverRemove').addEventListener('click', async () => {
 // Landscape: 1500 x 1000 (3 x 2 in). The album art, title and artist are on the left, the track list on the right.
 // "Groups only" label: a grid with one tile per group (its picture, name, and "N tracks · length"); no track list. The grid picks the number of
 // columns that gives the biggest pictures; a group without a picture gets a grey square with its first letter.
+// HMSA badge: a disc with spatial (HMSA) tracks can show "HMSA | Opus 5.1" on its stickers and J-cards. hmsaBadge() gives the text part, or null when the disc has no spatial track.
+function hmsaBadge() {
+  if (netmd) return null; const ks = new Set();
+  [...trackMap.values()].forEach(t => { if (t.spatial) ks.add((t.spatial.codec === 'opus' ? 'Opus' : 'Lossless') + (t.spatial.layout ? ' ' + t.spatial.layout : t.spatial.channels ? ' ' + t.spatial.channels + 'ch' : '')); });
+  return ks.size ? { b: ks.size === 1 ? [...ks][0] : '' } : null;
+}
+function drawHmsaBadge(ctx, b, h, x, y, align) {                          // blue "HMSA" half + white codec/layout half, h px tall, anchored at x (left/center/right), top at y
+  ctx.save(); const f = Math.round(h * .52), pad = h * .38, fnt = bold => (bold ? '700 ' : '600 ') + f + 'px "Segoe UI", Arial, sans-serif';
+  ctx.font = fnt(true); const wa = ctx.measureText('HMSA').width + 2 * pad; ctx.font = fnt(false); const wb = b ? ctx.measureText(b).width + 2 * pad : 0, w = wa + wb;
+  const x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  ctx.beginPath(); ctx.roundRect(x0, y, w, h, h / 2); ctx.save(); ctx.clip(); ctx.fillStyle = '#fff'; ctx.fillRect(x0, y, w, h); ctx.fillStyle = '#1f6feb'; ctx.fillRect(x0, y, wa, h); ctx.restore();
+  ctx.lineWidth = Math.max(2, h * .06); ctx.strokeStyle = '#1f6feb'; ctx.stroke(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#fff'; ctx.font = fnt(true); ctx.fillText('HMSA', x0 + pad, y + h / 2 + 1);
+  if (b) { ctx.fillStyle = '#1f6feb'; ctx.font = fnt(false); ctx.fillText(b, x0 + wa + pad, y + h / 2 + 1); }
+  ctx.restore();
+}
 function drawGroupsOverview(cv, o) {
-  const wide = !!o.landscape, W = wide ? 1500 : 1000, H = wide ? 1000 : 1500, M = wide ? 50 : 60, GAP = 26, ctx = cv.getContext('2d'), font = (px, bold) => (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif';
-  cv.width = W; cv.height = H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.textBaseline = 'top';
+  const wide = !!o.landscape, W = wide ? 1500 : 1000, HH = wide ? 1000 : (o.s34 ? 1714 : 1500), BH = o.s34 ? 120 : 96, B = o.hmsa ? BH + 28 : 0, H = HH - B, M = wide ? 50 : 60, GAP = 26, ctx = cv.getContext('2d'), font = (px, bold) => (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif';
+  cv.width = W; cv.height = HH; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, HH); ctx.textBaseline = 'top'; if (o.hmsa) drawHmsaBadge(ctx, o.hmsa.b, BH, wide ? M : W / 2, H, wide ? 'left' : 'center');
   const wrap = (text, px, bold, maxLines, maxW) => {
     ctx.font = font(px, bold); const words = String(text || '').split(/\s+/).filter(Boolean), lines = []; let cur = '';
     for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; } }
@@ -2765,8 +2783,8 @@ function drawHead(ctx, fnt, text, x, y, w, px) {
   ctx.fillText(s + (s.length < text.length ? '…' : ''), x, y); ctx.fillStyle = '#999'; ctx.fillRect(x, y + Math.round(px * 1.12), w, 2);
 }
 function drawLabelWide(cv, o) {
-  const W = 1500, H = 1000, M = 50, GAP = 60, CG = 36, ctx = cv.getContext('2d'), font = (px, bold) => (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif';
-  cv.width = W; cv.height = H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.textBaseline = 'top';
+  const W = 1500, HH = 1000, BH = o.s34 ? 120 : 96, B = o.hmsa ? BH + 28 : 0, H = HH - B, M = 50, GAP = 60, CG = 36, ctx = cv.getContext('2d'), font = (px, bold) => (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif';
+  cv.width = W; cv.height = HH; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, HH); ctx.textBaseline = 'top'; if (o.hmsa) drawHmsaBadge(ctx, o.hmsa.b, BH, M, H - (o.tracks.length ? 0 : Math.round(5 * W / 76.2)), 'left');
   const wrap = (text, px, bold, maxLines, maxW) => {
     ctx.font = font(px, bold); const words = String(text || '').split(/\s+/).filter(Boolean), lines = []; let cur = '';
     for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; } }
@@ -2801,7 +2819,7 @@ function drawLabelWide(cv, o) {
   }
   const gap = hasLeft ? GAP : 0;
   if (hasLeft) {
-    const tpx = o.img ? (L >= 560 ? 68 : 60) : (L >= 560 ? 84 : 72), apx = Math.round(tpx * .72), sp = px => Math.round(px * 1.18);
+    const tpx = (o.img ? (L >= 560 ? 68 : 60) : (L >= 560 ? 84 : 72)) + (n ? 0 : 18), apx = Math.round(tpx * .72), sp = px => Math.round(px * 1.18);
     const tl = wrap(o.title, tpx, true, o.img ? 3 : 5, L), al = wrap(o.artist, apx, false, 2, L);
     const textH = sp(tpx) * tl.length + (tl.length ? 6 : 0) + sp(apx) * al.length;
     let y = M;
@@ -2833,12 +2851,16 @@ function drawLabelWide(cv, o) {
     if (t.time) { ctx.textAlign = 'right'; ctx.fillText(t.time, x + colW, yy); ctx.textAlign = 'left'; }
   });
 }
-function drawLabel(cv, o) {
+function drawLabel(cv, o) {                                       // o.cut (35 x 60 sticker only): a thin line on the very edge of the picture, to cut along
+  drawLabelBase(cv, o);
+  if (o.cut) { const x = cv.getContext('2d'); x.save(); x.strokeStyle = '#555'; x.lineWidth = 4; x.setLineDash([]); x.strokeRect(2, 2, cv.width - 4, cv.height - 4); x.restore(); }
+}
+function drawLabelBase(cv, o) {
   if (o.overview) return drawGroupsOverview(cv, o);
   if (o.landscape) return drawLabelWide(cv, o);
-  const W = 1000, H = 1500, M = 60, ctx = cv.getContext('2d'), font = (px, bold) => (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif';
-  cv.width = W; cv.height = H;
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.textBaseline = 'top';
+  const W = 1000, HH = o.s34 ? 1714 : 1500, BH = o.s34 ? 120 : 96, B = o.hmsa ? BH + 28 : 0, H = HH - B, M = 60, ctx = cv.getContext('2d'), font = (px, bold) => (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif';
+  cv.width = W; cv.height = HH;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, HH); ctx.textBaseline = 'top'; if (o.hmsa) drawHmsaBadge(ctx, o.hmsa.b, BH, W / 2, H - (o.tracks.length ? 0 : Math.round(5 * W / (o.s34 ? 35 : 50.8))), 'center');   // no track list: 5 mm higher, true size on the paper
   const wrap = (text, px, bold, maxLines) => {                // word-wrap into at most maxLines lines, ellipsis on the last
     ctx.font = font(px, bold); const words = String(text || '').split(/\s+/).filter(Boolean), lines = []; let cur = '';
     for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width <= W - 2 * M || !cur) cur = t; else { lines.push(cur); cur = w; } }
@@ -2846,8 +2868,8 @@ function drawLabel(cv, o) {
     if (lines.length > maxLines) { lines.length = maxLines; let l = lines[maxLines - 1]; while (l.length > 1 && ctx.measureText(l + '…').width > W - 2 * M) l = l.slice(0, -1); lines[maxLines - 1] = l + '…'; }
     return lines;
   };
-  const tpx = o.img ? 66 : 84, apx = Math.round(tpx * .72), lh = (px, n) => n * Math.round(px * 1.18);
-  const tl = wrap(o.title, tpx, true, o.img ? 2 : 3), al = wrap(o.artist, apx, false, 2);
+  const noList = !o.tracks.length, tpx = noList ? (o.img ? 90 : 116) : (o.img ? 66 : 84), apx = Math.round(tpx * .72), lh = (px, n) => n * Math.round(px * 1.18);      // no track list: the title and artist are set larger to use the room
+  const tl = wrap(o.title, tpx, true, noList ? (o.img ? 3 : 4) : (o.img ? 2 : 3)), al = wrap(o.artist, apx, false, noList ? 3 : 2);
   const head = lh(tpx, tl.length) + (tl.length ? 6 : 0) + lh(apx, al.length), rule = o.tracks.length ? (head || o.img ? 18 + 3 + 24 : 0) : 0;
   // the list shrinks first; if it still will not fit in one column the picture gets smaller, and only then does it go into two columns
   const fitPx = (avail, cols) => { for (let px = 56; px >= 34; px -= 2) if (Math.floor(avail / Math.round(px * 1.22)) * cols >= o.tracks.length) return px; return 0; };
@@ -2887,13 +2909,13 @@ function openLabel() {
   const title = el('input', { type: 'text', value: (groupsOf().length ? (d.title || '').trim() : '') || g.album || d.title || '', placeholder: 'Album', style: field });
   const sameArtist = () => { const s = new Set((d.tracks || []).map(t => (t.artist || '').trim())); return s.size === 1 ? [...s][0] : ''; };   // a disc with groups: only an artist all the tracks share
   const artist = el('input', { type: 'text', value: groupsOf().length ? sameArtist() : g.artist, placeholder: 'Artist', style: field });
-  const useImg = el('input', { type: 'checkbox', checked: !!dCover, disabled: !dCover }), useList = el('input', { type: 'checkbox', checked: true }), useTime = el('input', { type: 'checkbox', checked: true }), useName = el('input', { type: 'checkbox', checked: true });
-  let wide = false; try { wide = localStorage.getItem('labelWide') === '1'; } catch (e) { /* no storage */ }
+  const useImg = el('input', { type: 'checkbox', checked: !!dCover, disabled: !dCover }), useList = el('input', { type: 'checkbox', checked: true }), useTime = el('input', { type: 'checkbox', checked: true }), useName = el('input', { type: 'checkbox', checked: true }), hmsa = hmsaBadge(), useHmsa = el('input', { type: 'checkbox', checked: true, title: hmsa ? ('HMSA ' + hmsa.b).trim() : '' }), useCut = el('input', { type: 'checkbox', checked: true });
+  let wide = false, s34 = false; try { wide = localStorage.getItem('labelWide') === '1'; s34 = localStorage.getItem('labelSize') === 's'; if (s34) wide = false; } catch (e) { /* no storage */ }
   const cv = el('canvas', { style: 'border:1px solid var(--line);border-radius:4px;background:#fff;flex:none' });
-  const orient = el('select', { style: field, title: 'Portrait is 2 x 3 inches (like the Sprocket sticker); landscape is 3 x 2 inches with the track list on the right' },
-    el('option', { value: 'p', textContent: 'Portrait (2 × 3 in)' }), el('option', { value: 'l', textContent: 'Landscape (3 × 2 in)' }));
-  orient.value = wide ? 'l' : 'p';
-  const sizeCv = () => { cv.style.width = wide ? '330px' : '200px'; cv.style.height = wide ? '220px' : '300px'; };
+  const orient = el('select', { style: field, title: 'Portrait is 2 x 3 inches (like the Sprocket sticker); landscape is 3 x 2 inches with the track list on the right; the J-card disc sticker is 7:12 (35 x 60 mm), the same shape as the disc sticker on the J-Cards tab' },
+    el('option', { value: 'p', textContent: 'Portrait (2 × 3 in)' }), el('option', { value: 'l', textContent: 'Landscape (3 × 2 in)' }), el('option', { value: 's', textContent: 'J-card disc sticker (7:12, 35 × 60 mm)' }));
+  orient.value = s34 ? 's' : wide ? 'l' : 'p'; useCut.disabled = !s34;
+  const sizeCv = () => { cv.style.width = wide ? '330px' : s34 ? '200px' : '200px'; cv.style.height = wide ? '220px' : s34 ? '343px' : '300px'; };
   sizeCv();
   let img = null;
   const lt = sec => { sec = Math.round(sec || 0); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
@@ -2919,9 +2941,9 @@ function openLabel() {
   };
   const isOver = () => scope.value === 'groups', groupImgs = new Map();         // groupImgs: group index -> its picture (loaded once), for the Groups only label
   const preload = () => groups.forEach(async gr => { const u = gaArt(gr.title); if (u) { groupImgs.set(gr.index, await loadImg(u)); if (isOver()) redraw(); } });
-  const overview = (ttl, art) => ({ overview: true, landscape: wide, title: useName.checked ? ttl : '', artist: useName.checked ? art : '', showPics: useImg.checked,
+  const overview = (ttl, art) => ({ overview: true, landscape: wide, s34, cut: s34 && useCut.checked, hmsa: useHmsa.checked ? hmsa : null, title: useName.checked ? ttl : '', artist: useName.checked ? art : '', showPics: useImg.checked,
     groups: groups.map(gr => ({ title: gr.title, img: groupImgs.get(gr.index) || null, sub: gr.nums.length + (gr.nums.length === 1 ? ' track' : ' tracks') + (useTime.checked ? ' · ' + lt(groupTracks(gr).reduce((s, t) => s + (t.seconds || 0), 0)) : '') })) });
-  const build = (gr, im, ttl, art) => isOver() && !gr ? overview(ttl, art) : ({ landscape: wide, title: useName.checked ? ttl : '', artist: useName.checked ? art : '', img: useImg.checked ? im : null, tracks: useList.checked ? rowsFor(gr) : [] });
+  const build = (gr, im, ttl, art) => isOver() && !gr ? overview(ttl, art) : ({ landscape: wide, s34, cut: s34 && useCut.checked, hmsa: useHmsa.checked ? hmsa : null, title: useName.checked ? ttl : '', artist: useName.checked ? art : '', img: useImg.checked ? im : null, tracks: useList.checked ? rowsFor(gr) : [] });
   const redraw = () => drawLabel(cv, build(curGroup(), img, title.value.trim(), artist.value.trim()));
   const loadImg = src => new Promise(res => { if (!src) { res(null); return; } const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
   const setPicture = async () => { const src = groupPic(curGroup()); img = await loadImg(src); useImg.disabled = !img; if (!img) useImg.checked = false; redraw(); };
@@ -2947,8 +2969,14 @@ function openLabel() {
     } finally { saveAll.disabled = false; saveAll.textContent = was; }
   } });
   if (dCover) { img = new Image(); img.onload = redraw; img.src = dCover; }
-  orient.addEventListener('change', () => { wide = orient.value === 'l'; try { localStorage.setItem('labelWide', wide ? '1' : '0'); } catch (e) { /* no storage */ } sizeCv(); redraw(); });
-  [title, artist].forEach(i => i.addEventListener('input', redraw)); [useImg, useList, useTime].forEach(i => i.addEventListener('change', redraw));
+  const paperImg = () => {                                         // the 7:12 sticker is smaller than the 2 x 3 inch paper: centred on a white 2:3 page at true size (35 x 60 mm of 50.8 x 76.2 mm), (the cut line, if ticked, is part of the picture)
+    if (!s34) return cv.toDataURL('image/png');
+    const c = document.createElement('canvas'), x = c.getContext('2d'), w = Math.round(1000 * 35 / 50.8), h = Math.round(w * 60 / 35), ox = Math.round((1000 - w) / 2), oy = Math.round((1500 - h) / 2);
+    c.width = 1000; c.height = 1500; x.fillStyle = '#fff'; x.fillRect(0, 0, 1000, 1500); x.drawImage(cv, ox, oy, w, h);
+    return c.toDataURL('image/png');
+  };
+  orient.addEventListener('change', () => { wide = orient.value === 'l'; s34 = orient.value === 's'; try { localStorage.setItem('labelWide', wide ? '1' : '0'); localStorage.setItem('labelSize', orient.value); } catch (e) { /* no storage */ } sizeCv(); useCut.disabled = !s34; redraw(); });
+  [title, artist].forEach(i => i.addEventListener('input', redraw)); [useImg, useList, useTime, useHmsa, useCut].forEach(i => i.addEventListener('change', redraw));
   useList.addEventListener('change', () => { useTime.disabled = !useList.checked; });
   useName.addEventListener('change', () => { title.disabled = artist.disabled = !useName.checked; redraw(); });
   const opt = (box, text) => el('label', { style: 'display:flex;gap:7px;align-items:center;cursor:pointer' }, box, el('span', { textContent: text }));
@@ -2959,7 +2987,7 @@ function openLabel() {
   const hiprint = el('button', { textContent: 'Send to Hi-Print', title: 'Print this label on the paired Polaroid Hi-Print 2x3, over Bluetooth (close the Polaroid app on your phone first)', onclick: async () => {
     if (hiprint.disabled) return;
     hiprint.disabled = true; const was = hiprint.textContent; hiprint.textContent = 'Sending…';
-    const r = await api().label_hiprint_print(cv.toDataURL('image/png'), wide);
+    const r = await api().label_hiprint_print(paperImg(), wide);
     hiprint.disabled = false; hiprint.textContent = was; showFilm();
     if (r.error) toast(r.error, true, 9000); else toast('Sent to ' + (r.printer || 'the printer') + '. It prints in a few seconds.');
   } });
@@ -2980,7 +3008,7 @@ function openLabel() {
     if (sprocket.disabled) return;
     sprocket.disabled = true; const was = sprocket.textContent; sprocket.textContent = 'Sending…';
     toast('Sending the label to the Sprocket…', false, 5000);
-    const r = await api().label_sprocket_print(cv.toDataURL('image/png'), wide);
+    const r = await api().label_sprocket_print(paperImg(), wide);
     sprocket.disabled = false; sprocket.textContent = was;
     if (r.error) toast(r.error, true, 9000); else toast('Sent to ' + (r.printer || 'the printer') + '. It prints in a few seconds.');
   } });
@@ -3005,7 +3033,7 @@ function openLabel() {
   openSheet(el('h2', { textContent: 'Disc label' }),
     el('div', { style: 'display:flex;gap:16px;align-items:flex-start;margin:8px 0' }, cv,
       el('div', { style: 'display:grid;gap:8px;flex:1;min-width:0' }, groups.length ? scope : '', orient, opt(useImg, 'Show the album art'), opt(useName, 'Show the disc title and artist'), title, artist, opt(useList, 'Show the track list'),
-        groups.length ? opt(useHeads, 'Group names as headings in the list (whole disc)') : '', groups.length ? opt(renum, 'Number the group’s tracks from 1') : '', opt(useTime, 'Show the track times'),
+        groups.length ? opt(useHeads, 'Group names as headings in the list (whole disc)') : '', groups.length ? opt(renum, 'Number the group’s tracks from 1') : '', opt(useTime, 'Show the track times'), hmsa ? opt(useHmsa, 'Show the HMSA badge') : '', opt(useCut, 'Thin cut line around the sticker (35 × 60 mm size only)'),
         el('div', { className: 'notice', textContent: 'A 2 × 3 inch portrait picture (1000 × 1500 pixels), the size of an HP Sprocket sticker. Print it from the HP Sprocket app, or save it for any printer.' }))),
     el('div', { style: 'margin-top:14px' },
       el('div', { textContent: 'Print the label', style: 'font-size:12px;opacity:.7;margin:0 0 6px' }),
@@ -3022,7 +3050,7 @@ function openLabel() {
 }
 $('printLabel').addEventListener('click', openLabel);
 // ---- Disc J-cards (J-card, disc sticker) for an ordinary printer ------------------------------------------------------------
-// Sizes in millimetres, drawn at 300 dpi: J-card 84.5 x 73, left to right tab 11, spine 5.5, front 68 (folds at 11 and 16.5); bi-fold 150.5 x 73 adds a fold-out panel 66 (fold at 84.5); sticker 3:4.
+// Sizes in millimetres, drawn at 300 dpi: J-card 84.5 x 73, left to right tab 11, spine 5.5, front 68 (folds at 11 and 16.5); bi-fold 150.5 x 73 adds a fold-out panel 66 (fold at 84.5); sticker 7:12.
 const JC_DPI = 300, jcPx = mm => Math.round(mm * JC_DPI / 25.4);
 function jcFont(px, bold) { return (bold ? '700 ' : '400 ') + px + 'px "Segoe UI", Arial, sans-serif'; }
 function jcWrap(ctx, text, px, bold, maxLines, maxW) {
@@ -3062,6 +3090,7 @@ function drawJFront(cv, o) {                                                // t
     ctx.fillStyle = fg; ctx.font = jcFont(tpx, true); tl.forEach(l => { ctx.fillText(l, fx + M, y); y += sp(tpx); });
     y += al.length ? 20 : 0; ctx.fillStyle = sub; ctx.font = jcFont(apx, false); al.forEach(l => { ctx.fillText(l, fx + M, y); y += sp(apx); });
   }
+  if (o.hmsa) drawHmsaBadge(ctx, o.hmsa.b, jcPx(6), fx + M, H - M - jcPx(6), 'left');                  // HMSA badge at the foot of the front panel
   ctx.fillStyle = th.bg; ctx.fillRect(0, 0, fx, H);                         // rear tab and spine in the theme colour
   const side = (cx, t, px0, bold) => { if (!t) return; ctx.save(); ctx.translate(cx, H / 2); ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = th.fg;
     let px = px0; ctx.font = jcFont(px, bold); while (px > 18 && ctx.measureText(t).width > H - jcPx(6)) { px -= 2; ctx.font = jcFont(px, bold); } ctx.fillText(t, 0, 0); ctx.restore(); };
@@ -3098,17 +3127,18 @@ function jcTrackList(ctx, rows, x, y, w, h, fg) {
     if (r.time) { ctx.textAlign = 'right'; ctx.fillText(r.time, cx + f.colW, cy); ctx.textAlign = 'left'; }
   });
 }
-function drawJSticker(cv, o) {                                              // 3:4 (width:height) with rounded corners; on a white page, so the corners stay white
-  const W = jcPx(o.wmm), H = Math.round(W * 4 / 3), ctx = cv.getContext('2d'), th = jcTheme(o), R = Math.round(W * .08);
+function drawJSticker(cv, o) {                                              // 7:12 (width:height) with rounded corners; on a white page, so the corners stay white
+  const W = jcPx(o.wmm), H = Math.round(W * 60 / 35), ctx = cv.getContext('2d'), th = jcTheme(o), R = Math.round(W * .08);
   cv.width = W; cv.height = H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
   ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, W, H, R); ctx.clip(); ctx.fillStyle = th.bg; ctx.fillRect(0, 0, W, H); ctx.textBaseline = 'top';
   const M = Math.round(W * .07); let y = M;
-  if (o.img) { const s = W - 2 * M; jcCover(ctx, o.img, M, y, s, s * .85); y += s * .85 + M * .8; }
+  if (o.img) { const s = W - 2 * M, ih = s; jcCover(ctx, o.img, M, y, s, ih); y += ih + M * .8; }
   const tw = W - 2 * M; ctx.textAlign = 'center'; const tpx = Math.round(W * .085), apx = Math.round(tpx * .78);
   const tl = jcWrap(ctx, o.title, tpx, true, 2, tw), al = jcWrap(ctx, o.artist, apx, false, 2, tw);
   ctx.fillStyle = th.fg; ctx.font = jcFont(tpx, true); tl.forEach(l => { ctx.fillText(l, W / 2, y); y += Math.round(tpx * 1.18); });
   ctx.fillStyle = th.sub; ctx.font = jcFont(apx, false); al.forEach(l => { ctx.fillText(l, W / 2, y); y += Math.round(apx * 1.18); });
   ctx.textBaseline = 'alphabetic'; ctx.fillStyle = th.fg; ctx.font = jcFont(Math.round(W * .06), true); ctx.textAlign = 'left';
+  if (o.hmsa) drawHmsaBadge(ctx, o.hmsa.b, Math.round(W * .085), W / 2, H - M * .9 - Math.round(W * .06) - Math.round(W * .13) - jcPx(5), 'center');
   if (o.footer) ctx.fillText(o.footer, M, H - M * .9);
   if (o.date) { ctx.textAlign = 'right'; ctx.font = jcFont(Math.round(W * .06), false); ctx.fillStyle = th.sub; ctx.fillText(o.date, W - M, H - M * .9); }
   ctx.restore(); ctx.strokeStyle = '#bbb'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(1, 1, W - 2, H - 2, R); ctx.stroke();
@@ -3148,8 +3178,8 @@ function openJCards() {
   const theme = sel([['cover', 'Colour taken from the cover'], ['dark', 'Dark blue'], ['light', 'White (saves ink)']], 'cover');
   const textOnFront = el('input', { type: 'checkbox', checked: !dCover });
   const paper = sel([['a4', 'Paper: A4'], ['letter', 'Paper: Letter']], 'a4'); try { const p = localStorage.getItem('jcPaper'); if (p) paper.value = p; } catch (e) { /* no storage */ }
-  const stickW = el('input', { type: 'number', min: 20, max: 90, step: 1, value: 45, style: field + ';max-width:90px' });
-  const useF = el('input', { type: 'checkbox', checked: true }), useExt = el('input', { type: 'checkbox', checked: true }), useS = el('input', { type: 'checkbox', checked: true });
+  const stickW = el('input', { type: 'number', min: 20, max: 90, step: 1, value: 35, style: field + ';max-width:90px' });
+  const hmsa = hmsaBadge(), useHmsa = el('input', { type: 'checkbox', checked: true, title: hmsa ? ('HMSA ' + hmsa.b).trim() : '' }), useF = el('input', { type: 'checkbox', checked: true }), useExt = el('input', { type: 'checkbox', checked: true }), useS = el('input', { type: 'checkbox', checked: true });
   const useImg = el('input', { type: 'checkbox', checked: !!dCover, disabled: !dCover }), useTime = el('input', { type: 'checkbox', checked: true }), useHeads = el('input', { type: 'checkbox', checked: true });
   const opt = (box, text) => el('label', { style: 'display:flex;gap:7px;align-items:center;cursor:pointer' }, box, el('span', { textContent: text }));
   const cvF = el('canvas'), cvS = el('canvas'); [cvF, cvS].forEach(c => { c.style.cssText = 'border:1px solid var(--line);background:#fff;max-width:100%;height:auto;flex:none'; });
@@ -3163,8 +3193,8 @@ function openJCards() {
     return out;
   };
   const total = () => { const s = Math.round((d.tracks || []).reduce((a, t) => a + (t.seconds || 0), 0)); return !s ? '' : s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') : lt(s); };
-  const sw = () => Math.max(20, Math.min(90, +stickW.value || 45));
-  const base = () => ({ theme: theme.value, img: useImg.checked ? img : null, title: title.value.trim(), artist: artist.value.trim(), footer: footer.value.trim() });
+  const sw = () => Math.max(20, Math.min(90, +stickW.value || 35));
+  const base = () => ({ theme: theme.value, img: useImg.checked ? img : null, title: title.value.trim(), artist: artist.value.trim(), footer: footer.value.trim(), hmsa: useHmsa.checked ? hmsa : null });
   const redraw = () => {
     drawJFront(cvF, { ...base(), showText: textOnFront.checked, total: total(), extended: useExt.checked, rows: rows() });
     drawJSticker(cvS, { ...base(), wmm: sw(), date: dateIn.value.trim() });
@@ -3177,7 +3207,7 @@ function openJCards() {
     const ext = useExt.checked, jw = ext ? 150.5 : 84.5, PW = paper.value === 'letter' ? 215.9 : 210, m = 12, G = 10, items = [], w = sw(); let x = m, y = m, rowH = 0;
     const put = (cv, pw, ph, folds) => { if (x + pw > PW - m && x > m) { x = m; y += rowH + G; rowH = 0; } items.push({ data: jpg(cv, q), wpx: cv.width, hpx: cv.height, x, y, w: pw, h: ph, folds }); x += pw + G; rowH = Math.max(rowH, ph); };
     if (useF.checked) put(cvF, jw, 73, ext ? [11, 16.5, 84.5] : [11, 16.5]);
-    if (useS.checked) put(cvS, w, w * 4 / 3, []);
+    if (useS.checked) put(cvS, w, w * 60 / 35, []);
     return items;
   };
   const pageCode = () => paper.value;                                        // 'a4' or 'letter'
@@ -3220,14 +3250,14 @@ function openJCards() {
       el('div', { style: 'display:grid;gap:10px;justify-items:start;flex:1 1 440px;min-width:0' }, cvF, el('div', { style: 'display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap' }, cvS)),
       el('div', { style: 'display:grid;gap:8px;flex:1 1 260px;min-width:0' },
         opt(useF, 'J-card for the slim case: 84.5 × 73 mm (tab 11, spine 5.5, front 68)'), opt(useExt, 'Bi-fold: add a fold-out panel (150.5 × 73 mm) with the track list'), el('div', { style: 'display:flex;gap:8px;align-items:center' }, opt(useS, 'Disc sticker, width (mm):'), stickW),
-        title, artist, footer, dateIn, theme, paper, opt(useImg, 'Use the album art'), opt(textOnFront, 'Title and artist on the front panel'), opt(useTime, 'Show track times'),
+        title, artist, footer, dateIn, theme, paper, opt(useImg, 'Use the album art'), opt(textOnFront, 'Title and artist on the front panel'), opt(useTime, 'Show track times'), hmsa ? opt(useHmsa, 'Show the HMSA badge') : '',
         groups.length ? opt(useHeads, 'Group names as headings in the track list') : '',
         el('div', { className: 'notice', textContent: 'Print at 100 % (actual size), not “fit to page”. Paper 120–160 g/m² suits a J-card. Cut on the corner marks, fold on the short marks at the top and bottom.' }))),
     el('div', { style: 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px' }, printBtn, savePdf, savePng, onDisc, offDisc),
     el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
   floatSheet(true);
   [title, artist, footer, dateIn, stickW].forEach(i => i.addEventListener('input', redraw));
-  [theme, textOnFront, useF, useExt, useS, useImg, useTime, useHeads].forEach(i => i.addEventListener('change', redraw));
+  [theme, textOnFront, useF, useExt, useS, useImg, useTime, useHeads, useHmsa].forEach(i => i.addEventListener('change', redraw));
   redraw(); loadImg(dCover).then(im => { img = im; if (!im) { useImg.checked = false; useImg.disabled = true; } redraw(); });
 }
 $('printJCard').addEventListener('click', openJCards);
@@ -3947,7 +3977,7 @@ const helpText = () => ({
   jcard: ['Disc J-Cards', [
     ['Make J-cards', [
       "Draws the paper parts of a MiniDisc case for the loaded disc, to print on an ordinary printer. Nothing is written to the disc or the recorder.",
-      "• Press “Make J-cards…”. Previews appear of two pieces: the J-card for the slim case that blank and recordable discs come in, and a disc sticker (3:4, width of your choice). The J-card is laid out left to right as an 11 mm rear tab, a 5.5 mm spine (title on its side) and a 68 mm front panel with the album art: 84.5 × 73 mm unfolded. Tick “Bi-fold” to add a 66 mm fold-out panel (150.5 × 73 mm in all) that carries the track list with times and the total.",
+      "• Press “Make J-cards…”. Previews appear of two pieces: the J-card for the slim case that blank and recordable discs come in, and a disc sticker (7:12, width of your choice). The J-card is laid out left to right as an 11 mm rear tab, a 5.5 mm spine (title on its side) and a 68 mm front panel with the album art: 84.5 × 73 mm unfolded. Tick “Bi-fold” to add a 66 mm fold-out panel (150.5 × 73 mm in all) that carries the track list with times and the total.",
       "• The title, artist and footer text (for example “MiniDisc · ATRAC · SP”) start from what is on the disc; change them and the previews follow. Choose the colour (from the cover, dark blue or white to save ink), whether the title goes on the front panel, and A4 or Letter paper.",
       "• Untick any piece you do not need.",
     ]],

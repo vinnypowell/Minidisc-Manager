@@ -1,0 +1,23 @@
+/* Disc Stickers: J-card sticker size, cut line, HMSA badge (0.42.0). Rows: [english, français, Deutsch, Nederlands]. Draft. */
+I18N.add([
+  ["J-card disc sticker (7:12, 35 × 60 mm)",
+   "Autocollant de disque J-card (7:12, 35 × 60 mm)",
+   "J-Card-Disc-Aufkleber (7:12, 35 × 60 mm)",
+   "J-card-discsticker (7:12, 35 × 60 mm)"],
+  ["Show the HMSA badge",
+   "Afficher le badge HMSA",
+   "HMSA-Abzeichen anzeigen",
+   "HMSA-badge tonen"],
+  ["Thin cut line around the sticker (35 × 60 mm size only)",
+   "Fin trait de découpe autour de l’autocollant (format 35 × 60 mm uniquement)",
+   "Dünne Schnittlinie um den Aufkleber (nur Größe 35 × 60 mm)",
+   "Dunne snijlijn rond de sticker (alleen formaat 35 × 60 mm)"],
+  ["Portrait (2 × 3 in)",
+   "Portrait (2 × 3 po)",
+   "Hochformat (2 × 3 Zoll)",
+   "Staand (2 × 3 inch)"],
+  ["Landscape (3 × 2 in)",
+   "Paysage (3 × 2 po)",
+   "Querformat (3 × 2 Zoll)",
+   "Liggend (3 × 2 inch)"],
+]);
