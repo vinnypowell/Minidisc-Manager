@@ -17,6 +17,9 @@ DEFAULTS = {
     'spatialBinaural': True,             # a track with a spatial version on the disc plays that version here, rendered for headphones; off: the stereo track plays
     'spatialTvSurround': False,          # a spatial track played on a Google TV goes there as Dolby Digital Plus 5.1 SOUND (a soundbar then plays real surround, but that TV shows no picture); off: the stereo lyric video
     'spatialTvLyrics': True,             # with 5.1 surround on a Google TV, a track that has timed lyrics shows the lyric screen (the sound is the same 5.1); off: the still picture
+    'spatialTvGapless': True,            # with 5.1 on a Google TV, the tracks that follow in the album are joined into one video so there is no pause between tracks (the first start waits while the whole album is read from the disc); off: each track is sent on its own
+    'sonosQueue': True,                  # a Sonos room is told which track comes next, so it carries on by itself with no pause between tracks; off: each track is started when the last one ends
+    'spatialTvHls': True,                # EXPERIMENT: the album goes to a Google TV as a growing HLS stream, so it starts after the first track while the rest is read and added; if the TV refuses it the finished-file album is used
     'tvFont':'Arial',             # the typeface of the lyric screens on a Google TV (one of lyricvideo.TV_FONTS); the only setting that is a name, not on / off
     'allowPatch': True,                # a Hi-MD recorder in standard-disc mode (MZ-NH700...) may be given the temporary firmware patch that lets it send a track back (playback, save, identify, clone...); off: never, it is played by remote control
     'rememberLayout': True,              # the card places, sizes and hidden cards are kept between runs; off: the app always opens in the stock layout

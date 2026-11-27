@@ -130,6 +130,7 @@ class PlayMixin:
         if not os.path.isdir(PLAY_DIR):
             return
         keep = {keep} if isinstance(keep, str) else set(keep or ())
+        keep |= set(getattr(self, '_pin', None) or ())            # the track a Sonos room is playing and the one queued after it (see tv_album.py)
         for f in os.listdir(PLAY_DIR):
             if f not in keep:
                 try:

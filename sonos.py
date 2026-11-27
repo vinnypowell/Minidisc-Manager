@@ -178,6 +178,14 @@ class Speaker:
               % (html.escape(url, quote=False), html.escape(_didl(title, url, mime), quote=False)))
         _soap(self.ip, AVT, 'Play', '<InstanceID>0</InstanceID><Speed>1</Speed>')
 
+    def set_next(self, url, title, mime):
+        """Tells the room which track to carry on with by itself when this one ends (no pause between the two)."""
+        _soap(self.ip, AVT, 'SetNextAVTransportURI', '<InstanceID>0</InstanceID><NextURI>%s</NextURI><NextURIMetaData>%s</NextURIMetaData>'
+              % (html.escape(url, quote=False), html.escape(_didl(title, url, mime), quote=False)))
+
+    def next_uri(self):
+        return _tag(_soap(self.ip, AVT, 'GetMediaInfo', '<InstanceID>0</InstanceID>', timeout=3), 'NextURI')
+
     def play(self):
         _soap(self.ip, AVT, 'Play', '<InstanceID>0</InstanceID><Speed>1</Speed>')
 

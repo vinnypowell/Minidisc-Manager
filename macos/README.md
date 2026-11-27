@@ -1,9 +1,9 @@
 # MiniDisc Manager for macOS (beta)
 
-Version 0.42.0 (beta) · for Macs with Apple silicon (M1 or newer), macOS 13 or newer.
+Version 0.43.0 (beta) · for Macs with Apple silicon (M1 or newer), macOS 13 or newer.
 
 This folder is the Mac version of MiniDisc Manager: the same program as the Windows version in the main folder, adapted for macOS.
-The download is the `.dmg` on the Releases page (`MiniDisc-Manager-0.42.0-beta-mac-arm64.dmg`).
+The download is the `.dmg` on the Releases page (`MiniDisc-Manager-0.43.0-beta-mac-arm64.dmg`).
 
 ## What is different on the Mac
 

@@ -19,6 +19,7 @@ from mdm_paths import APPDATA, FFMPEG_EXE, HERE, PLAY_DIR, h264_args, ui_font
 
 
 class CastMixin:
+    _tv_hls_failed = False        # the TV refused the growing album stream once: use the finished-file album for the rest of this run
     def _cast_init(self):
         self._cast_server = None       # a second media server, on this PC's network address, while a Sonos room is being played to
         self._cast_ip = None
@@ -318,6 +319,90 @@ class CastMixin:
             self.log('surround lyric video failed: %s' % exc)
             return None
 
+    def _album_result(self, st):
+        """The TV counts the whole album video; the page counts tracks. Where the TV is, as a track number and a position inside that track."""
+        alb = self._album
+        n, sec, dur = self._album_where(alb, st['seconds'])
+        # off: where the current track starts inside the file the visualiser copy plays (a finished album has one copy of everything, a growing stream one per track)
+        return {'seconds': int(sec), 'duration': int(dur), 'album': {'track': n, 'off': 0 if alb.get('hls') else alb['offs'][n]}, 'viz': (alb.get('viz') or {}).get(n)}
+
+    def _cast_album(self, dev, ip, number, seconds, chain, mine, t0):
+        """Plays track `number` (and the tracks after it, `chain`) on the TV as ONE continuous video. A video made earlier that holds these tracks is reused: the
+        TV just moves to the track. Returns the answer for the page, {'superseded': True}, or None when the album cannot be made (the track then plays alone)."""
+        numbers = [number] + [n for n in chain if n != number]
+        try:
+            self._ensure_server()
+            if not self._album_reusable(numbers):
+                tb, alb = time.time(), None
+                if self._app_setting('spatialTvHls') and not self._tv_hls_failed:        # experiment: the TV starts after the first track, the rest is added while it plays
+                    try:
+                        alb = self._album_hls_start(numbers, mine)
+                        if alb is None or mine != self._cast_seq:
+                            return {'superseded': True}
+                        self.log('cast: album stream (HLS) of %d tracks started after %.1fs' % (len(numbers), time.time() - tb))
+                    except Exception as exc:
+                        self.log('cast: album stream (HLS) not used (%s), making the whole album first' % exc)
+                        self._lv_stop()
+                        alb = None
+                if alb is None:
+                    alb = self._album_build(numbers, mine)
+                    if alb is None or mine != self._cast_seq:
+                        return {'superseded': True}
+                    self.log('cast: album video of %d tracks (%.0f min) made in %.1fs' % (len(numbers), alb['total'] / 60, time.time() - tb))
+                self._album = alb
+            alb = self._album
+            lan = sonos.local_ip_towards(ip)
+            self._ensure_cast_server(lan)
+            url = 'http://%s:%d/%s/%s' % (lan, self._cast_port, self._token, alb['name'])
+            pos = alb['offs'][number] + max(0.0, seconds)
+            cur = dev.status()
+            track = dict(next((t for t in self._tracks if t['number'] == number), None) or {})
+            tq = time.time()
+            started = False
+            if cur['uri'] == url and cur['state'] in ('playing', 'paused'):      # already playing this album: only move to the track
+                dev.control('seek', pos)
+                if cur['state'] == 'paused':
+                    dev.control('play')
+            else:
+                hls = bool(alb.get('hls'))
+                if not hls:
+                    self._lv_stop()
+                album = ((track.get('album') + '  ·  ') if track.get('album') else '') + 'Spatial 5.1 (Dolby Digital Plus), played straight through'
+                try:
+                    dev.play_url(url, track.get('title'), 'application/x-mpegurl' if hls else 'video/mp4', track.get('artist'), album, video=True,
+                                 source=self._recorder_name or None, confirm=True, start=pos)
+                except chromecast.CastError as exc:
+                    if not hls:
+                        raise
+                    self._tv_hls_failed = True                                          # this TV will not take the stream: the finished-file album from now on
+                    self.log('cast: the TV did not play the album stream (%s); making the whole album first' % exc)
+                    self._lv_stop()
+                    self._album = None
+                    return self._cast_album(dev, ip, number, seconds, chain, mine, t0)
+                started = True
+            self._album_on = alb['name']
+            self._cast_last = {'ip': ip, 'prefix': 'http://%s:%d/' % (lan, self._cast_port), 'cast': True}
+            self.log('cast (Google Cast) play track %d (album video, straight through): ready after %.1fs, TV %s in %.1fs' % (
+                number, tq - t0, 'started' if started else 'moved', time.time() - tq))
+            st = dev.status()
+            out = {'result': {'state': st['state'], 'track': number - 1, 'seconds': int(max(0.0, seconds)), 'duration': int(alb['durs'][number])}}
+            if st['state'] != 'ready' and st['uri'].endswith('/' + alb['name']):
+                res = self._album_result(st)
+                res.pop('viz', None)
+                out['result'].update(res)
+            else:
+                out['result']['album'] = {'track': number, 'off': 0 if alb.get('hls') else alb['offs'][number]}
+            viz = (alb.get('viz') or {}).get(number) if alb.get('hls') else alb.get('viz_url')
+            if viz:
+                out['viz_url'] = viz
+            return out
+        except chromecast.CastError:
+            raise
+        except Exception as exc:
+            self.log('cast: album video not used (%s), playing the track on its own' % exc)
+            self._album_on = None
+            return None
+
     def _caption(self):
         """The small line at the bottom of the TV picture: the recorder and the kind of disc, e.g. 'MZ-NH700 - Playing an SP disc'."""
         name = self._recorder_name or ''
@@ -376,8 +461,8 @@ class CastMixin:
         self._cast_devices()
         return ip in self._cast_tvs
 
-    def _cast_to_device(self, action, device_index, track_index, seconds, ip):
-        """Same contract as cast(), for a Google Cast device."""
+    def _cast_to_device(self, action, device_index, track_index, seconds, ip, chain=None):
+        """Same contract as cast(), for a Google Cast device. chain: the track numbers that follow this one in the album (see tv_album.py)."""
         try:
             dev = chromecast.Device(ip)
             viz_url = None
@@ -387,6 +472,11 @@ class CastMixin:
                 tr0 = next((t for t in self._tracks if t['number'] == int(track_index) + 1), None) or {}
                 r = None
                 surround = bool(tr0.get('spatial')) and bool(self._app_setting('spatialTvSurround')) and not getattr(self, '_loaded_netmd', False)
+                if surround and chain and self._app_setting('spatialTvGapless'):
+                    out = self._cast_album(dev, ip, int(track_index) + 1, float(seconds or 0), [int(x) for x in chain], mine, t0)
+                    if out is not None:                                          # None: the album could not be made, so this track plays alone as before
+                        return out
+                self._album_on = None
                 if surround:
                     early = {}                                                       # the TV's files, started the moment the disc read is over (while the headphone picture renders)
                     tr_e = dict(tr0)
@@ -473,6 +563,9 @@ class CastMixin:
             elif action in ('pause', 'resume', 'stop', 'seek'):
                 if action == 'stop':
                     self._lv_stop()
+                    self._album_on = None
+                if action == 'seek' and self._album_on and self._album and self._album['name'] == self._album_on:
+                    seconds = float(seconds) + self._album['offs'].get(int(track_index) + 1, 0.0)        # the TV counts the whole album; the page counts the track
                 base = getattr(self, '_lv_base', 0.0)
                 if action == 'seek' and base and float(seconds) < base:             # before where the remade video starts: remake it from there
                     r = self._lv_restart(at=float(seconds))
@@ -486,6 +579,12 @@ class CastMixin:
             base = getattr(self, '_lv_base', 0.0)                                    # the TV counts a remade video from 0; the page counts the track
             out = {'result': {'state': st['state'], 'track': int(track_index), 'seconds': st['seconds'] + int(base) if st['state'] != 'ready' else 0,
                               'duration': st['duration'] + int(base) if st['duration'] > 0 else st['duration']}}
+            if self._album_on and self._album and st['state'] != 'ready' and st['uri'].endswith('/' + self._album_on):
+                res = self._album_result(st)
+                viz = res.pop('viz', None)
+                out['result'].update(res)
+                if viz:
+                    out['viz_url'] = viz                            # the TV passed into another track: its silent copy for the visualiser
             if viz_url:
                 out['viz_url'] = viz_url
             return out
@@ -544,10 +643,10 @@ class CastMixin:
         self._cast_ip, self._cast_port = lan_ip, self._cast_server.server_address[1]
         threading.Thread(target=self._cast_server.serve_forever, daemon=True).start()
 
-    def cast(self, action, device_index, track_index, seconds, ip):
+    def cast(self, action, device_index, track_index, seconds, ip, chain=None):
         """Controls the Sonos room whose coordinator is at `ip`. Answers like remote(): {'result': {state, track, seconds}}."""
         if self._is_cast_device(ip):
-            return self._cast_to_device(action, device_index, track_index, seconds, ip)
+            return self._cast_to_device(action, device_index, track_index, seconds, ip, chain)
         try:
             sp = sonos.Speaker(ip)
             if action == 'play':
@@ -573,11 +672,15 @@ class CastMixin:
                         break
                     time.sleep(0.4)
                 self.log('cast play track %d: track ready after %.1fs, speaker told in %.1fs, speaker started %.1fs later' % (int(track_index) + 1, t1 - t0, t2 - t1, time.time() - t2))
+                self._sq, self._pin = None, set()
+                if chain and self._app_setting('sonosQueue'):                       # the following tracks are queued one at a time so the room never stops between them
+                    self._sonos_queue_start(mine, ip, device_index, int(track_index) + 1, name, [int(x) for x in chain])
             elif action == 'pause':
                 sp.pause()
             elif action == 'resume':
                 sp.play()
             elif action == 'stop':
+                self._sq = None
                 sp.stop()
             elif action == 'seek':
                 sp.seek(seconds)
@@ -587,6 +690,11 @@ class CastMixin:
             out = {'result': {'state': st['state'], 'track': int(track_index), 'seconds': st['seconds'], 'duration': st['duration']}}
             if action == 'play':
                 out['viz_url'] = r['url']                      # the window runs a silent copy of this track so its visualizer keeps moving
+            elif self._sq and self._sq['ip'] == ip and self._sq['mine'] == self._cast_seq:
+                res, viz = self._sonos_queue_check(sp, self._sq, st)       # the room may have moved on to the queued track by itself
+                out['result'].update(res)
+                if viz:
+                    out['viz_url'] = viz
             return out
         except sonos.SonosError as exc:
             return {'error': str(exc)}
@@ -595,6 +703,7 @@ class CastMixin:
         """Stops the room this app was playing to - but only if it is still playing one of our tracks, never something else."""
         last = self._cast_last
         self._lv_stop()
+        self._album_on = None
         if not last:
             return False
         try:

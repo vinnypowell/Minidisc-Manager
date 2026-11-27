@@ -550,7 +550,9 @@
 <script src="lang_p17.js"></script>
 <script src="lang_es_p17.js"></script>
 <script src="lang_p18.js"></script>
+<script src="lang_p19.js"></script>
 <script src="lang_es_p18.js"></script>
+<script src="lang_es_p19.js"></script>
 <script>
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -1261,7 +1263,7 @@ async function load(noSync) {
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
 // App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
-let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, spatialTvLyrics: true, tvFont: 'Segoe UI', autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true, suggestPopout: true };
+let appSettings = { allowPatch: true, spatialBinaural: true, spatialTvSurround: false, spatialTvLyrics: true, spatialTvGapless: true, spatialTvHls: true, sonosQueue: true, tvFont: 'Segoe UI', autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true, rememberLayout: true, checkUpdates: true, suggestPopout: true };
 async function appSettingsLoad() {
   try {
     let s = await api().get_app_settings();
@@ -1297,6 +1299,9 @@ function openSettings() {
     ['spatialBinaural', 'Play the spatial version of a track with headphone surround', 'A track that was added with a spatial (multichannel) version plays that version in this window, mixed down for headphones. The recorder and the Sonos rooms always play the normal stereo track. Switched off: the stereo track plays here too.'],
     ['spatialTvSurround', 'Play a spatial track on a Google TV as 5.1 surround', 'A track that has a spatial version is sent to a Google TV as Dolby Digital Plus 5.1 sound, which the TV passes to a soundbar or receiver for real surround. The sound is prepared first (a few seconds). The TV shows the track’s timed lyrics (see the next setting), or a still picture of the track (cover, title, artist) when it has none. Switched off: the TV gets the normal stereo lyric video. Sonos rooms always get stereo.'],
     ['spatialTvLyrics', 'Show the lyrics on a Google TV during 5.1 surround', 'While a spatial track plays as 5.1 surround on a Google TV, the TV shows the track’s cover, title and timed lyrics, with the same 5.1 sound. It needs timed lyrics for the track; without them the TV shows the still picture. Switched off: always the still picture. The Lyrics button in the player bar switches this too, and restarts the playing track on the TV from the same place. (The surround display and the track time are not drawn on this screen.)'],
+    ['spatialTvGapless', 'Play an album straight through on a Google TV, with no pause between tracks', 'While 5.1 surround plays on a Google TV, the tracks that follow are joined into one continuous stream, so the sound runs from one track into the next with no gap (a recording that flows from track to track stays gapless). The tracks stay separate in the list and the TV still shows each track’s own lyrics; track numbers and marks are not changed. Switched off: each track is sent on its own, which starts sooner but pauses for several seconds between tracks. Only used when the Play mode is Play on or Stay in group.'],
+    ['spatialTvHls', 'Start the album on a Google TV after the first track', 'The TV starts as soon as the first track is ready, and the other tracks are read and added to the same continuous stream while it plays, still with no gap between tracks. The TV cannot skip ahead to a track that has not been added yet. Switched off, or if your TV will not take this kind of stream (the program then says so in the log), the whole rest of the album is read from the disc first (about half a minute per track, once) and sent as one finished video. Needs the setting above.'],
+    ['sonosQueue', 'Play on without a pause between tracks on a Sonos room', 'While a track plays on a Sonos room, the next one is read from the disc and handed to the room, which then moves on by itself the moment the track ends. A recording that flows from one track into the next stays gapless (the room itself decides how clean the join is; it is best with PCM and ATRAC3plus tracks). Switched off: each track is started only after the last one has ended, which leaves a pause. Used when the Play mode is Play on or Stay in group.'],
     ['allowPatch', 'Allow the experimental firmware patch (MZ-NH700 and similar recorders)', 'Lets a Hi-MD recorder that holds a standard disc send its audio back to this PC, so tracks can play here, be saved, identified, split, combined or cloned. The patch is a small temporary change in the recorder’s memory (nothing is written to the disc or the recorder’s permanent memory) and unplugging the recorder clears it. Switched off: the patch is never used, and tracks without a saved copy can only be played on the recorder by remote control.'],
     ['checkUpdates', 'Tell me when a new version is available', 'Once a day the program asks this project’s page on GitHub which version is the newest, and shows a small notice if yours is older. Nothing about you or your computer is sent, and nothing is downloaded or installed by itself. Help > Check for updates asks straight away.'],
     ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, or has no name, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
@@ -1802,6 +1807,12 @@ function remoteApply(r) {
     const t = trackMap.get(res.track + 1); nowNum = t.number;
     $('npTitle').textContent = t.number + '. ' + (t.title === '(untitled)' ? 'Untitled' : t.title); $('ttot').textContent = len(t.seconds);
   }
+  remote.albumOff = res.album ? res.album.off : 0;                    // where the current track starts inside the TV's album video (0: a single track)
+  if (castTarget && res.album && res.album.track !== nowNum && trackMap.has(res.album.track)) {      // the album video passed into its next track
+    const t = trackMap.get(res.album.track); nowNum = t.number;
+    $('npTitle').textContent = t.number + '. ' + (t.title === '(untitled)' ? 'Untitled' : t.title); $('ttot').textContent = len(t.seconds);
+    remote.base = res.seconds; remote.at = performance.now(); remote.lastTrack = 0;
+  }
   // The recorder reports whole seconds and its answer arrives a moment late: only step back if it is clearly behind.
   const ahead = remoteNow() - res.seconds, sameTrack = !remote.lastTrack || remote.lastTrack === nowNum;
   if (!(sameTrack && ahead > 0 && ahead < 2 && remote.state === 'playing')) { remote.base = res.seconds; remote.at = performance.now(); }
@@ -1815,12 +1826,27 @@ function remoteApply(r) {
     if (!advance()) { nowNum = 0; markNow(); $('player').classList.add('hidden'); }
   }
 }
+// Gapless 5.1 on a Google TV: the tracks that follow this one (as the Play mode would play them) and also have a spatial version go to the TV in the same video.
+function albumChain(t) {
+  if (!t || !t.spatial || netmd || !castTarget || castTarget.kind !== 'cast' || appSettings.spatialTvSurround !== true || appSettings.spatialTvGapless === false || playMode === 'shuffle') return [];
+  const scope = playMode === 'group' ? scopeOf(t.number) : [...trackMap.values()].filter(isPlayable).sort((a, b) => a.number - b.number);
+  const out = [];
+  for (const x of scope.filter(x => x.number > t.number)) { if (!x.spatial) break; out.push(x.number); }
+  return out;
+}
+function castChain(t) {                                                          // the tracks that follow this one, for the room / TV to carry on with by itself
+  if (!t || !castTarget) return [];
+  if (castTarget.kind === 'cast') return albumChain(t);
+  if (appSettings.sonosQueue === false || playMode === 'shuffle') return [];
+  const scope = playMode === 'group' ? scopeOf(t.number) : [...trackMap.values()].filter(isPlayable).sort((a, b) => a.number - b.number);
+  return scope.filter(x => x.number > t.number).map(x => x.number);
+}
 async function remoteRequest(action, index, seconds) {
   // A Sonos room only ever plays the track we sent it, so every command after 'play' names that track (the status checks pass 0).
   if (castTarget && action === 'play') {                               // the TV's lyric video draws the visualizer chosen here, as it is when this track starts
     try { await api().cast_viz(/^surround/.test(vizSet.style) ? 'bars' : vizSet.style, vizSet.color, vizSet.gain, false, vizSet.peaks, vizAccentNow()); } catch (e) { /* the TV just gets no display */ }
   }
-  return castTarget ? api().cast(action, current, action === 'play' ? index : nowNum - 1, seconds, castTarget.ip) : api().remote(action, index, seconds);
+  return castTarget ? api().cast(action, current, action === 'play' ? index : nowNum - 1, seconds, castTarget.ip, action === 'play' ? castChain(trackMap.get(index + 1)) : []) : api().remote(action, index, seconds);
 }
 async function remoteCall(action, index, seconds) {
   remote.busy = true;
@@ -1828,7 +1854,7 @@ async function remoteCall(action, index, seconds) {
     const r = await remoteRequest(action, index, seconds);
     if (!(r && r.superseded)) {                                    // a newer track was chosen meanwhile: this answer is out of date
       remoteApply(r);
-      if (action === 'play' && castTarget && r && r.viz_url) vizShStart(r.viz_url);      // a TV: a silent copy here keeps the visualizer moving
+      if ((action === 'play' || action === 'status') && castTarget && r && r.viz_url && !(vizSh.on && vizSh.url === r.viz_url)) vizShStart(r.viz_url);      // a TV: a silent copy here keeps the visualizer moving (an album video has one copy for all its tracks)
     }
   } finally { remote.busy = false; }
 }
@@ -1848,9 +1874,20 @@ async function remotePlay(t, startAt = 0) {                                     
   $('seek').value = 0; $('tcur').textContent = '0:00'; $('ttot').textContent = len(t.seconds);
   const cold = netmd && !t.hasCopy && canExploitDev && !canFetchDev;          // read from the recorder first: a track that has not been read yet takes a while to start
   const sur = !!(castTarget && castTarget.kind === 'cast' && t.spatial && !netmd && appSettings.spatialTvSurround === true);
-  setStatus(sur ? 'Preparing 5.1 surround for the TV, it can take a few seconds to start…' : cold ? 'Reading this track from the recorder, it can take 15–20 seconds to start…' : 'Telling the recorder to play…', true);
+  const albumN = sur ? albumChain(t).length + 1 : 0;
+  if (albumN > 1) {                                                              // the whole rest of the album is read and joined first: say where it is
+    let part = '', pct = '';
+    window.onSpatialProgress = m => {
+      if (m.phase === 'album') { part = m.stage === 'build' ? 'Joining the album into one video for the TV' : 'Reading track ' + m.num + ' from the disc (' + m.i + ' of ' + m.n + ': tracks ' + m.first + ' to ' + m.last + ', the disc has ' + trackMap.size + ')'; pct = ''; }
+      else if (m.phase === 'read' && m.total) pct = ' ' + Math.round(100 * Math.min(1, (m.done || 0) / m.total)) + '%';
+      else return;
+      setStatus('Preparing the album for gapless 5.1 on the TV (the first start takes a while, later tracks are quick). ' + part + pct + '…', true);
+    };
+  }
+  setStatus(sur ? (albumN > 1 ? 'Preparing the album for gapless 5.1 on the TV (the first start takes a while, later tracks are quick)…' : 'Preparing 5.1 surround for the TV, it can take a few seconds to start…') : cold ? 'Reading this track from the recorder, it can take 15–20 seconds to start…' : 'Telling the recorder to play…', true);
   remote.state = 'ready'; remote.base = startAt; remote.lastTrack = 0; markNow();
   await remoteCall('play', t.number - 1, startAt);
+  if (albumN > 1) window.onSpatialProgress = null;
   if (remote.state === 'playing') remoteStartPolling();
   if (sur && remote.state === 'playing' && !sessionStorage.getItem('tvSurNote')) { try { sessionStorage.setItem('tvSurNote', '1'); } catch (e) { /* not kept */ } toast('Playing as 5.1 surround on the TV. It shows the timed lyrics when the track has them (the Lyrics button in the player bar switches that), otherwise a still picture.', false, 7000); }
   if (castTarget) { const v = await api().cast_volume(castTarget.ip); if (v.volume !== undefined) $('vol').value = v.volume; }
@@ -8403,12 +8440,13 @@ function vizShTick() {
   if (!vizSh.on) return;
   if (!(playingRemote && castTarget)) { vizShStop(); return; }
   const a = vizSh.el, want = remote.state === 'playing';
-  if (want && vizSh.url && (a.error || (a.ended && remoteNow() < (a.duration || 0) - 3)) && vizSh.fails < 5) {      // the silent copy broke or stopped early: load it again at the TV's position
-    vizSh.fails++; const p = remoteNow(); dbg('TV visualizer copy: reloading at ' + p.toFixed(1) + 's (try ' + vizSh.fails + ')');
+  const off = remote.albumOff || 0;                                  // an album video's silent copy holds every track: its clock is the album's
+  if (want && vizSh.url && (a.error || (a.ended && remoteNow() + off < (a.duration || 0) - 3)) && vizSh.fails < 5) {      // the silent copy broke or stopped early: load it again at the TV's position
+    vizSh.fails++; const p = remoteNow() + off; dbg('TV visualizer copy: reloading at ' + p.toFixed(1) + 's (try ' + vizSh.fails + ')');
     a.src = vizSh.url; a.addEventListener('loadedmetadata', () => { try { a.currentTime = p; } catch (e) { /* not seekable yet */ } a.play().catch(() => {}); }, { once: true }); a.load(); return;
   }
   if (want && a.paused) a.play().catch(() => {}); else if (!want && !a.paused) a.pause();
-  if (want) { const p = remoteNow(); if (Math.abs(a.currentTime - p) > 2) { try { a.currentTime = p; } catch (e) { /* not seekable yet */ } } }
+  if (want) { const p = remoteNow() + off; if (Math.abs(a.currentTime - p) > 2) { try { a.currentTime = p; } catch (e) { /* not seekable yet */ } } }
 }
 const vizPlaying = () => playingRemote ? (!!castTarget && vizSh.on && !!vizSh.el && !vizSh.el.paused) : !audio.paused;
 function vizColor(frac, i, n) {

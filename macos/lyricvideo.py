@@ -240,10 +240,11 @@ def _rgb(c):
     return (n >> 16) & 255, (n >> 8) & 255, n & 255
 
 
-def make_surround_mp4(ffmpeg, sound_path, out_path, title, artist, lines, offset, duration, cover_bytes=None, caption='', album='', note='', log=None, font=None):
+def make_surround_mp4(ffmpeg, sound_path, out_path, title, artist, lines, offset, duration, cover_bytes=None, caption='', album='', note='', log=None, font=None, frames=None):
     """The lyric picture for a 5.1 surround track: the same screen as the stereo lyric video (cover on the left, title / artist / album and the timed lyrics on
     the right) as an ordinary MP4 whose sound is the 5.1 file COPIED unchanged, so the surround is exactly as before. No visualizer or deck display (those
     are drawn frame by frame in Python); ffmpeg draws the lyrics from an ASS file, so a 4 minute track is done in well under its own length.
+    sound_path None + frames N: only the picture, exactly N frames (one track's part of the continuous album video; the album's sound is made separately).
     Returns True when out_path was written."""
     work = out_path + '.work'
     try:
@@ -262,8 +263,11 @@ def make_surround_mp4(ffmpeg, sound_path, out_path, title, artist, lines, offset
             graph, ai = '[0:v]null[b]', 1
         graph += ";[b]subtitles=lyrics.ass:fontsdir='%s',format=yuv420p[v]" % FONTS_DIR
         tmp = os.path.abspath(out_path + '.part')
-        cmd += ['-i', os.path.abspath(sound_path), '-filter_complex', graph, '-map', '[v]', '-map', '%d:a' % ai, '-shortest'] + h264_args(FPS, FPS * 2) + [
-                '-c:a', 'copy', '-f', 'mp4', '-movflags', '+faststart', tmp]
+        if sound_path:
+            cmd += ['-i', os.path.abspath(sound_path), '-filter_complex', graph, '-map', '[v]', '-map', '%d:a' % ai, '-shortest'] + h264_args(FPS, FPS * 2) + [
+                    '-c:a', 'copy', '-f', 'mp4', '-movflags', '+faststart', tmp]
+        else:
+            cmd += ['-filter_complex', graph, '-map', '[v]', '-frames:v', str(int(frames)), '-an'] + h264_args(FPS, FPS * 2) + ['-f', 'mp4', tmp]
         r = subprocess.run(cmd, cwd=work, capture_output=True, text=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         if r.returncode or not os.path.exists(tmp):
             if log:
@@ -388,3 +392,49 @@ class Job:
             self.feeder.stop()
         if self.proc and self.proc.poll() is None:
             self.proc.kill()
+
+
+def video_opts():
+    """The H.264 encoder options a Google TV accepts (the same as every other TV video here)."""
+    return h264_args(FPS, FPS * 2)
+
+
+def stream_surround_raw(ffmpeg, sink, title, artist, lines, offset, duration, cover_bytes, caption, album, note, log, font, frames, stop=None):
+    """One track's lyric screen as exactly `frames` raw yuv420p frames, handed to sink(bytes) as they are made (for the album that is made while it plays: the
+    frames go to the encoder that also gets the album's sound). Returns True when all the frames were delivered."""
+    import tempfile
+    work = tempfile.mkdtemp(prefix='mdm-lyr-')
+    try:
+        with open(os.path.join(work, 'lyrics.ass'), 'w', encoding='utf-8-sig') as f:
+            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes), caption, album, compact=False, note=note, font=font, note_bottom=True))
+        cmd = [ffmpeg, '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=%s:s=%dx%d:r=%d' % (BG, W, H, FPS)]
+        if cover_bytes:
+            with open(os.path.join(work, 'cover.img'), 'wb') as f:
+                f.write(cover_bytes)
+            cmd += ['-loop', '1', '-framerate', str(FPS), '-i', 'cover.img']
+            graph = '[1:v]scale=%d:%d:force_original_aspect_ratio=decrease[c];[0:v][c]overlay=%d:%d:shortest=1[b]' % (COVER, COVER, 60, TOP)
+        else:
+            graph = '[0:v]null[b]'
+        graph += ";[b]subtitles=lyrics.ass:fontsdir='%s',format=yuv420p[v]" % FONTS_DIR
+        cmd += ['-filter_complex', graph, '-map', '[v]', '-frames:v', str(int(frames)), '-an', '-f', 'rawvideo', '-pix_fmt', 'yuv420p', 'pipe:1']
+        p = subprocess.Popen(cmd, cwd=work, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        got = 0
+        try:
+            while True:
+                chunk = p.stdout.read(1 << 20)
+                if not chunk:
+                    break
+                if stop and stop():
+                    p.kill()
+                    return False
+                sink(chunk)
+                got += len(chunk)
+        finally:
+            p.stdout.close()
+            p.wait()
+        ok = got == int(frames) * W * H * 3 // 2
+        if not ok and log:
+            log('album lyric screen: %d of %d bytes made' % (got, int(frames) * W * H * 3 // 2))
+        return ok
+    finally:
+        shutil.rmtree(work, ignore_errors=True)

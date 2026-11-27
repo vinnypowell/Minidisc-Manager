@@ -170,8 +170,8 @@
   $('tvlOn').addEventListener('change', () => { tvlHold = Date.now() + 2500; post({ t: 'tvl', v: $('tvlOn').checked }); });  let lyrOff = 0;                                                    // seconds the lit line is shown early (+) or late (-); kept, and sent to the main window
   try { lyrOff = Number(localStorage.getItem('mdm.popLyrOff')) || 0; } catch (e) { /* not kept */ }
   function lyrOffSend() { $('lyrOffV').textContent = (lyrOff > 0 ? '+' : '') + lyrOff.toFixed(2) + ' s'; post({ t: 'lyrOff', v: lyrOff }); }
-  function lyrOffStep(d) { lyrOff = Math.max(-1.5, Math.min(1.5, Math.round((lyrOff + d) * 100) / 100)); try { localStorage.setItem('mdm.popLyrOff', String(lyrOff)); } catch (e) { /* not kept */ } lyrOffSend(); }
-  $('lyrMinus').addEventListener('click', () => lyrOffStep(-0.05)); $('lyrPlus').addEventListener('click', () => lyrOffStep(0.05));
+  function lyrOffStep(d) { lyrOff = Math.max(-5, Math.min(5, Math.round((lyrOff + d) * 100) / 100)); try { localStorage.setItem('mdm.popLyrOff', String(lyrOff)); } catch (e) { /* not kept */ } lyrOffSend(); }
+  $('lyrMinus').addEventListener('click', e => lyrOffStep(e.shiftKey ? -0.25 : -0.05)); $('lyrPlus').addEventListener('click', e => lyrOffStep(e.shiftKey ? 0.25 : 0.05));      // Shift: bigger steps
   $('lyrOn').addEventListener('change', () => { lyrOn = $('lyrOn').checked; try { localStorage.setItem('mdm.popLyrics', lyrOn ? '1' : '0'); } catch (e) { /* not kept */ } showLyr(); });
   function setLyrics(l) {
     const box = $('lyrLines');

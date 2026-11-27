@@ -269,7 +269,7 @@ class Device:
                 return
             sid = media['mediaSessionId']
             cmd = {'play': {'type': 'PLAY'}, 'pause': {'type': 'PAUSE'}, 'stop': {'type': 'STOP'},
-                   'seek': {'type': 'SEEK', 'currentTime': max(0, int(seconds)), 'resumeState': 'PLAYBACK_START' if media.get('playerState') == 'PLAYING' else 'PLAYBACK_PAUSE'}}[action]
+                   'seek': {'type': 'SEEK', 'currentTime': max(0.0, round(float(seconds), 2)), 'resumeState': 'PLAYBACK_START' if media.get('playerState') == 'PLAYING' else 'PLAYBACK_PAUSE'}}[action]
             c.ask(NS_MEDIA, transport, dict(cmd, mediaSessionId=sid))
         finally:
             c.close()
